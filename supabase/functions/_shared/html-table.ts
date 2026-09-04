@@ -111,9 +111,33 @@ function entityValue(body: string): string | null {
  * part par `footnoteRefs`, parce que c'est souvent elle qui explique la valeur.
  */
 export function cellText(html: string): string {
-  const withoutRefs = dropElements(html, "sup");
-  const withoutTags = stripTags(withoutRefs);
-  return decodeEntities(withoutTags).replace(/\s+/g, " ").trim();
+  return cellLines(html).join(" ");
+}
+
+/**
+ * Valeurs d'une cellule qui en contient PLUSIEURS.
+ *
+ * Constat du 05/09/2026 : la colonne « Saisons précédentes » empile deux à
+ * trois mentions séparées par des `<br>`. En retirant les balises sans rien
+ * mettre à la place, on obtenait « Vainqueur de la saison 9Éliminée le… » —
+ * une chaîne que personne ne peut redécouper, et qui aurait été importée
+ * telle quelle.
+ *
+ * Les frontières de bloc deviennent donc des séparations explicites, et
+ * `cellText` se contente de les recoller par une espace quand une seule valeur
+ * est attendue.
+ */
+export function cellLines(html: string): string[] {
+  // `<style>` d'abord : MediaWiki insère des blocs CSS DANS les cellules (les
+  // légendes colorées de la colonne « Tribu »). Sans ce retrait, le texte de
+  // la cellule commençait par « .mw-parser-output .legende-bloc-ce… ».
+  let cleaned = dropElements(html, "style");
+  cleaned = dropElements(cleaned, "script");
+  cleaned = dropElements(cleaned, "sup");
+  return stripTags(cleaned)
+    .split(BLOCK_MARKER)
+    .map((part) => decodeEntities(part).replace(/\s+/g, " ").trim())
+    .filter((part) => part.length > 0);
 }
 
 /** Identifiants des notes citées dans la cellule (`n° 2`, `12`…). */
@@ -155,7 +179,30 @@ function dropElements(html: string, tag: string): string {
   return out;
 }
 
-/** Retire les balises, garde le texte. */
+/** Séparateur interne, jamais présent dans du contenu Wikipédia. */
+const BLOCK_MARKER = "";
+
+/** Balises qui séparent deux valeurs plutôt que de continuer une phrase. */
+const BLOCK_TAGS = new Set([
+  "br",
+  "p",
+  "div",
+  "li",
+  "ul",
+  "ol",
+  "dd",
+  "dt",
+  "dl",
+  "hr",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+]);
+
+/** Retire les balises, garde le texte, et marque les frontières de bloc. */
 function stripTags(html: string): string {
   let out = "";
   let i = 0;
@@ -168,9 +215,20 @@ function stripTags(html: string): string {
     out += html.slice(i, lt);
     const gt = html.indexOf(">", lt);
     if (gt === -1) break;
+    const name = tagName(html.slice(lt + 1, gt));
+    if (BLOCK_TAGS.has(name)) out += BLOCK_MARKER;
     i = gt + 1;
   }
   return out;
+}
+
+/** Nom de balise en minuscules, ouvrante ou fermante. */
+function tagName(inner: string): string {
+  let j = 0;
+  if (inner[j] === "/") j += 1;
+  let end = j;
+  while (end < inner.length && /[a-zA-Z0-9]/.test(inner[end])) end += 1;
+  return inner.slice(j, end).toLowerCase();
 }
 
 /** Valeur entière d'un attribut, bornée. */

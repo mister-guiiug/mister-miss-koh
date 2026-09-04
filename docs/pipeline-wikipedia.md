@@ -3,7 +3,7 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **53 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> **78 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. C'est la seule partie du projet qui soit
 > vérifiée à ce jour — le SQL, lui, n'a pas pu être appliqué (Docker).
 
@@ -77,12 +77,15 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 ## Modules
 
-| Fichier            | Rôle                                                                      |
-| ------------------ | ------------------------------------------------------------------------- |
-| `mediawiki.ts`     | Client API : révision, sections, HTML d'une section, empreinte stable     |
-| `html-table.ts`    | HTML → grille développée (`rowspan`/`colspan`), sans dépendance           |
-| `extract-votes.ts` | Grille → tours, voix, statuts, anomalies                                  |
-| `diff.ts`          | Extrait + référentiel → différences classées, et ce qui est automatisable |
+| Fichier             | Rôle                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `mediawiki.ts`      | Client API : révision, sections, HTML d'une section, empreinte stable              |
+| `html-table.ts`     | HTML → grille développée (`rowspan`/`colspan`), sans dépendance                    |
+| `extract-votes.ts`  | Grille → tours, voix, statuts, anomalies                                           |
+| `extract-season.ts` | Grilles → candidats et épisodes (dates, épreuves, conseils)                        |
+| `parse-fr.ts`       | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation |
+| `cross-check.ts`    | Recoupement des trois tableaux entre eux                                           |
+| `diff.ts`           | Extrait + référentiel → différences classées, et ce qui est automatisable          |
 
 Trois pièges que les tests figent :
 
@@ -91,6 +94,57 @@ Trois pièges que les tests figent :
   contrôle, l'import conclurait « rien à changer » et le référentiel gèlerait ;
 - une section se cherche par son **titre**, jamais par son rang : sur cette
   page, l'index 3 rend « Nouveautés » quand le numéro 3 désigne « Candidats ».
+
+## Candidats et déroulement : deux pièges de plus
+
+**Les colonnes se cherchent par leur en-tête, jamais par leur rang.** Le
+tableau du déroulement porte une colonne **décorative** — un `rowspan` de 37
+sur une cellule vide, posé pour dessiner un trait entre les épreuves et le
+conseil. Elle occupe une position réelle dans la grille : compter les colonnes
+ferait lire « Éliminé » là où il n'y a rien.
+
+Et le tableau a **deux lignes d'en-tête** : « Épreuves » chapeaute « Confort »
+et « Immunité », « Conseil » chapeaute « Éliminé(s) », « Votes » et « Départ ».
+Une colonne se désigne donc par sa paire (chapeau, sous-titre).
+
+**Deux défauts du lecteur de tableaux, trouvés par la donnée réelle :**
+
+- du **CSS fuyait dans le texte**. MediaWiki insère des blocs `<style>` dans
+  les cellules (les légendes colorées de la colonne « Tribu ») : le texte de la
+  cellule commençait par `.mw-parser-output .legende-bloc-ce…` ;
+- des **valeurs multiples se collaient**. La colonne « Saisons précédentes »
+  empile deux à trois mentions séparées par des `<br>` ; sans marque de
+  frontière, on obtenait « Vainqueur de la saison 9Éliminée le… », une chaîne
+  que personne ne peut redécouper.
+
+Les frontières de bloc sont désormais explicites, et `cellLines` rend les
+valeurs séparées là où `cellText` n'en attend qu'une.
+
+**Ce que la lecture donne** : 18 candidats avec genre, âge et saisons passées ;
+les épisodes avec leur date (« 25 août 2026 » → `2026-08-25`), les vainqueurs
+d'épreuves, les éliminés (« Maxime et Joana » → deux noms) et les décomptes —
+« 9-9 / 11-7 » rendant bien **deux** tours, « 12-2-1-1 » un seul à quatre
+décomptes. Aucune anomalie.
+
+Un détail qui compte : la colonne « Jury final » est vide pour tout le monde,
+la saison étant en cours. La lire comme un « non » affirmerait que dix-huit
+candidats sont hors jury — elle vaut donc `null`, « la source ne dit rien ».
+
+## Le recoupement : là où les contradictions apparaissent
+
+Les trois tableaux sont écrits **séparément**, par des contributeurs différents
+et à des moments différents. Rien ne les force à s'accorder : un nom corrigé
+dans l'un peut rester faux dans l'autre pendant des semaines. Un import qui
+lirait chaque tableau isolément publierait sereinement deux versions
+incompatibles de la même soirée.
+
+`cross-check.ts` compare les listes de candidats, les éliminés épisode par
+épisode, les décomptes (« 9-9 / 11-7 » du déroulement contre « 11/18 » du
+détail) et le nombre de tours. Il ne tranche pas : il **nomme** la
+contradiction et laisse le relecteur décider quelle source croire.
+
+Sur la page du 05/09/2026, les trois tableaux **s'accordent** — c'est un test,
+et il tombera le jour où ce ne sera plus vrai.
 
 ## Le diff, et le dégât qu'il empêche
 
@@ -129,9 +183,9 @@ Deux autres refus délibérés :
 
 ## Ce qui reste à écrire
 
-1. l'extraction des **candidats** et du **déroulement** (épisodes, épreuves,
-   dates), sur le même modèle que les votes ;
-2. la **publication transactionnelle** et le `rollback_snapshot` ;
-3. l'**orchestrateur** (`functions/import-wikipedia/index.ts`) qui enchaîne
-   récupération, contrôle de révision, extraction, validation, diff et
-   enregistrement — le tout en `service_role`, côté serveur uniquement.
+1. la **publication transactionnelle** et le `rollback_snapshot` ;
+2. l'**orchestrateur** (`functions/import-wikipedia/index.ts`) qui enchaîne
+   récupération, contrôle de révision, extraction, recoupement, diff et
+   enregistrement — le tout en `service_role`, côté serveur uniquement ;
+3. les **colliers d'immunité**, quatrième tableau de la section
+   « Déroulement », non encore lu.
