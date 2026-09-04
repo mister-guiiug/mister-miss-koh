@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Anti-FOUC : applique le thème avant tout rendu. Lit la MÊME clé que
+      `ThemeProvider` (src/theme.ts) — un désaccord ne casse rien au build, il
+      affiche le premier écran dans le mauvais thème, puis bascule.
+
+      Pas de CSP ici : `cspPlugin` (vite.config.ts) l'injecte par hash au build,
+      ce que cette balise ne sait pas faire pour un script inline.
+    -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('dwc_theme');
+          var eff =
+            v === 'light' || v === 'dark'
+              ? v
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', eff);
+          document.documentElement.style.colorScheme = eff;
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <meta id="meta-theme-color" name="theme-color" content="#c2410c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Aventure Tracker" />
+    <meta
+      name="description"
+      content="Suivez une saison d’aventure : candidats, épisodes, épreuves, conseils et votes — avec vos notes privées et vos favoris. Non officiel."
+    />
+    <title>Aventure Tracker</title>
+    <!-- __SEO_HOME_URL__ et __SEO_LOGO_URL__ sont remplis au build par
+         pwaSeoPlugin() (vite.config.ts). -->
+    <link rel="canonical" href="__SEO_HOME_URL__" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Aventure Tracker" />
+    <meta
+      property="og:description"
+      content="Suivez une saison d’aventure : candidats, épisodes, conseils et votes, avec vos notes privées. Non officiel."
+    />
+    <meta property="og:url" content="__SEO_HOME_URL__" />
+    <meta property="og:image" content="__SEO_LOGO_URL__" />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

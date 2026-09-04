@@ -1,0 +1,7 @@
+# Deno formate ses propres fichiers (deno fmt) : deux formateurs sur les mêmes
+# fichiers se défont mutuellement à chaque enregistrement.
+supabase/functions/
+supabase/tests/
+dist/
+dev-dist/
+package-lock.json

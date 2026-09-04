@@ -1,0 +1,37 @@
+# Déploiement GitHub Pages, sur le gabarit du socle (04/09/2026).
+#
+# LA LIGNE DE PARTAGE : `vars` pour tout ce que le navigateur voit — donc tout
+# `VITE_*`, que Vite copie dans le bundle — et `secrets` pour ce qui donne un
+# pouvoir. Les secrets se passent nommément, jamais par héritage du trousseau.
+#
+# AUCUNE VARIABLE N'EST REQUISE. L'application démarre sans configuration, sur
+# un référentiel local de démonstration : les deux `VITE_SUPABASE_*` ont un
+# repli, elles n'ont donc rien à faire dans `required-env` — un garde bruyant
+# finit désactivé. Le jour où le référentiel distant devient obligatoire, les y
+# inscrire, et le déploiement s'arrêtera au lieu de publier un site muet.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  packages: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-deploy.yml@v3
+    with:
+      use-base-path: true
+      build-env: |
+        VITE_BACKEND=${{ vars.VITE_BACKEND }}
+        VITE_SUPABASE_URL=${{ vars.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY=${{ vars.VITE_SUPABASE_ANON_KEY }}

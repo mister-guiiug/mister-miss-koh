@@ -1,0 +1,16 @@
+# Lighthouse délégué au workflow réutilisable de la famille. Aucun secret
+# consommé : rien n'est hérité.
+name: Lighthouse
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: write
+
+jobs:
+  lighthouse:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-lighthouse.yml@v3

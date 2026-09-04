@@ -1,0 +1,40 @@
+# CI déléguée au workflow réutilisable de la famille.
+#
+# Aucun héritage du trousseau : le réutilisable ne consomme aucun secret ici, et
+# hériter lui donnerait le trousseau entier du dépôt pour rien.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  ci:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-ci.yml@v3
+    with:
+      run-e2e: false
+
+  # Les Edge Functions sont du Deno : hors du périmètre de `pwa-ci`, qui ne
+  # connaît que Node. Leurs 90 tests tournent ici, sans base et sans réseau.
+  edge:
+    name: Edge Functions (Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Lint · Format · Types
+        working-directory: supabase/functions
+        run: deno lint && deno fmt --check && deno check _shared/*.ts import-wikipedia/index.ts
+      - name: Tests
+        working-directory: supabase/functions
+        run: deno test --allow-read _shared/

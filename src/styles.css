@@ -1,0 +1,237 @@
+@import 'tailwindcss';
+@import '@mister-guiiug/dev-wpa-config/tailwind-preset.css';
+@import '@mister-guiiug/dev-wpa-config/components.css';
+
+/* ── Palette ORIGINALE : terre, feu, océan, jungle. Aucune couleur ni forme
+   n'est reprise de l'émission. ────────────────────────────────────────── */
+:root {
+  --bg: #f4efe4;
+  --surface: #fffdf8;
+  --surface-2: #efe6d3;
+  --border: #d9cdb4;
+  --text: #1f2a24;
+  --text-muted: #5c6b62;
+  --primary: #c2410c;
+  --primary-strong: #9a3412;
+  --primary-contrast: #ffffff;
+  --accent: #0f766e;
+  --danger: #b91c1c;
+  --warn: #b45309;
+  --ok: #15803d;
+  --shadow: 0 1px 3px rgba(31, 42, 36, 0.1), 0 1px 2px rgba(31, 42, 36, 0.06);
+  --radius: 14px;
+}
+
+[data-theme='dark'] {
+  --bg: #12201c;
+  --surface: #1a2c27;
+  --surface-2: #213931;
+  --border: #2f4a42;
+  --text: #f1f5f2;
+  --text-muted: #9fb3a9;
+  --primary: #fb923c;
+  --primary-strong: #fdba74;
+  --primary-contrast: #1f1207;
+  --accent: #5eead4;
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --ok: #4ade80;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Contrat des composants partagés : les jetons `--dwc-*` branchés une fois. */
+:root {
+  --dwc-surface: var(--surface);
+  --dwc-surface-2: var(--surface-2);
+  --dwc-text: var(--text);
+  --dwc-text-soft: var(--text-muted);
+  --dwc-border: var(--border);
+  /* Contour d'un CONTRÔLE : WCAG 1.4.11 exige 3:1, que `--border` ne tient
+     pas ; `--text-muted` le tient dans les deux thèmes. */
+  --dwc-border-strong: var(--text-muted);
+  --dwc-primary: var(--primary);
+  --dwc-primary-contrast: var(--primary-contrast);
+  --dwc-primary-soft: color-mix(in srgb, var(--primary) 14%, var(--surface));
+  --dwc-success: var(--ok);
+  --dwc-warning: var(--warn);
+  --dwc-danger: var(--danger);
+  --dwc-info: var(--accent);
+  --dwc-radius: var(--radius);
+  --dwc-shadow: var(--shadow);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--primary);
+}
+
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4.5rem; /* la barre basse */
+}
+
+[data-dwc='app-header'] {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.offline-banner {
+  margin: 0;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+  color: var(--warn);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.row > a {
+  flex: 1;
+  font-weight: 600;
+}
+
+.chips,
+.timeline {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+}
+
+.chips {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.timeline li {
+  margin: 0.3rem 0;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.stats dt {
+  color: var(--text-muted);
+}
+
+.stats dd {
+  margin: 0;
+}
+
+.field,
+.check,
+.radio {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.field {
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field input,
+.field select {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--dwc-border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.check input,
+.radio input {
+  margin-top: 0.3rem;
+}
+
+.spoiler {
+  padding: 0.8rem;
+  border: 1px dashed var(--dwc-border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.spoiler p {
+  margin: 0 0 0.5rem;
+}
+
+.provenance {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.loading {
+  min-height: 60dvh;
+  display: grid;
+  place-content: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.hero-animation:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,26 @@
+# Nettoyage manuel de l'historique GitHub Actions, délégué au réutilisable du
+# socle. À lancer depuis l'onglet Actions → « Cleanup workflow runs ».
+name: Cleanup workflow runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: 'Nombre de runs à conserver par workflow'
+        type: string
+        default: '3'
+      dry-run:
+        description: 'Lister sans supprimer'
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/cleanup-runs.yml@v3
+    with:
+      keep: ${{ inputs.keep }}
+      dry-run: ${{ inputs.dry-run }}

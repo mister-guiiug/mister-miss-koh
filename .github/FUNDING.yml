@@ -1,0 +1,4 @@
+# Bouton « Sponsor » du dépôt — lu par GitHub. Le lien affiché DANS l'app
+# vient du catalogue du socle (`SPONSOR_URL`) et se règle à part
+# (`SponsorProvider`) : les deux désignent la même personne.
+buy_me_a_coffee: mister.guiiug
