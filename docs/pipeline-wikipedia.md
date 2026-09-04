@@ -3,9 +3,11 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **78 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
-> `deno fmt --check` et `deno check`. C'est la seule partie du projet qui soit
-> vérifiée à ce jour — le SQL, lui, n'a pas pu être appliqué (Docker).
+> **90 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> `deno fmt --check` et `deno check`. Une réserve nette : le **câblage SQL** de
+> la fonction Edge (`import-wikipedia/index.ts`) n'a **jamais tourné contre une
+> base** — Docker ne démarre pas sur le poste. Il compile et il se relit ; il
+> n'est pas prouvé.
 
 ## Les principes
 
@@ -181,11 +183,46 @@ Deux autres refus délibérés :
   reste produirait un référentiel à moitié à jour, plus difficile à relire
   qu'un lot entier resté en attente.
 
+## L'orchestrateur
+
+`_shared/import-run.ts` enchaîne les étapes ; `import-wikipedia/index.ts`
+authentifie et traduit en SQL. La séparation n'est pas cosmétique : **toutes
+les décisions vivent dans le module testable**, et l'orchestrateur se prouve
+avec un port de fantaisie, sans base. Ce qui reste dans la fonction Edge est du
+câblage — il se relit, il ne se prouve pas par un test unitaire.
+
+**Trois arrêts, avant tout diff :**
+
+| Arrêt                    | Ce qu'il évite                                                      |
+| ------------------------ | ------------------------------------------------------------------- |
+| révision déjà traitée    | relire la page à chaque tour de planification                       |
+| **structure incomprise** | qu'une extraction vide propose de **supprimer tout le référentiel** |
+| empreinte inchangée      | encombrer la relecture d'une révision qui n'a rien changé d'utile   |
+
+Le deuxième est le plus important. Le diff a bien sa règle de couverture, mais
+un second verrou en amont coûte trois lignes et ferme la porte plus tôt : un
+test vérifie qu'une section disparue produit **zéro différence**, pas même une
+suppression proposée.
+
+**Deux portes d'entrée, et aucune autre** : un utilisateur dont le rôle
+`admin` ou `validator` est vérifié **en base** (une revendication placée dans
+un jeton par un client ne prouve rien), ou la planification qui présente un
+secret comparé à temps constant. `force` est réservé au déclenchement manuel.
+
+**Absence de politique = aucune automatisation.** Une politique jamais écrite
+n'autorise rien : le défaut est `false`, plafond `0`.
+
+Un résultat inattendu, et gardé : **le premier import ne se valide jamais tout
+seul**. Cinquante-deux voix d'un coup dépassent le plafond de changements par
+entité, le lot bascule en suspect, et rien ne passe — même avec une politique
+permissive. C'est souhaitable : la première ingestion d'une saison mérite un
+regard, et c'est la seule qui soit aussi volumineuse. Un import de routine, lui,
+se valide.
+
 ## Ce qui reste à écrire
 
-1. la **publication transactionnelle** et le `rollback_snapshot` ;
-2. l'**orchestrateur** (`functions/import-wikipedia/index.ts`) qui enchaîne
-   récupération, contrôle de révision, extraction, recoupement, diff et
-   enregistrement — le tout en `service_role`, côté serveur uniquement ;
-3. les **colliers d'immunité**, quatrième tableau de la section
-   « Déroulement », non encore lu.
+1. la **publication transactionnelle** et le `rollback_snapshot` — la seule
+   pièce du pipeline qui vive entièrement dans la base ;
+2. les **colliers d'immunité**, quatrième tableau de la section
+   « Déroulement », non encore lu ;
+3. l'exécution réelle de tout ceci contre une base, quand Docker démarrera.
