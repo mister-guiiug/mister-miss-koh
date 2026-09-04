@@ -3,7 +3,7 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **37 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> **53 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. C'est la seule partie du projet qui soit
 > vérifiée à ce jour — le SQL, lui, n'a pas pu être appliqué (Docker).
 
@@ -77,11 +77,12 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 ## Modules
 
-| Fichier            | Rôle                                                                  |
-| ------------------ | --------------------------------------------------------------------- |
-| `mediawiki.ts`     | Client API : révision, sections, HTML d'une section, empreinte stable |
-| `html-table.ts`    | HTML → grille développée (`rowspan`/`colspan`), sans dépendance       |
-| `extract-votes.ts` | Grille → tours, voix, statuts, anomalies                              |
+| Fichier            | Rôle                                                                      |
+| ------------------ | ------------------------------------------------------------------------- |
+| `mediawiki.ts`     | Client API : révision, sections, HTML d'une section, empreinte stable     |
+| `html-table.ts`    | HTML → grille développée (`rowspan`/`colspan`), sans dépendance           |
+| `extract-votes.ts` | Grille → tours, voix, statuts, anomalies                                  |
+| `diff.ts`          | Extrait + référentiel → différences classées, et ce qui est automatisable |
 
 Trois pièges que les tests figent :
 
@@ -91,13 +92,46 @@ Trois pièges que les tests figent :
 - une section se cherche par son **titre**, jamais par son rang : sur cette
   page, l'index 3 rend « Nouveautés » quand le numéro 3 désigne « Candidats ».
 
+## Le diff, et le dégât qu'il empêche
+
+Cinq classes, et **une seule est automatisable**. Un diff qui dirait
+« 47 changements » obligerait à tout relire à la main, donc à ne rien relire.
+
+| Classe        | Quand                                         | Automatisable     |
+| ------------- | --------------------------------------------- | ----------------- |
+| `unambiguous` | donnée neuve, sans conflit ni anomalie        | oui, sous plafond |
+| `ambiguous`   | l'extraction a signalé quelque chose          | non               |
+| `retroactive` | une donnée **déjà publiée** change            | jamais            |
+| `conflicting` | deux propositions du même lot se contredisent | jamais            |
+| `suspicious`  | le lot lui-même est anormal                   | jamais            |
+
+**La suppression est le danger principal, et il n'est pas théorique.** Une
+extraction qui échoue à moitié — tableau renommé, section déplacée, réponse
+tronquée — ne lève pas : elle rend simplement **moins** d'enregistrements. Sans
+garde, le diff en conclurait que les autres ont disparu de la source et
+proposerait de les effacer. Le référentiel serait détruit par un import qui
+s'est cru réussi.
+
+D'où la **règle de couverture** : sous 80 % de reprise des clés publiées, tout
+le lot bascule en `suspicious` — pas seulement les suppressions. Une insertion
+saine dans un lot douteux ne doit pas passer pour saine, et le relecteur doit
+voir d'abord que le problème est l'import, pas la donnée.
+
+Deux autres refus délibérés :
+
+- **un doublon ne se départage pas.** Deux valeurs pour la même clé, aucune
+  n'est retenue — choisir « la dernière » reviendrait à trancher au hasard de
+  l'ordre de lecture ;
+- **la validation automatique est tout ou rien.** Au-delà du plafond, elle ne
+  prend rien du tout : valider les cinq premiers changements et laisser le
+  reste produirait un référentiel à moitié à jour, plus difficile à relire
+  qu'un lot entier resté en attente.
+
 ## Ce qui reste à écrire
 
 1. l'extraction des **candidats** et du **déroulement** (épisodes, épreuves,
-   dates), sur le même modèle ;
-2. le **diff** contre le référentiel publié, avec sa classification
-   (`unambiguous`, `ambiguous`, `retroactive`, `conflicting`, `suspicious`) ;
-3. la **publication transactionnelle** et le `rollback_snapshot` ;
-4. l'**orchestrateur** (`functions/import-wikipedia/index.ts`) qui enchaîne
+   dates), sur le même modèle que les votes ;
+2. la **publication transactionnelle** et le `rollback_snapshot` ;
+3. l'**orchestrateur** (`functions/import-wikipedia/index.ts`) qui enchaîne
    récupération, contrôle de révision, extraction, validation, diff et
    enregistrement — le tout en `service_role`, côté serveur uniquement.
