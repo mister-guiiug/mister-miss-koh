@@ -29,9 +29,12 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      # Version VERROUILLÉE sur celle du poste où les 90 tests ont été
+      # exécutés. `v2.x` a pris une version plus récente dont le formateur ne
+      # rend pas le même résultat : une CI rouge sans qu'une ligne ait changé.
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.8.x
       - name: Lint · Format · Types
         working-directory: supabase/functions
         run: deno lint && deno fmt --check && deno check _shared/*.ts import-wikipedia/index.ts

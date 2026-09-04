@@ -22,10 +22,10 @@ permissions:
   id-token: write
   packages: read
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
+# PAS DE `concurrency` ICI. Le réutilisable déclare déjà le sien (`group:
+# pages`) ; le redoubler dans l'appelant a suffi, le 05/09/2026, à ce que
+# GitHub refuse le fichier avant de créer un seul job — « workflow file
+# issue », sans autre message. Les apps sœurs qui déploient n'en ont pas.
 jobs:
   deploy:
     uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-deploy.yml@v3

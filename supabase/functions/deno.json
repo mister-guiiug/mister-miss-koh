@@ -15,8 +15,16 @@
     "lineWidth": 90,
     "indentWidth": 2,
     "semiColons": true,
-    "singleQuote": false
+    "singleQuote": false,
+    "exclude": ["_shared/fixtures/"]
   },
+  "$fixtures": [
+    "Les fixtures sont des captures DATÉES de la vraie page, lues octet par",
+    "octet par les tests : les formater, c'est tester autre chose que ce qui a",
+    "été capturé. Le Deno du runner (plus récent que celui du poste) formate le",
+    "HTML et les a refusées le 05/09/2026 — d'où l'exclusion, et le verrouillage",
+    "de la version dans la CI."
+  ],
   "tasks": {
     "test": "deno test --allow-read _shared/",
     "check": "deno lint && deno fmt --check && deno check _shared/"
