@@ -543,13 +543,26 @@ begin
 end $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
--- 10. Verrou : RLS activée et FORCÉE, sans aucune politique
+-- 10. Verrou : RLS activée, sans aucune politique
 -- ════════════════════════════════════════════════════════════════════════════
 --
 -- Deny-by-default au sens strict. Les politiques de lecture arrivent en 0004 ;
 -- d'ici là, et si une migration s'arrête en chemin, ces tables ne répondent à
--- personne. `force` s'applique aussi au propriétaire des tables : seule la clé
--- `service_role`, qui ne quitte jamais le serveur, contourne la RLS.
+-- personne.
+--
+-- POURQUOI PAS `FORCE ROW LEVEL SECURITY`. Il paraît plus sûr — il soumet AUSSI
+-- le propriétaire des tables aux politiques — et c'est précisément ce qui le
+-- rend inutilisable ici : une fonction `security definer` s'exécute avec le
+-- rôle de son propriétaire, donc celui des tables. Sous `force`, elle est
+-- soumise aux politiques de l'APPELANT et ne peut plus rien lire de plus que
+-- lui. Or tout le modèle de partage en dépend : lire une note par jeton,
+-- vérifier qu'un identifiant public est libre, agréger l'état d'un import.
+-- Chacune de ces fonctions rendrait un résultat vide, silencieusement.
+--
+-- Ce que `force` protégerait — une connexion directe SOUS le rôle propriétaire
+-- — n'arrive pas par l'API : PostgREST se connecte en `authenticator` puis
+-- bascule en `anon`, `authenticated` ou `service_role`. Le gain est nul, le
+-- coût est un modèle de partage muet.
 do $$
 declare t text;
 begin
@@ -558,6 +571,5 @@ begin
     where schemaname = 'public'
   loop
     execute format('alter table %I enable row level security', t);
-    execute format('alter table %I force row level security', t);
   end loop;
 end $$;

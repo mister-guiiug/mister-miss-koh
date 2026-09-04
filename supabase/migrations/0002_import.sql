@@ -242,7 +242,8 @@ create index on audit_events (actor_id, occurred_at desc);
 comment on column audit_events.summary is
   'Résumé non sensible. Ne JAMAIS y écrire le corps d''une note, un pseudonyme privé ou une adresse électronique.';
 
--- ── Verrou : RLS activée et forcée sur les tables créées ici ───────────────
+-- ── Verrou : RLS activée sur les tables créées ici, sans politique ─────────
+-- (Sur l'absence de `force`, voir la note en fin de 0001_referentiel.sql.)
 do $$
 declare t text;
 begin
@@ -251,6 +252,5 @@ begin
     'publications', 'referential_versions', 'import_policies', 'audit_events'
   ]) loop
     execute format('alter table %I enable row level security', t);
-    execute format('alter table %I force row level security', t);
   end loop;
 end $$;

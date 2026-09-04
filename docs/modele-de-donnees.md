@@ -156,11 +156,15 @@ Le contenu source est en **CC BY-SA 4.0** (vérifié via `meta=siteinfo`) :
 l'attribution est obligatoire et le partage à l'identique s'impose aux données
 dérivées. Voir [attribution.md](./attribution.md).
 
+## Sécurité : voir `0004_rls.sql`
+
+Les tables naissent en `ENABLE ROW LEVEL SECURITY` **sans politique** — un
+schéma poussé à moitié refuse tout. Les politiques, les fonctions de partage et
+le double verrou (droits SQL + politiques) sont décrits dans
+[politiques-rls.md](./politiques-rls.md).
+
 ## Ce qui n'est pas encore écrit
 
-- **Les politiques RLS** (`0004_rls.sql`) : les tables sont créées avec
-  `ENABLE` **et** `FORCE ROW LEVEL SECURITY` et **aucune politique**. En l'état,
-  elles ne répondent à personne — un schéma poussé à moitié n'expose rien.
 - Les vues calculées (immunités, classements, chronologie).
 - Le jeu de données de démonstration, qui sera marqué
   « Donnée fictive de démonstration ».

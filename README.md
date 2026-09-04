@@ -67,10 +67,10 @@ Les migrations sont dans [`supabase/migrations`](./supabase/migrations) :
 `0001_referentiel.sql` (référentiel + provenance), `0002_import.sql` (pipeline
 d'import), `0003_personnel.sql` (profils, notes, partage).
 
-**Toutes les tables sont créées avec `ENABLE` et `FORCE ROW LEVEL SECURITY`, et
-sans aucune politique.** En l'état, elles ne répondent à personne : les
-politiques de lecture arrivent en `0004_rls.sql`. C'est délibéré — un schéma
-poussé à moitié doit refuser, pas exposer.
+Les tables sont créées en `ENABLE ROW LEVEL SECURITY` **sans aucune politique** :
+un schéma poussé à moitié refuse tout au lieu d'exposer. `0004_rls.sql` ouvre
+ensuite le strict nécessaire, avec un double verrou — droits SQL retirés puis
+redonnés un par un, **en plus** des politiques.
 
 ## Ce qui reste à faire
 

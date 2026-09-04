@@ -282,7 +282,8 @@ begin
   end loop;
 end $$;
 
--- ── Verrou : RLS activée et forcée ────────────────────────────────────────
+-- ── Verrou : RLS activée, sans politique ──────────────────────────────────
+-- (Sur l'absence de `force`, voir la note en fin de 0001_referentiel.sql.)
 do $$
 declare t text;
 begin
@@ -291,6 +292,5 @@ begin
     'watched_episodes', 'personal_notes', 'user_ratings', 'share_links'
   ]) loop
     execute format('alter table %I enable row level security', t);
-    execute format('alter table %I force row level security', t);
   end loop;
 end $$;
