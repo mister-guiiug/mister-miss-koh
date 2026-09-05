@@ -17,8 +17,8 @@ import {
   backendCoverage,
   composeBackend,
   type BackendCoverage,
-} from '@mister-guiiug/dev-wpa-config/backend';
-import { createStore } from '@mister-guiiug/dev-wpa-config/storage';
+} from '@mister-guiiug/dev-pwa-config/backend';
+import { createStore } from '@mister-guiiug/dev-pwa-config/storage';
 import { type Referential, ReferentialSchema } from '../domain/referential';
 import { BACKEND } from './config';
 import { DEMO_REFERENTIAL } from './demo';

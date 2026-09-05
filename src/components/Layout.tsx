@@ -1,12 +1,12 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Flame, Home, Moon, Settings, Sun, Tv, Users } from 'lucide-react';
-import { AppHeader } from '@mister-guiiug/dev-wpa-config/react/app-header';
-import { BottomNav } from '@mister-guiiug/dev-wpa-config/react/bottom-nav';
-import { AppFooter } from '@mister-guiiug/dev-wpa-config/react/app-footer';
-import { PageContainer } from '@mister-guiiug/dev-wpa-config/react/page-container';
-import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
-import { useThemeContext } from '@mister-guiiug/dev-wpa-config/react/theme-provider';
-import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
+import { AppHeader } from '@mister-guiiug/dev-pwa-config/react/app-header';
+import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { PageContainer } from '@mister-guiiug/dev-pwa-config/react/page-container';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
+import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { REPO_URL } from '../links';
 
 const NAV = [

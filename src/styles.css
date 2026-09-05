@@ -1,6 +1,6 @@
 @import 'tailwindcss';
-@import '@mister-guiiug/dev-wpa-config/tailwind-preset.css';
-@import '@mister-guiiug/dev-wpa-config/components.css';
+@import '@mister-guiiug/dev-pwa-config/tailwind-preset.css';
+@import '@mister-guiiug/dev-pwa-config/components.css';
 
 /* ── Palette ORIGINALE : terre, feu, océan, jungle. Aucune couleur ni forme
    n'est reprise de l'émission. ────────────────────────────────────────── */

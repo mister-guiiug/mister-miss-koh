@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   cleanup:
-    uses: mister-guiiug/dev-wpa-config/.github/workflows/cleanup-runs.yml@v3
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/cleanup-runs.yml@v4
     with:
       keep: ${{ inputs.keep }}
       dry-run: ${{ inputs.dry-run }}

@@ -9,12 +9,12 @@ import {
   Sun,
   X,
 } from 'lucide-react';
-import { ThemeProvider } from '@mister-guiiug/dev-wpa-config/react/theme-provider';
-import { IconsProvider } from '@mister-guiiug/dev-wpa-config/react/icons-context';
-import { lucideIconSet } from '@mister-guiiug/dev-wpa-config/react/icons-lucide';
-import { LabelsProvider } from '@mister-guiiug/dev-wpa-config/react/labels';
-import { ErrorBoundary } from '@mister-guiiug/dev-wpa-config/react/error-boundary';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { ThemeProvider } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
+import { IconsProvider } from '@mister-guiiug/dev-pwa-config/react/icons-context';
+import { lucideIconSet } from '@mister-guiiug/dev-pwa-config/react/icons-lucide';
+import { LabelsProvider } from '@mister-guiiug/dev-pwa-config/react/labels';
+import { ErrorBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
 import { Layout } from './components/Layout';

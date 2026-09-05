@@ -34,7 +34,7 @@ npm run dev
 
 Le serveur de développement écoute sur le port 5236 (configuration
 `.claude/launch.json` du dépôt parent). L'installation lit
-`@mister-guiiug/dev-wpa-config` sur GitHub Packages : exporter
+`@mister-guiiug/dev-pwa-config` sur GitHub Packages : exporter
 `NODE_AUTH_TOKEN` (un jeton avec `read:packages`) avant `npm install`.
 
 ## Vérifier
@@ -60,12 +60,12 @@ source et non supposée. Voir [docs/attribution.md](./docs/attribution.md).
 
 ## Socle
 
-L'application consomme **`@mister-guiiug/dev-wpa-config`** (version 3.34.0),
+L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 4.0.0),
 paquet de configuration et de composants de la famille `miss-*` / `mister-*`.
 
-> Le paquet s'appelle bien `dev-**wpa**-config` : c'est son nom publié sur
-> GitHub Packages, pas une coquille corrigeable. Le produit, lui, est une
-> **PWA**, et c'est ce terme qui est employé partout ailleurs.
+> Jusqu'à la 3.34.0, le paquet et son dépôt s'appelaient `dev-wpa-config`. Ils
+> ont été renommés le 05/09/2026 ; la 4.0.0 ne change que le nom, et l'ancien
+> paquet reste publié sans évoluer.
 
 Ce qu'il apporte et qui est **réellement branché** : `ThemeProvider`,
 `AppHeader`, `BottomNav`, `AppFooter`, `PageContainer`, `Card`, `Badge`,

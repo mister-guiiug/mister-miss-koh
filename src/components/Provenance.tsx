@@ -3,7 +3,7 @@
  * présenter comme officiel. Wikipédia est collaboratif ; la démonstration est
  * fictive ; l'un et l'autre se disent.
  */
-import { Badge } from '@mister-guiiug/dev-wpa-config/react/badge';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import type { Provenance as ProvenanceData } from '../domain/referential';
 
 export function Provenance({ data }: { data: ProvenanceData }) {

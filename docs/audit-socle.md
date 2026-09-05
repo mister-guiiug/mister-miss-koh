@@ -7,15 +7,15 @@ pas. »**_
 
 ## Trois prémisses du besoin sont fausses
 
-**1. `dev-pwa-config` n'existe pas.** Ni en local, ni sur GitHub
-(`Could not resolve to a Repository`). Le socle réel est **`dev-wpa-config`**,
-publié sous `@mister-guiiug/dev-wpa-config`.
+**1. `dev-pwa-config` n'existait pas — le 04/09.** Ni en local, ni sur GitHub
+(`Could not resolve to a Repository`). Le socle s'appelait alors
+**`dev-wpa-config`**, publié sous `@mister-guiiug/dev-wpa-config`.
 
-Le besoin demandait de traiter « WPA » comme une coquille. Ce n'en est pas une
-ici : c'est le **nom publié du paquet npm et du dépôt**, immuable sans
-republication. Le produit est décrit comme une **PWA** partout ; le nom du
-paquet reste `dev-wpa-config` dans les imports et le `package.json`, sans quoi
-rien ne s'installe.
+Le besoin demandait de traiter « WPA » comme une coquille. Ce n'en était pas
+une ce jour-là : c'était le **nom publié du paquet npm et du dépôt**, immuable
+sans republication. La republication a eu lieu le 05/09/2026 : dépôt
+`mister-guiiug/dev-pwa-config`, paquet `@mister-guiiug/dev-pwa-config@4.0.0`,
+sans autre changement que le nom. Ce dépôt consomme la 4.0.0.
 
 **2. Le socle n'est pas un modèle d'application.** C'est une bibliothèque de
 configuration et de composants, **sans aucune dépendance de production**
@@ -31,7 +31,7 @@ question du « paquet réellement recommandé » est donc tranchée par le code.
 
 | Domaine     | Fait vérifié                                                                                                                                         |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Paquet      | `@mister-guiiug/dev-wpa-config@3.34.0`, MIT, ESM, Node ≥ 22, **148 sous-chemins**                                                                    |
+| Paquet      | `@mister-guiiug/dev-pwa-config@3.34.0`, MIT, ESM, Node ≥ 22, **148 sous-chemins**                                                                    |
 | Dépendances | **0 en production**, 33 peers dont **22 optionnelles**                                                                                               |
 | Front       | React `^19`, Vite `^8`, TypeScript `~6.0.3`, Tailwind `^4`                                                                                           |
 | Tests       | Vitest `^4`, `@vitest/browser`, Playwright `^1.49`, `@axe-core/playwright`, jsdom, fake-indexeddb                                                    |
@@ -119,14 +119,14 @@ imprévisibles et révocables.
 
 ## Vérifications exécutées, et leur résultat réel
 
-| Commande                                    | Résultat                                              |
-| ------------------------------------------- | ----------------------------------------------------- |
-| `gh repo view mister-guiiug/dev-pwa-config` | **échec** — le dépôt n'existe pas (prémisse corrigée) |
-| lecture de `package.json` du socle          | 3.34.0, 148 exports, 0 dépendance de production       |
-| `api.php action=query prop=revisions`       | pageid 17479409, revid 239179934                      |
-| `api.php meta=siteinfo siprop=rightsinfo`   | CC BY-SA 4.0                                          |
-| `api.php action=parse prop=sections         | wikitext`                                             | 15 sections ; structures de candidats, épisodes et votes lues |
-| `supabase --version`                        | 2.111.0                                               |
-| `supabase init`                             | réussi — Postgres 17, schéma `public` exposé          |
-| `supabase start`                            | **échec** — démon Docker non démarré sur le poste     |
-| Application des migrations                  | **non faite**, faute de base locale                   |
+| Commande                                               | Résultat                                                                   |
+| ------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `gh repo view mister-guiiug/dev-pwa-config` (le 04/09) | **échec** — le dépôt s'appelait encore `dev-wpa-config` ; renommé le 05/09 |
+| lecture de `package.json` du socle                     | 3.34.0, 148 exports, 0 dépendance de production                            |
+| `api.php action=query prop=revisions`                  | pageid 17479409, revid 239179934                                           |
+| `api.php meta=siteinfo siprop=rightsinfo`              | CC BY-SA 4.0                                                               |
+| `api.php action=parse prop=sections                    | wikitext`                                                                  | 15 sections ; structures de candidats, épisodes et votes lues |
+| `supabase --version`                                   | 2.111.0                                                                    |
+| `supabase init`                                        | réussi — Postgres 17, schéma `public` exposé                               |
+| `supabase start`                                       | **échec** — démon Docker non démarré sur le poste                          |
+| Application des migrations                             | **non faite**, faute de base locale                                        |

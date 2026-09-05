@@ -22,12 +22,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useReducedMotion } from '@mister-guiiug/dev-wpa-config/react/use-media-query';
+import { useReducedMotion } from '@mister-guiiug/dev-pwa-config/react/use-media-query';
 import { useAppStore } from '../store/useAppStore';
 import { ANIMATIONS, type AnimationRole } from './registry';
 
 const RiveAnimation = lazy(() =>
-  import('@mister-guiiug/dev-wpa-config/react/rive').then(m => ({
+  import('@mister-guiiug/dev-pwa-config/react/rive').then(m => ({
     default: m.RiveAnimation,
   }))
 );

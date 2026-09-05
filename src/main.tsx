@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-import { AppUpdates } from '@mister-guiiug/dev-wpa-config/react/app-updates';
+import { AppUpdates } from '@mister-guiiug/dev-pwa-config/react/app-updates';
 import './styles.css';
 import { App } from './App';
 

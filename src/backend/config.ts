@@ -8,8 +8,8 @@
 import {
   supabaseConfig,
   SUPABASE_ENV_KEYS,
-} from '@mister-guiiug/dev-wpa-config/supabase-client';
-import { resolveBackendKind } from '@mister-guiiug/dev-wpa-config/backend';
+} from '@mister-guiiug/dev-pwa-config/supabase-client';
+import { resolveBackendKind } from '@mister-guiiug/dev-pwa-config/backend';
 
 export type BackendKind = 'local' | 'supabase';
 

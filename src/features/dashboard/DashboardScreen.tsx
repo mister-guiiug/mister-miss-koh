@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardHeader } from '@mister-guiiug/dev-wpa-config/react/card';
-import { Badge } from '@mister-guiiug/dev-wpa-config/react/badge';
+import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
