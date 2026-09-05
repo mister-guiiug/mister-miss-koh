@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star } from 'lucide-react';
-import { Badge } from '@mister-guiiug/dev-wpa-config/react/badge';
-import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { inGame, lastAiredEpisode } from '../../domain/stats';

@@ -4,7 +4,7 @@
     "ressort de Prettier et d'ESLint (via le socle) : deux formateurs sur les",
     "mêmes fichiers se défont mutuellement à chaque enregistrement.",
     "",
-    "Le socle @mister-guiiug/dev-wpa-config n'est PAS importable ici — il",
+    "Le socle @mister-guiiug/dev-pwa-config n'est PAS importable ici — il",
     "suppose Node et un bundler. Ce dossier est donc autonome, sans",
     "dépendance en dehors de la bibliothèque standard de Deno."
   ],

@@ -23,7 +23,7 @@ maintenance, rendu des modèles, identifiants de section varient sans qu'un mot
 du contenu ait bougé. L'empreinte, elle, porte sur le **modèle intermédiaire**,
 et sert à conclure « nouvelle révision, aucun changement utile ».
 
-**Le socle ne franchit pas Deno.** `@mister-guiiug/dev-wpa-config` suppose Node
+**Le socle ne franchit pas Deno.** `@mister-guiiug/dev-pwa-config` suppose Node
 et un bundler : il n'est pas importable ici. `supabase/functions` est donc
 autonome, **sans aucune dépendance** hors bibliothèque standard — y compris
 pour lire le HTML, parce que c'est le chemin le plus exposé du projet.
@@ -225,4 +225,7 @@ se valide.
    pièce du pipeline qui vive entièrement dans la base ;
 2. les **colliers d'immunité**, quatrième tableau de la section
    « Déroulement », non encore lu ;
-3. l'exécution réelle de tout ceci contre une base, quand Docker démarrera.
+3. le **déploiement** de la fonction (`supabase functions deploy
+import-wikipedia`, secret `IMPORT_CRON_SECRET`) et un premier import réel :
+   les migrations sont appliquées sur la base hébergée depuis le 05/09/2026,
+   la fonction ne l'est pas, et aucun `import_run` n'existe encore.

@@ -1,7 +1,7 @@
-import { Card, CardHeader } from '@mister-guiiug/dev-wpa-config/react/card';
-import { Badge } from '@mister-guiiug/dev-wpa-config/react/badge';
-import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
-import { useThemeContext } from '@mister-guiiug/dev-wpa-config/react/theme-provider';
+import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useAppStore } from '../../store/useAppStore';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';

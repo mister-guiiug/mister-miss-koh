@@ -6,7 +6,7 @@
  * donc un bouton qui nomme l'épisode et propose de le marquer vu.
  */
 import type { ReactNode } from 'react';
-import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { isSpoiler } from '../domain/spoiler';
 import { useAppStore } from '../store/useAppStore';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';

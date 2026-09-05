@@ -17,6 +17,13 @@ republication. Le produit est décrit comme une **PWA** partout ; le nom du
 paquet reste `dev-wpa-config` dans les imports et le `package.json`, sans quoi
 rien ne s'installe.
 
+> **Post-scriptum du 05/09/2026.** Le propriétaire a renommé le socle le
+> lendemain de cet audit : dépôt `mister-guiiug/dev-pwa-config`, paquet
+> `@mister-guiiug/dev-pwa-config` **4.0.0**, workflows réutilisables en `@v4`.
+> La coquille était donc corrigeable — par republication, comme dit ci-dessus.
+> Cette application le consomme sous son nouveau nom ; le reste de l'audit
+> décrit l'état du 04/09 et n'est pas réécrit.
+
 **2. Le socle n'est pas un modèle d'application.** C'est une bibliothèque de
 configuration et de composants, **sans aucune dépendance de production**
 (`dependencies: {}`), consommée en `devDependency`. On ne « part » pas de lui

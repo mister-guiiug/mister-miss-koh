@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Card, CardHeader } from '@mister-guiiug/dev-wpa-config/react/card';
-import { Badge } from '@mister-guiiug/dev-wpa-config/react/badge';
-import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';

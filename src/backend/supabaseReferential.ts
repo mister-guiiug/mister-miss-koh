@@ -23,7 +23,7 @@
  */
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClientFactory } from '@mister-guiiug/dev-wpa-config/supabase-client';
+import { createSupabaseClientFactory } from '@mister-guiiug/dev-pwa-config/supabase-client';
 import {
   type Referential,
   ReferentialSchema,

@@ -98,6 +98,21 @@ Vingt-deux assertions, dont les sept qui comptent :
 7. le référentiel non publié reste invisible, et le publié n'est modifiable par
    personne.
 
+## Exécution
+
+`supabase test db` exige Docker — `pg_prove` tourne en conteneur — et Docker ne
+démarre pas sur le poste de développement. Le fichier se joue donc **contre la
+base liée** par `npm run test:rls:remote` (`scripts/rls-remote.mjs`) : chaque
+assertion est réécrite pour déposer son verdict dans une table temporaire, que
+la dernière requête renvoie d'un bloc — `supabase db query` ne rend que le
+dernier jeu de lignes. Même fichier, même plan, même `rollback`.
+
+Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **22
+assertions sur 22** passent. Deux faits vérifiés au passage : pgTAP enregistre
+ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
+collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de
+l'API.
+
 ## Ce qui reste à faire
 
 - Les **fonctions de publication** (`publish_run`, `revert_publication`), qui

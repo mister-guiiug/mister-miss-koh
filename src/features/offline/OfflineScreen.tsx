@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { AppAnimation } from '../../animations/AppAnimation';
 
 export function OfflineScreen() {

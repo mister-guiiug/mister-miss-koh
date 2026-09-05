@@ -21,7 +21,7 @@ on:
 
 jobs:
   keepalive:
-    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-supabase-keepalive.yml@v3
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-keepalive.yml@v4
     # Nommés, pas hérités : le réutilisable déclare exactement ces deux secrets.
     secrets:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

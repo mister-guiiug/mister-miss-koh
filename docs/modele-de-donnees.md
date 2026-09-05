@@ -166,5 +166,8 @@ le double verrou (droits SQL + politiques) sont décrits dans
 ## Ce qui n'est pas encore écrit
 
 - Les vues calculées (immunités, classements, chronologie).
-- Le jeu de données de démonstration, qui sera marqué
-  « Donnée fictive de démonstration ».
+
+Le jeu de données de démonstration existe (`src/backend/demo.ts`), marqué
+« Donnée fictive de démonstration » ; le schéma est appliqué sur la base
+hébergée depuis le 05/09/2026, et `src/backend/database.types.ts` en est
+généré.

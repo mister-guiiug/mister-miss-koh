@@ -23,7 +23,8 @@
     "supabase:link": "supabase link",
     "supabase:push": "supabase db push",
     "supabase:types": "supabase gen types typescript --linked > src/backend/database.types.ts",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "test:rls:remote": "node scripts/rls-remote.mjs"
   },
   "bundleBudget": {
     "totalGzipKb": 260
@@ -31,7 +32,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@mister-guiiug/dev-wpa-config": "^3.34.0",
+    "@mister-guiiug/dev-pwa-config": "^4.0.0",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",

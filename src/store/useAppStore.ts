@@ -14,7 +14,7 @@
  */
 import { create } from 'zustand';
 import { z } from 'zod';
-import { createVersionedStore } from '@mister-guiiug/dev-wpa-config/versioned-store';
+import { createVersionedStore } from '@mister-guiiug/dev-pwa-config/versioned-store';
 import type { Referential } from '../domain/referential';
 import type { SpoilerMode } from '../domain/spoiler';
 import { backend, type Origin } from '../backend/referentialRepository';
