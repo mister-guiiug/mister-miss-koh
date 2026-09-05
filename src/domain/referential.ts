@@ -59,6 +59,13 @@ export const EpisodeSchema = z.object({
   aired: z.boolean(),
   comfortWinnerIds: z.array(z.string()),
   immunityWinnerIds: z.array(z.string()),
+  /**
+   * Une épreuve se gagne aussi en TRIBU. La source écrit un nom sans dire
+   * lequel des deux c'est ; le référentiel, lui, l'a tranché. Les deux listes
+   * coexistent parce qu'une soirée peut mêler les deux.
+   */
+  comfortWinnerTeamIds: z.array(z.string()).default([]),
+  immunityWinnerTeamIds: z.array(z.string()).default([]),
 });
 
 export const RoundKindSchema = z.enum([

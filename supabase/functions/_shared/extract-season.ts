@@ -16,10 +16,12 @@
 import type { Grid } from "./html-table.ts";
 import { cellLines } from "./html-table.ts";
 import type { Anomaly } from "./extract-votes.ts";
+import { STATUS_WORDS } from "./extract-votes.ts";
 import {
   fold,
   parseAge,
   parseDay,
+  parseDayRange,
   parseEpisodeNumber,
   parseFrenchDate,
   parseGender,
@@ -27,9 +29,42 @@ import {
   splitNames,
 } from "./parse-fr.ts";
 
+/**
+ * Une ligne de la colonne « Tribu » → un séjour, un statut, ou rien.
+ *
+ * « BANNIE » N'EST PAS UNE TRIBU. La source range dans cette colonne, à la
+ * suite des vraies tribus, l'état du candidat après sa sortie : sur les 639
+ * lignes relevées le 05/09/2026, 46 sont des statuts (`Banni`, `Bannie`,
+ * `Éliminé`, `Éliminée`). Les publier comme des tribus créerait une tribu
+ * « Bannie » que personne n'a jamais rejointe, et lui donnerait des membres.
+ */
+export function readTeamLine(
+  line: string,
+): { kind: "team" | "status"; stint: TeamStint } | null {
+  const range = parseDayRange(line);
+  if (!range) return null;
+  const name = line.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  if (!name) return null;
+  return {
+    kind: STATUS_WORDS.has(fold(name)) ? "status" : "team",
+    stint: { name, fromDay: range.fromDay, toDay: range.toDay },
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Candidats
 // ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Un séjour dans une tribu : un nom, et l'intervalle de JOURS que la source
+ * donne. Pas d'épisode : la colonne « Tribu » parle en jours, et convertir
+ * serait inventer.
+ */
+export interface TeamStint {
+  readonly name: string;
+  readonly fromDay: number;
+  readonly toDay: number | null;
+}
 
 export interface ExtractedContestant {
   readonly naturalKey: string;
@@ -37,7 +72,13 @@ export interface ExtractedContestant {
   readonly gender: "f" | "m" | null;
   readonly age: number | null;
   readonly previousSeasons: readonly string[];
-  readonly team: string | null;
+  /** Séjours en tribu, dans l'ordre de la source. */
+  readonly teams: readonly TeamStint[];
+  /**
+   * Ce que la colonne « Tribu » dit qui n'est PAS une tribu : « Banni (jour 3
+   * – ) ». La source y range l'état du candidat après sa sortie.
+   */
+  readonly teamStatuses: readonly TeamStint[];
   readonly finalJury: boolean | null;
   readonly departure: string | null;
 }
@@ -152,6 +193,26 @@ export function extractContestants(
 
     const jury = colJury >= 0 ? (grid[r][colJury]?.text.trim() ?? "") : "";
 
+    // La cellule « Tribu » empile un séjour par ligne. Une ligne illisible
+    // devient une anomalie : on ne devine pas un intervalle.
+    const teams: TeamStint[] = [];
+    const teamStatuses: TeamStint[] = [];
+    if (colTeam >= 0) {
+      for (const line of cellLines(grid[r][colTeam]?.html ?? "")) {
+        if (!line.trim()) continue;
+        const read = readTeamLine(line);
+        if (!read) {
+          anomalies.push({
+            code: "tribu_illisible",
+            message: `séjour en tribu illisible pour ${name} : « ${line} »`,
+            row: name,
+          });
+          continue;
+        }
+        (read.kind === "team" ? teams : teamStatuses).push(read.stint);
+      }
+    }
+
     contestants.push({
       naturalKey: `${seasonSlug}:${name}`,
       displayName: name,
@@ -162,7 +223,8 @@ export function extractContestants(
       previousSeasons: colPrevious >= 0
         ? cellLines(grid[r][colPrevious]?.html ?? "")
         : [],
-      team: colTeam >= 0 ? (grid[r][colTeam]?.text.trim() || null) : null,
+      teams,
+      teamStatuses,
       // Vide = la source ne dit rien, PAS « non ». La saison est en cours.
       finalJury: jury === "" ? null : fold(jury) !== "non",
       // Le motif du départ, TEL QUE la source l'écrit (« Abandon médical »,

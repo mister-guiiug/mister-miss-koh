@@ -111,6 +111,13 @@ export function ContestantDetailScreen() {
           <dd>
             {view.wins.comfort} confort · {view.wins.immunity} immunité
           </dd>
+          <dt>Tribu</dt>
+          <dd>
+            {/* La plus récente. Une tribu inconnue reste « — » : la source ne
+                remplit pas toujours cette colonne. */}
+            {referential.teams.find(t => t.id === contestant.teamId)?.name ??
+              '—'}
+          </dd>
         </dl>
         {!view.received.complete && (
           <p className="muted">

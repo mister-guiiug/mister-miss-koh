@@ -108,12 +108,39 @@ Deno.test("fixture : les saisons précédentes sont SÉPARÉES, pas recollées",
 
 Deno.test("fixture : la tribu est lue sans le CSS de la légende", () => {
   for (const c of candidats.contestants) {
-    if (!c.team) continue;
-    assert(
-      !c.team.includes("mw-parser-output"),
-      `la colonne Tribu de ${c.displayName} contient du CSS`,
-    );
+    for (const stint of [...c.teams, ...c.teamStatuses]) {
+      assert(
+        !stint.name.includes("mw-parser-output"),
+        `la colonne Tribu de ${c.displayName} contient du CSS`,
+      );
+    }
   }
+});
+
+Deno.test("fixture : le séjour en tribu porte ses bornes de JOURS", () => {
+  // La colonne « Tribu » parle en jours, jamais en épisodes. Convertir
+  // demanderait une table jour → épisode que la source ne donne pas.
+  const camille = candidats.contestants.find((c) => c.displayName === "Camille");
+  assert(camille, "Camille introuvable");
+  assertEquals(camille.teams.length, 1);
+  assertEquals(camille.teams[0].name, "Tribu unique");
+  assertEquals(camille.teams[0].fromDay, 1);
+  assertEquals(camille.teams[0].toDay, null, "borne ouverte : elle y est encore");
+});
+
+Deno.test("fixture : « Bannie » n'est pas une tribu", () => {
+  // Sans cette distinction, la publication créerait une tribu « Bannie » et
+  // lui donnerait quatre membres.
+  const joana = candidats.contestants.find((c) => c.displayName === "Joana");
+  assert(joana, "Joana introuvable");
+  assertEquals(joana.teams.map((t) => t.name), ["Tribu unique"]);
+  assertEquals(joana.teams[0].toDay, 3, "son séjour se ferme le jour de sa sortie");
+  assertEquals(joana.teamStatuses.map((s) => s.name), ["Bannie"]);
+  assertEquals(joana.teamStatuses[0].fromDay, 3);
+  assert(
+    !candidats.contestants.some((c) => c.teams.some((t) => t.name === "Bannie")),
+    "aucun candidat ne doit avoir « Bannie » pour tribu",
+  );
 });
 
 Deno.test("fixture : le jury final vide vaut « inconnu », pas « non »", () => {

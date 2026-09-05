@@ -4,13 +4,25 @@ import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { contestantById } from '../../domain/referential';
 
-function names(
-  ref: NonNullable<ReturnType<typeof useAppStore.getState>['referential']>,
-  ids: readonly string[]
+type Ref = NonNullable<ReturnType<typeof useAppStore.getState>['referential']>;
+
+/**
+ * Les vainqueurs d'une épreuve : des candidats, des tribus, ou les deux.
+ *
+ * Une tribu ne se déplie pas en ses membres — il faudrait savoir qui en
+ * faisait partie CE SOIR-LÀ, et le référentiel date les appartenances en
+ * jours quand les épisodes ne le sont pas. Elle se nomme donc telle quelle.
+ */
+function winners(
+  ref: Ref,
+  contestantIds: readonly string[],
+  teamIds: readonly string[]
 ) {
-  return ids
-    .map(id => contestantById(ref, id)?.displayName ?? '?')
-    .join(' et ');
+  const parts = [
+    ...teamIds.map(id => ref.teams.find(t => t.id === id)?.name ?? '?'),
+    ...contestantIds.map(id => contestantById(ref, id)?.displayName ?? '?'),
+  ];
+  return parts.length === 0 ? '—' : parts.join(' et ');
 }
 
 export function EpisodesScreen() {
@@ -66,15 +78,19 @@ export function EpisodesScreen() {
                 <dl className="stats">
                   <dt>Confort</dt>
                   <dd>
-                    {e.comfortWinnerIds.length
-                      ? names(referential, e.comfortWinnerIds)
-                      : '—'}
+                    {winners(
+                      referential,
+                      e.comfortWinnerIds,
+                      e.comfortWinnerTeamIds
+                    )}
                   </dd>
                   <dt>Immunité</dt>
                   <dd>
-                    {e.immunityWinnerIds.length
-                      ? names(referential, e.immunityWinnerIds)
-                      : '—'}
+                    {winners(
+                      referential,
+                      e.immunityWinnerIds,
+                      e.immunityWinnerTeamIds
+                    )}
                   </dd>
                   <dt>Conseil</dt>
                   <dd>

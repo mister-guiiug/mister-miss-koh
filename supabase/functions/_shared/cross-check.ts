@@ -143,5 +143,36 @@ export function crossCheck(
     }
   }
 
+  // ── Un vainqueur d'épreuve désigne-t-il quelqu'un de connu ? ────────────
+  //
+  // La colonne « Confort » ou « Immunité » nomme tantôt une TRIBU, tantôt un
+  // CANDIDAT — 120 fois l'une et 210 fois l'autre sur les pages relevées le
+  // 05/09/2026. Les 38 valeurs restantes n'étaient ni l'un ni l'autre : un nom
+  // d'épreuve (« Épreuve des poteaux »), une équipe formée pour l'occasion
+  // (« Équipe de Guillaume »), une tribu que la colonne « Tribu » ne cite pas.
+  // Aucune n'est devinée : chacune devient une anomalie, et la publication
+  // laissera ce résultat de côté au lieu de le rattacher au hasard.
+  const teamNames = new Set(
+    contestants.contestants.flatMap((c) => c.teams.map((t) => fold(t.name))),
+  );
+  for (const episode of progress.episodes) {
+    for (
+      const [label, winners] of [
+        ["confort", episode.comfortWinners],
+        ["immunité", episode.immunityWinners],
+      ] as const
+    ) {
+      for (const name of winners) {
+        if (known.has(fold(name)) || teamNames.has(fold(name))) continue;
+        anomalies.push({
+          code: "vainqueur_inconnu",
+          message:
+            `épreuve de ${label}, épisode ${episode.number} : « ${name} » n'est ni un candidat ni une tribu de cette saison`,
+          row: `e${episode.number}`,
+        });
+      }
+    }
+  }
+
   return anomalies;
 }

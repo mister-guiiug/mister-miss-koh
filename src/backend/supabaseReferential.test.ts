@@ -46,8 +46,8 @@ const rows: Rows = {
         { label: 'Première', ordinal: 0 },
       ],
       team_memberships: [
-        { team_id: 't-rouge', from_episode_number: 1 },
-        { team_id: 't-unique', from_episode_number: 5 },
+        { team_id: 't-rouge', from_episode_number: 1, from_day: 1 },
+        { team_id: 't-unique', from_episode_number: 5, from_day: 12 },
       ],
     },
     {
@@ -98,14 +98,35 @@ const rows: Rows = {
         {
           kind: 'comfort',
           challenge_results: [
-            { season_contestant_id: null, pair_id: 'pair-1', is_winner: true },
+            {
+              season_contestant_id: null,
+              pair_id: 'pair-1',
+              team_id: null,
+              is_winner: true,
+            },
           ],
         },
         {
           kind: 'immunity',
           challenge_results: [
-            { season_contestant_id: 'sc-c', pair_id: null, is_winner: true },
-            { season_contestant_id: 'sc-d', pair_id: null, is_winner: false },
+            {
+              season_contestant_id: 'sc-c',
+              pair_id: null,
+              team_id: null,
+              is_winner: true,
+            },
+            {
+              season_contestant_id: 'sc-d',
+              pair_id: null,
+              team_id: null,
+              is_winner: false,
+            },
+            {
+              season_contestant_id: null,
+              pair_id: null,
+              team_id: 't-rouge',
+              is_winner: true,
+            },
           ],
         },
       ],
@@ -216,6 +237,20 @@ describe('mapReferential', () => {
     const e1 = ref.episodes[0];
     expect(new Set(e1?.comfortWinnerIds)).toEqual(new Set(['sc-a', 'sc-b']));
     expect(e1?.immunityWinnerIds).toEqual(['sc-c']);
+  });
+
+  it('une TRIBU vainqueur est nommée, jamais dépliée en ses membres', () => {
+    // Déplier demanderait de savoir qui en faisait partie ce soir-là : les
+    // appartenances sont datées en jours, les épisodes ne le sont pas.
+    const e1 = ref.episodes[0];
+    expect(e1?.immunityWinnerTeamIds).toEqual(['t-rouge']);
+    expect(e1?.comfortWinnerTeamIds).toEqual([]);
+    expect(e1?.immunityWinnerIds).not.toContain('sc-a');
+  });
+
+  it('la tribu courante est la plus récente EN JOURS, pas en épisodes', () => {
+    // La source date la colonne « Tribu » en jours ; l'épisode y est nul.
+    expect(ref.contestants.find(c => c.id === 'sc-a')?.teamId).toBe('t-unique');
   });
 
   it('diffusé = documenté, ou daté dans le passé ; jamais une date seule dans le futur', () => {

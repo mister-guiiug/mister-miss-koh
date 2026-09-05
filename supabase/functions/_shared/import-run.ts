@@ -47,6 +47,25 @@ import type { Anomaly } from "./extract-votes.ts";
 
 export type RunStatus = "unchanged" | "diffed" | "failed";
 
+/**
+ * VERSION DE L'EXTRACTION, à incrémenter dès qu'elle produit un modèle
+ * intermédiaire différent de la fois d'avant.
+ *
+ * Sans elle, l'arrêt « révision déjà traitée » ment : une extraction corrigée
+ * ou enrichie ne serait jamais rejouée sur une page qui ne bouge plus, et la
+ * correction n'atteindrait jamais le référentiel. C'est arrivé le 05/09/2026
+ * en ajoutant les tribus et les épreuves — la page All Stars n'avait pas
+ * changé, et l'import répondait `unchanged` en boucle.
+ *
+ * Ce n'est pas une version de code : c'est une version de SORTIE. Un
+ * remaniement qui ne change pas le modèle intermédiaire ne l'incrémente pas.
+ *
+ *  1 — candidats, épisodes, tours, voix
+ *  2 — + séjours en tribu (bornes en jours), motif de départ, vainqueurs
+ *      d'épreuve recoupés
+ */
+export const EXTRACTOR_VERSION = "2";
+
 export interface SourceDocument {
   readonly id: string;
   readonly title: string;
@@ -64,6 +83,8 @@ export interface ImportPort {
   loadDocument(documentId: string): Promise<SourceDocument | null>;
   /** Révision du dernier import qui a abouti, pour l'arrêt « inchangé ». */
   lastImportedRevision(documentId: string): Promise<string | null>;
+  /** Version d'extraction du dernier import abouti, `null` si inconnue. */
+  lastExtractorVersion(documentId: string): Promise<string | null>;
   lastExtractHash(documentId: string): Promise<string | null>;
   createRun(input: {
     documentId: string;
@@ -74,6 +95,7 @@ export interface ImportPort {
     status: RunStatus;
     revision?: string;
     revisedAt?: string;
+    extractorVersion?: string;
     extractHash?: string;
     error?: string;
     differencesTotal?: number;
@@ -156,11 +178,19 @@ export async function runImport(
     // ── 1. Révision ───────────────────────────────────────────────────────
     const revision = await fetchRevision(wiki, document.title);
     const known = await port.lastImportedRevision(document.id);
-    if (!options.force && known === revision.revId) {
+    // « Déjà traitée » suppose que c'est le MÊME traitement. Une extraction
+    // enrichie doit rejouer une page qui n'a pas bougé, sinon la correction
+    // n'atteint jamais le référentiel.
+    const knownVersion = await port.lastExtractorVersion(document.id);
+    if (
+      !options.force && known === revision.revId &&
+      knownVersion === EXTRACTOR_VERSION
+    ) {
       await port.finishRun(runId, {
         status: "unchanged",
         revision: revision.revId,
         revisedAt: revision.revisedAt,
+        extractorVersion: EXTRACTOR_VERSION,
       });
       return {
         runId,
@@ -272,6 +302,7 @@ export async function runImport(
         status: "unchanged",
         revision: revision.revId,
         revisedAt: revision.revisedAt,
+        extractorVersion: EXTRACTOR_VERSION,
         extractHash: hash,
       });
       return {
@@ -307,6 +338,7 @@ export async function runImport(
       status: "diffed",
       revision: revision.revId,
       revisedAt: revision.revisedAt,
+      extractorVersion: EXTRACTOR_VERSION,
       extractHash: hash,
       differencesTotal: result.differences.length,
       differencesAmbiguous: ambiguous,
@@ -377,8 +409,15 @@ export function buildRecords(
       gender: c.gender,
       age: c.age,
       previousSeasons: [...c.previousSeasons],
-      team: c.team,
+      // Les séjours en tribu, avec leurs bornes de JOURS — la source ne parle
+      // pas en épisodes ici, et les convertir serait inventer.
+      teams: c.teams.map((t) => ({
+        name: t.name,
+        fromDay: t.fromDay,
+        toDay: t.toDay,
+      })),
       finalJury: c.finalJury,
+      departure: c.departure,
     }, byRow.get(c.displayName) ?? []);
   }
 
@@ -392,7 +431,10 @@ export function buildRecords(
       rawTally: e.rawTally,
       departureDay: e.departureDay,
       aired: e.aired,
-    }, []);
+      // Les anomalies d'épisode sont adressées par `e<numéro>` : c'est ce qui
+      // rend une différence ambiguë toute seule quand un vainqueur d'épreuve
+      // n'a pas été reconnu.
+    }, byRow.get(`e${e.number}`) ?? []);
   }
 
   for (const r of votes.rounds) {

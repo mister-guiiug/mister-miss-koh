@@ -70,6 +70,8 @@ const ContestantRow = z.object({
       z.object({
         team_id: z.string(),
         from_episode_number: z.number().nullable(),
+        // La source date les appartenances en JOURS, jamais en épisodes.
+        from_day: z.number().nullable(),
       })
     )
     .default([]),
@@ -89,6 +91,7 @@ const PairRow = z.object({
 const ResultRow = z.object({
   season_contestant_id: z.string().nullable(),
   pair_id: z.string().nullable(),
+  team_id: z.string().nullable(),
   is_winner: z.boolean(),
 });
 
@@ -203,6 +206,24 @@ function winnersOf(
   return [...ids];
 }
 
+/**
+ * Les tribus vainqueurs.
+ *
+ * ELLES NE SE DÉPLIENT PAS EN CANDIDATS. Il faudrait savoir qui était dans la
+ * tribu CE SOIR-LÀ ; les appartenances sont datées en jours, les épisodes ne
+ * le sont pas, et faute de correspondance on nommerait des membres au hasard.
+ * La tribu se nomme donc telle quelle.
+ */
+function winningTeamsOf(
+  results: readonly z.infer<typeof ResultRow>[]
+): string[] {
+  const ids = new Set<string>();
+  for (const r of results) {
+    if (r.is_winner && r.team_id) ids.add(r.team_id);
+  }
+  return [...ids];
+}
+
 export function mapReferential(input: unknown, today: string): Referential {
   const rows = RowsSchema.parse(input);
 
@@ -307,9 +328,13 @@ export function mapReferential(input: unknown, today: string): Referential {
     },
     contestants: rows.contestants.map(c => {
       // L'appartenance la plus récente : la tribu est un intervalle, pas
-      // un attribut, et c'est la dernière qui décrit l'état courant.
+      // un attribut, et c'est la dernière qui décrit l'état courant. Le tri
+      // porte d'abord sur le JOUR, parce que c'est ce que la source date ;
+      // l'épisode ne sert que si un jour manque.
       const membership = [...c.team_memberships].sort(
-        (a, b) => (b.from_episode_number ?? 0) - (a.from_episode_number ?? 0)
+        (a, b) =>
+          (b.from_day ?? 0) - (a.from_day ?? 0) ||
+          (b.from_episode_number ?? 0) - (a.from_episode_number ?? 0)
       )[0];
       const gender = c.contestants?.gender;
       return {
@@ -354,6 +379,12 @@ export function mapReferential(input: unknown, today: string): Referential {
         immunityWinnerIds: winnersOf(
           immunity.flatMap(c => c.challenge_results),
           pairMembers
+        ),
+        comfortWinnerTeamIds: winningTeamsOf(
+          comfort.flatMap(c => c.challenge_results)
+        ),
+        immunityWinnerTeamIds: winningTeamsOf(
+          immunity.flatMap(c => c.challenge_results)
         ),
       };
     }),
@@ -402,7 +433,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
       client
         .from('season_contestants')
         .select(
-          'id, contestant_id, display_name, age_at_season, final_jury, contestants(gender), contestant_previous_seasons(label, ordinal), team_memberships(team_id, from_episode_number)'
+          'id, contestant_id, display_name, age_at_season, final_jury, contestants(gender), contestant_previous_seasons(label, ordinal), team_memberships(team_id, from_episode_number, from_day)'
         )
         .eq('season_id', season.id),
       client
@@ -416,7 +447,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
       client
         .from('episodes')
         .select(
-          'id, number, air_date, challenges(kind, challenge_results(season_contestant_id, pair_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(voter_id, target_id, is_annulled)))'
+          'id, number, air_date, challenges(kind, challenge_results(season_contestant_id, pair_id, team_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(voter_id, target_id, is_annulled)))'
         )
         .eq('season_id', season.id)
         .order('number'),

@@ -73,6 +73,45 @@ export function parseDay(raw: string): number | null {
   return value > 0 && value < 200 ? value : null;
 }
 
+export interface DayRange {
+  readonly fromDay: number;
+  /** `null` = la source laisse la borne ouverte : le séjour dure encore. */
+  readonly toDay: number | null;
+}
+
+/**
+ * « (jour 2 – 5) » → `{ fromDay: 2, toDay: 5 }`.
+ *
+ * TROIS FORMES, ET TROIS SEULEMENT. Relevé le 05/09/2026 sur les 639 lignes de
+ * colonne « Tribu » des pages de saison : `jour N – N` (615 fois),
+ * `jour N –` avec borne ouverte (18), et `jour N` seul (6). Aucune ligne sans
+ * parenthèses. Une quatrième forme n'est donc pas une variante à deviner,
+ * c'est une anomalie.
+ *
+ * Le tiret est un TIRET DEMI-CADRATIN dans la source (`–`), pas un trait
+ * d'union : les deux sont acceptés, parce qu'un contributeur écrira l'un ou
+ * l'autre.
+ */
+export function parseDayRange(raw: string): DayRange | null {
+  // La parenthèse fermante est retirée AVANT toute ancre de fin : « (jour 1 –
+  // ) » se termine par elle, et un `$` posé sur le tiret ne verrait jamais la
+  // borne ouverte.
+  const text = fold(raw).replace(/\)\s*$/, "").trim();
+  const closed = text.match(/jour\s*(\d+)\s*[–—-]\s*(\d+)/);
+  if (closed) {
+    const from = Number.parseInt(closed[1], 10);
+    const to = Number.parseInt(closed[2], 10);
+    if (from > 0 && to >= from && to < 200) return { fromDay: from, toDay: to };
+    return null;
+  }
+  const open = text.match(/jour\s*(\d+)\s*[–—-]?\s*$/);
+  if (open) {
+    const from = Number.parseInt(open[1], 10);
+    if (from > 0 && from < 200) return { fromDay: from, toDay: null };
+  }
+  return null;
+}
+
 /**
  * « Maxime et Joana » → deux noms.
  *

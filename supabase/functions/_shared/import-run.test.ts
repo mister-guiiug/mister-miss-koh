@@ -8,6 +8,7 @@
  */
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import {
+  EXTRACTOR_VERSION,
   type ImportPolicy,
   type ImportPort,
   runImport,
@@ -33,6 +34,7 @@ const VOTES = await read("votes");
 /** Port de fantaisie : garde trace de tout, n'écrit nulle part. */
 function fakePort(overrides: Partial<ImportPort> & {
   lastRevision?: string | null;
+  lastVersion?: string | null;
   lastHash?: string | null;
   published?: StoredRecord[];
   policy?: ImportPolicy;
@@ -49,6 +51,12 @@ function fakePort(overrides: Partial<ImportPort> & {
   const port: ImportPort = {
     loadDocument: () => Promise.resolve(DOC),
     lastImportedRevision: () => Promise.resolve(overrides.lastRevision ?? null),
+    // Par défaut la version COURANTE : un test qui pose `lastRevision` veut
+    // éprouver l'arrêt « inchangé », pas le rejeu par changement d'extraction.
+    lastExtractorVersion: () =>
+      Promise.resolve(
+        overrides.lastVersion === undefined ? EXTRACTOR_VERSION : overrides.lastVersion,
+      ),
     lastExtractHash: () => Promise.resolve(overrides.lastHash ?? null),
     createRun: () => {
       const id = `run-${calls.runs.length + 1}`;
@@ -349,4 +357,40 @@ Deno.test("les anomalies sont rattachées au fait qu'elles concernent", async ()
   // Et la différence correspondante devient ambiguë, sans intervention.
   const diff = calls.differences.find((d) => d.naturalKey.endsWith(":Camille"));
   assertEquals(diff?.class, "ambiguous");
+});
+
+Deno.test("une extraction ENRICHIE rejoue une page qui n'a pas bougé", async () => {
+  // Le piège du 05/09/2026 : la page All Stars n'avait pas changé, l'import
+  // répondait `unchanged`, et l'ajout des tribus n'atteignait jamais la base.
+  const { port, calls } = fakePort({
+    lastRevision: "239179934",
+    lastVersion: "1",
+  });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    fetchImpl: fakeFetch(),
+  });
+
+  assertEquals(outcome.status, "diffed", "la version d'extraction a changé : on relit");
+  assertEquals(
+    calls.finished.at(-1)?.patch.extractorVersion,
+    EXTRACTOR_VERSION,
+    "l'exécution retient la version qui l'a produite",
+  );
+});
+
+Deno.test("même révision ET même version d'extraction : on s'arrête", async () => {
+  const { port, calls } = fakePort({
+    lastRevision: "239179934",
+    lastVersion: EXTRACTOR_VERSION,
+  });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    fetchImpl: fakeFetch(),
+  });
+
+  assertEquals(outcome.status, "unchanged");
+  assertEquals(calls.records.length, 0, "rien n'est lu au-delà de la révision");
 });
