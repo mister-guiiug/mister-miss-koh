@@ -39,6 +39,8 @@ export function ContestantDetailScreen() {
       partner: partnerOf(referential, id),
       departure:
         referential.departures.find(d => d.contestantId === id) ?? null,
+      // Les avantages qu'il ou elle a tenus, dans l'ordre du tableau source.
+      advantages: referential.advantages.filter(a => a.holderIds.includes(id)),
       received: votesReceived(referential, id, upTo),
       cast: votesCast(referential, id, upTo),
       councils: councilsAttended(referential, id, upTo),
@@ -57,7 +59,7 @@ export function ContestantDetailScreen() {
     );
   }
 
-  const { contestant, partner, departure } = view;
+  const { contestant, partner, departure, advantages } = view;
   const favorite = favorites.includes(contestant.id);
   const cause = contestantById(referential, departure?.causedById ?? null);
 
@@ -149,6 +151,34 @@ export function ContestantDetailScreen() {
           <Badge tone="success">Encore en jeu</Badge>
         )}
       </Card>
+
+      {advantages.length > 0 && (
+        <Card>
+          <CardHeader title="Avantages" />
+          {advantages.map(a => (
+            <SpoilerGuard
+              key={a.id}
+              episodeNumber={a.revealEpisodeNumber}
+              label="Révéler l’avantage"
+            >
+              <p>
+                <Badge tone="info">Collier d’immunité</Badge>{' '}
+                {a.label && <>trouvé au « {a.label} »</>}
+                {a.foundDay && <> · jour {a.foundDay}</>}
+                {' — '}
+                {a.status === 'used' && a.playedEpisodeNumber
+                  ? `joué à l’épisode ${a.playedEpisodeNumber}`
+                  : a.status === 'used'
+                    ? 'joué'
+                    : a.status === 'not_used'
+                      ? 'pas encore joué'
+                      : 'la source ne dit pas ce qu’il est devenu'}
+                {a.holderIds.length > 1 && <> · trouvé à deux</>}
+              </p>
+            </SpoilerGuard>
+          ))}
+        </Card>
+      )}
     </div>
   );
 }

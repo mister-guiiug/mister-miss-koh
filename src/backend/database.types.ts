@@ -39,49 +39,131 @@ export type Database = {
   };
   public: {
     Tables: {
+      advantage_holders: {
+        Row: {
+          advantage_id: string;
+          created_at: string;
+          from_day: number | null;
+          id: string;
+          is_original: boolean;
+          ordinal: number;
+          published_at: string | null;
+          season_contestant_id: string;
+          source_document_id: string | null;
+          to_day: number | null;
+          validation_status: Database['public']['Enums']['validation_status'];
+        };
+        Insert: {
+          advantage_id: string;
+          created_at?: string;
+          from_day?: number | null;
+          id?: string;
+          is_original?: boolean;
+          ordinal?: number;
+          published_at?: string | null;
+          season_contestant_id: string;
+          source_document_id?: string | null;
+          to_day?: number | null;
+          validation_status?: Database['public']['Enums']['validation_status'];
+        };
+        Update: {
+          advantage_id?: string;
+          created_at?: string;
+          from_day?: number | null;
+          id?: string;
+          is_original?: boolean;
+          ordinal?: number;
+          published_at?: string | null;
+          season_contestant_id?: string;
+          source_document_id?: string | null;
+          to_day?: number | null;
+          validation_status?: Database['public']['Enums']['validation_status'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'advantage_holders_advantage_id_fkey';
+            columns: ['advantage_id'];
+            isOneToOne: false;
+            referencedRelation: 'advantages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'advantage_holders_season_contestant_id_fkey';
+            columns: ['season_contestant_id'];
+            isOneToOne: false;
+            referencedRelation: 'season_contestants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'advantage_holders_source_document_id_fkey';
+            columns: ['source_document_id'];
+            isOneToOne: false;
+            referencedRelation: 'source_documents';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       advantages: {
         Row: {
+          annulled_votes: number | null;
+          annulled_votes_total: number | null;
           created_at: string;
           effect: string | null;
+          found_day: number | null;
           found_episode_id: string | null;
-          holder_id: string | null;
           id: string;
           kind: Database['public']['Enums']['advantage_kind'];
           label: string | null;
+          natural_key: string | null;
+          played_day: number | null;
+          played_episode_id: string | null;
           played_round_id: string | null;
           published_at: string | null;
           season_id: string;
           source_document_id: string | null;
+          status: string | null;
           updated_at: string;
           validation_status: Database['public']['Enums']['validation_status'];
         };
         Insert: {
+          annulled_votes?: number | null;
+          annulled_votes_total?: number | null;
           created_at?: string;
           effect?: string | null;
+          found_day?: number | null;
           found_episode_id?: string | null;
-          holder_id?: string | null;
           id?: string;
           kind: Database['public']['Enums']['advantage_kind'];
           label?: string | null;
+          natural_key?: string | null;
+          played_day?: number | null;
+          played_episode_id?: string | null;
           played_round_id?: string | null;
           published_at?: string | null;
           season_id: string;
           source_document_id?: string | null;
+          status?: string | null;
           updated_at?: string;
           validation_status?: Database['public']['Enums']['validation_status'];
         };
         Update: {
+          annulled_votes?: number | null;
+          annulled_votes_total?: number | null;
           created_at?: string;
           effect?: string | null;
+          found_day?: number | null;
           found_episode_id?: string | null;
-          holder_id?: string | null;
           id?: string;
           kind?: Database['public']['Enums']['advantage_kind'];
           label?: string | null;
+          natural_key?: string | null;
+          played_day?: number | null;
+          played_episode_id?: string | null;
           played_round_id?: string | null;
           published_at?: string | null;
           season_id?: string;
           source_document_id?: string | null;
+          status?: string | null;
           updated_at?: string;
           validation_status?: Database['public']['Enums']['validation_status'];
         };
@@ -94,10 +176,10 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
-            foreignKeyName: 'advantages_holder_id_fkey';
-            columns: ['holder_id'];
+            foreignKeyName: 'advantages_played_episode_id_fkey';
+            columns: ['played_episode_id'];
             isOneToOne: false;
-            referencedRelation: 'season_contestants';
+            referencedRelation: 'episodes';
             referencedColumns: ['id'];
           },
           {
@@ -901,6 +983,7 @@ export type Database = {
           differences_total: number;
           error_message: string | null;
           extract_hash: string | null;
+          extractor_version: string | null;
           finished_at: string | null;
           http_status: number | null;
           id: string;
@@ -918,6 +1001,7 @@ export type Database = {
           differences_total?: number;
           error_message?: string | null;
           extract_hash?: string | null;
+          extractor_version?: string | null;
           finished_at?: string | null;
           http_status?: number | null;
           id?: string;
@@ -935,6 +1019,7 @@ export type Database = {
           differences_total?: number;
           error_message?: string | null;
           extract_hash?: string | null;
+          extractor_version?: string | null;
           finished_at?: string | null;
           http_status?: number | null;
           id?: string;
