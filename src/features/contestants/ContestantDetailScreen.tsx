@@ -37,6 +37,7 @@ export function ContestantDetailScreen() {
     return {
       contestant,
       partner: partnerOf(referential, id),
+      pair: referential.pairs.find(p => p.memberIds.includes(id)) ?? null,
       departure:
         referential.departures.find(d => d.contestantId === id) ?? null,
       // Les avantages qu'il ou elle a tenus, dans l'ordre du tableau source.
@@ -59,7 +60,7 @@ export function ContestantDetailScreen() {
     );
   }
 
-  const { contestant, partner, departure, advantages } = view;
+  const { contestant, partner, pair, departure, advantages } = view;
   const favorite = favorites.includes(contestant.id);
   const cause = contestantById(referential, departure?.causedById ?? null);
 
@@ -90,10 +91,18 @@ export function ContestantDetailScreen() {
           }
         />
         {partner && (
-          <p>
-            Binôme :{' '}
-            <Link to={`/candidats/${partner.id}`}>{partner.displayName}</Link>
-          </p>
+          // La source ne liste pas les duos : celui-ci n'est connu que parce
+          // qu'un départ l'a nommé. Le montrer plus tôt divulgâcherait ce
+          // départ.
+          <SpoilerGuard
+            episodeNumber={pair?.revealEpisodeNumber ?? null}
+            label="Révéler le binôme"
+          >
+            <p>
+              Binôme :{' '}
+              <Link to={`/candidats/${partner.id}`}>{partner.displayName}</Link>
+            </p>
+          </SpoilerGuard>
         )}
       </Card>
 

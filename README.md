@@ -5,9 +5,9 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **quatorze** migrations sont appliquées sur le projet Supabase hébergé, qui
+> Les **dix-huit** migrations sont appliquées sur le projet Supabase hébergé, qui
 > suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
-> d'isolation (22 assertions) et la publication transactionnelle (29 assertions)
+> d'isolation (22 assertions) et la publication transactionnelle (39 assertions)
 > passent contre cette base.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
@@ -51,10 +51,10 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                    |
-| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 43 tests verts            |
-| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 116 tests verts           |
+| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 44 tests verts            |
+| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 118 tests verts           |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
-| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 29 assertions vertes      |
+| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 39 assertions vertes      |
 | `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette         |
 
@@ -106,7 +106,8 @@ supabase/
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
                  0009 correctifs · 0010 tribus et épreuves · 0011 version
                  d'extraction · 0012 format d'épreuve · 0013 colliers ·
-                 0014 colonnes mortes
+                 0014 colonnes mortes · 0015-0018 duos révélés, ordre des
+                 publications, photo des remplacements, cause extraite
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS et publication (pgTAP)
 ```
@@ -134,7 +135,7 @@ Trois choix qui structurent le code :
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les quatorze migrations y
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les dix-huit migrations y
 sont appliquées ; `src/backend/database.types.ts` en est généré.
 
 ```bash
@@ -222,9 +223,8 @@ npm run test:publication:remote
 
 Dans l'ordre :
 
-1. les **binômes** : la source les décrit en prose, pas en tableau, et la
-   règle des destins liés se lit aujourd'hui dans les tours plutôt que dans
-   `pairs` ;
+1. les **duos non révélés** : la source ne les liste nulle part, et un duo
+   n'est connu que lorsqu'un départ le nomme — deux sur neuf à ce jour ;
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;

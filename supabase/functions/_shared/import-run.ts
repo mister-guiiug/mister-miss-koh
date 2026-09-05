@@ -65,8 +65,9 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  2 — + séjours en tribu (bornes en jours), motif de départ, vainqueurs
  *      d'épreuve recoupés
  *  3 — + colliers d'immunité (détenteurs datés, statut, voix annulées)
+ *  4 — + la cause d'un départ lié (`causedBy`), qui nomme le duo
  */
-export const EXTRACTOR_VERSION = "3";
+export const EXTRACTOR_VERSION = "4";
 
 export interface SourceDocument {
   readonly id: string;
@@ -474,6 +475,7 @@ export function buildRecords(
       roundNumber: r.roundNumber,
       kind: r.kind,
       eliminated: r.eliminated,
+      causedBy: r.causedBy,
       reportedVotesFor: r.reportedVotesFor,
       reportedVotesTotal: r.reportedVotesTotal,
       rawTally: r.rawTally,

@@ -36,6 +36,16 @@ export interface ExtractedRound {
   readonly roundNumber: number;
   readonly kind: ColumnKind;
   readonly eliminated: string | null;
+  /**
+   * Pour un départ LIÉ : la personne dont l'élimination l'a entraîné.
+   *
+   * La colonne « départ lié » n'existe que parce qu'un vote a éliminé
+   * quelqu'un dans le même épisode ; elle décrit la conséquence de ce vote.
+   * Le lien est donc une lecture de la STRUCTURE du tableau, pas une
+   * déduction — et il vaut mieux ici, dans le modèle intermédiaire qu'un
+   * relecteur voit, que dans une requête SQL que personne ne relit.
+   */
+  readonly causedBy: string | null;
   /** Voix rapportées pour l'éliminé. `null` = la source ne le dit pas. */
   readonly reportedVotesFor: number | null;
   /** Votants rapportés. `null` = la source ne le dit pas. */
@@ -366,6 +376,16 @@ export function extractVotes(grid: Grid, seasonSlug: string): VotesExtraction {
       });
     }
 
+    // Un départ lié suit l'élimination de sa propre soirée : on remonte aux
+    // tours déjà lus du MÊME épisode, et on prend le dernier vote.
+    const causedBy = kind === "linked"
+      ? (rounds
+        .filter((r) =>
+          r.episodeNumber === episodeNumber && r.kind === "vote" && r.eliminated
+        )
+        .at(-1)?.eliminated ?? null)
+      : null;
+
     rounds.push({
       naturalKey: `${seasonSlug}:e${episodeKey}:r${roundNumber}`,
       columnIndex: c,
@@ -373,6 +393,7 @@ export function extractVotes(grid: Grid, seasonSlug: string): VotesExtraction {
       roundNumber,
       kind,
       eliminated: eliminated || null,
+      causedBy,
       reportedVotesFor: forCount,
       reportedVotesTotal: total,
       rawTally,

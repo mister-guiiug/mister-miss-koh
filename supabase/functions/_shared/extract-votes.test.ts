@@ -244,3 +244,43 @@ Deno.test("« Jury » seul ne couvre pas « Jury final »", () => {
     "un libellé voisin mais non listé reste une anomalie",
   );
 });
+
+Deno.test("un départ LIÉ nomme l'élimination qui l'a causé", () => {
+  // La colonne « départ lié » n'existe que parce qu'un vote a eu lieu dans la
+  // même soirée. Le dire ICI, dans le modèle intermédiaire, plutôt que dans
+  // une requête SQL : un relecteur voit le lien dans la différence proposée.
+  const grid = gridOf([
+    ["► Épisode", "1", "1", "2"],
+    ["► Éliminé", "Maxime", "Joana", "Moussa"],
+    ["► Votes", "11/18", "0", "12/16"],
+    ["▼ Candidats", "Votes", "Votes", "Votes"],
+    ["Camille", "Maxime", "", "Moussa"],
+    ["Laure", "Maxime", "", "Moussa"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+
+  const lie = out.rounds.find((r) => r.kind === "linked");
+  assert(lie, "le départ lié doit être reconnu");
+  assertEquals(lie.eliminated, "Joana");
+  assertEquals(lie.causedBy, "Maxime", "c'est l'éliminé du vote de la MÊME soirée");
+
+  for (const r of out.rounds.filter((x) => x.kind !== "linked")) {
+    assertEquals(r.causedBy, null, "un tour de vote ne cause rien : il EST la cause");
+  }
+});
+
+Deno.test("un départ lié sans vote dans sa soirée ne nomme personne", () => {
+  // Mieux vaut un duo absent qu'un duo faux : la colonne d'à côté, dans un
+  // AUTRE épisode, ne dit rien de celle-ci.
+  const grid = gridOf([
+    ["► Épisode", "1", "2"],
+    ["► Éliminé", "Maxime", "Joana"],
+    ["► Votes", "11/18", "0"],
+    ["▼ Candidats", "Votes", "Votes"],
+    ["Camille", "Maxime", ""],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  const lie = out.rounds.find((r) => r.kind === "linked");
+  assert(lie);
+  assertEquals(lie.causedBy, null);
+});

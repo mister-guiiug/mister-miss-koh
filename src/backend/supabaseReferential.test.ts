@@ -273,6 +273,17 @@ describe('mapReferential', () => {
     expect(e1?.immunityWinnerIds).toEqual(['sc-c']);
   });
 
+  it('un duo se révèle à l’épisode du départ qui l’a nommé', () => {
+    // La source ne liste pas les duos : ils n'existent dans le référentiel
+    // que parce qu'un départ lié les a nommés.
+    const duo = ref.pairs.find(p => p.id === 'pair-2');
+    expect(duo?.revealEpisodeNumber).toBe(1);
+    // Ni sc-a ni sc-b ne sont partis : leur duo n'a rien à révéler.
+    expect(
+      ref.pairs.find(p => p.id === 'pair-1')?.revealEpisodeNumber
+    ).toBeNull();
+  });
+
   it('un avantage porte ses détenteurs DANS L’ORDRE de la source', () => {
     const collier = ref.advantages.find(a => a.id === 'adv-1');
     expect(collier?.holderIds).toEqual(['sc-a', 'sc-b']);

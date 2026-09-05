@@ -268,6 +268,14 @@ export function mapReferential(input: unknown, today: string): Referential {
   const departureContestantById = new Map(
     rows.departures.map(d => [d.id, d.season_contestant_id])
   );
+  const departureEpisodeOf = new Map<string, number>();
+  for (const d of rows.departures) {
+    const number = d.episode_id
+      ? episodeNumberById.get(d.episode_id)
+      : undefined;
+    if (number !== undefined)
+      departureEpisodeOf.set(d.season_contestant_id, number);
+  }
   const eliminatedByRound = new Map<string, string>();
   for (const d of rows.departures) {
     if (d.round_id && d.kind === 'vote')
@@ -412,7 +420,14 @@ export function mapReferential(input: unknown, today: string): Referential {
     teams: rows.teams.map(t => ({ id: t.id, name: t.name, colour: t.colour })),
     pairs: rows.pairs.map(p => ({
       id: p.id,
-      memberIds: [p.member_a_id, p.member_b_id],
+      memberIds: [p.member_a_id, p.member_b_id] as [string, string],
+      // Le duo n'existe dans le référentiel que parce qu'un départ l'a
+      // nommé : son épisode de révélation est le premier des deux départs.
+      revealEpisodeNumber:
+        [p.member_a_id, p.member_b_id]
+          .map(id => departureEpisodeOf.get(id) ?? null)
+          .filter((n): n is number => n !== null)
+          .sort((a, b) => a - b)[0] ?? null,
     })),
     episodes: rows.episodes.map(e => {
       const comfort = e.challenges.filter(
