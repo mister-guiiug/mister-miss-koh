@@ -1,8 +1,8 @@
 /**
  * L'état de l'application. Deux natures de données, deux traitements :
  *
- *  - le RÉFÉRENTIEL vient du port `backend.referential` ; il n'est jamais
- *    modifié ici, seulement rechargé ;
+ *  - le RÉFÉRENTIEL vient du port `backend.referential`, avec son ORIGINE
+ *    (serveur, cache, démonstration) ; il n'est jamais modifié ici ;
  *  - les DONNÉES PERSONNELLES (préférences, épisodes vus, favoris) vivent dans
  *    un magasin versionné du socle, validé par zod au chargement. Privées par
  *    défaut, elles ne quittent pas l'appareil tant qu'aucun compte n'existe.
@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { createVersionedStore } from '@mister-guiiug/dev-pwa-config/versioned-store';
 import type { Referential } from '../domain/referential';
 import type { SpoilerMode } from '../domain/spoiler';
-import { backend } from '../backend/referentialRepository';
+import { backend, type Origin } from '../backend/referentialRepository';
 
 const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
@@ -46,8 +46,11 @@ const personalStore = createVersionedStore<Personal>({
 
 interface AppState {
   ready: boolean;
+  loading: boolean;
   error: string | null;
   referential: Referential | null;
+  origin: Origin | null;
+  notice: string | null;
   spoiler: SpoilerMode;
   animations: boolean;
   reduceMotion: boolean;
@@ -75,21 +78,33 @@ export const useAppStore = create<AppState>((set, get) => {
   };
 
   const load = async () => {
+    set({ loading: true });
     try {
-      const referential = await backend.referential.load();
-      set({ referential, ready: true, error: null });
+      const { referential, origin, notice } = await backend.referential.load();
+      set({
+        referential,
+        origin,
+        notice: notice ?? null,
+        ready: true,
+        error: null,
+      });
     } catch (error) {
       set({
         ready: true,
         error: error instanceof Error ? error.message : 'référentiel illisible',
       });
+    } finally {
+      set({ loading: false });
     }
   };
 
   return {
     ready: false,
+    loading: false,
     error: null,
     referential: null,
+    origin: null,
+    notice: null,
     ...personalStore.load(),
 
     async init() {

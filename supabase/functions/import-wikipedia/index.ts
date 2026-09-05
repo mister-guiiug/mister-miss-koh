@@ -62,7 +62,10 @@ function makePort(admin: SupabaseClient): ImportPort {
         id: string;
         title: string;
         reference_sources: { api_url: string | null } | null;
-        seasons: { slug: string } | null;
+        // Relation INVERSE (c'est `seasons` qui référence `source_documents`) :
+        // PostgREST rend un tableau, jamais un objet. Le premier `.slug`
+        // lu comme un objet aurait valu `undefined`, et la saison « ».
+        seasons: { slug: string }[] | null;
       };
       const apiUrl = source.reference_sources?.api_url;
       if (!apiUrl) return null;
@@ -70,7 +73,7 @@ function makePort(admin: SupabaseClient): ImportPort {
         id: source.id,
         title: source.title,
         apiUrl,
-        seasonSlug: source.seasons?.slug ?? "",
+        seasonSlug: source.seasons?.[0]?.slug ?? "",
       } satisfies SourceDocument;
     },
 

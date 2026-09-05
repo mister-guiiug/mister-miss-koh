@@ -7,6 +7,7 @@ import { lastAiredEpisode } from '../../domain/stats';
 
 export function HomeScreen() {
   const referential = useAppStore(s => s.referential);
+  const notice = useAppStore(s => s.notice);
   if (!referential) return null;
 
   const last = lastAiredEpisode(referential);
@@ -14,6 +15,13 @@ export function HomeScreen() {
   return (
     <div className="stack">
       <AppAnimation name="app-start" className="hero-animation" />
+      {/* L'avis vient AVANT le contenu : quand ce qui s'affiche n'est pas le
+          serveur, il faut le savoir avant de lire, pas après. */}
+      {notice && (
+        <p role="status" className="notice">
+          {notice}
+        </p>
+      )}
       <Card>
         <CardHeader
           as="h2"

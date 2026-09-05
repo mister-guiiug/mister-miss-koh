@@ -235,3 +235,11 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+.notice {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
