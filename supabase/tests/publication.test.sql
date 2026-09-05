@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(20);
+select plan(26);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -53,13 +53,13 @@ insert into import_differences
   (run_id, entity, natural_key, operation, class, status, after_value) values
   ('dddddddd-0000-0000-0000-000000000001', 'season_contestant', 'saison-fictive:Aël',
    'insert', 'unambiguous', 'validated',
-   '{"displayName":"Aël","gender":"f","age":31,"previousSeasons":["Saison 1"],"finalJury":null}'),
+   '{"displayName":"Aël","gender":"f","age":31,"previousSeasons":["Saison 1"],"finalJury":null,"teams":[{"name":"Rouge","fromDay":1,"toDay":5},{"name":"Tribu unique","fromDay":5,"toDay":null}]}'),
   ('dddddddd-0000-0000-0000-000000000001', 'season_contestant', 'saison-fictive:Bastien',
    'insert', 'unambiguous', 'validated',
    '{"displayName":"Bastien","gender":"m","age":44,"previousSeasons":[],"finalJury":null}'),
   ('dddddddd-0000-0000-0000-000000000001', 'episode', 'saison-fictive:e1',
    'insert', 'unambiguous', 'validated',
-   '{"number":1,"airDate":"2026-08-25","aired":true}'),
+   '{"number":1,"airDate":"2026-08-25","aired":true,"comfortWinners":["Aël"],"immunityWinners":["Rouge"]}'),
   ('dddddddd-0000-0000-0000-000000000001', 'council_round', 'saison-fictive:e1:r1',
    'insert', 'unambiguous', 'validated',
    '{"episodeNumber":1,"roundNumber":1,"kind":"vote","eliminated":"Bastien","reportedVotesFor":2,"reportedVotesTotal":2}'),
@@ -105,6 +105,22 @@ language sql stable as $$
       (select count(*) from council_votes v
         join council_rounds cr on cr.id = v.round_id
         join councils c on c.id = cr.council_id
+        join episodes e on e.id = c.episode_id
+       where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'tribus' then
+      (select count(*) from teams
+        where season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'appartenances' then
+      (select count(*) from team_memberships tm
+        join season_contestants sc on sc.id = tm.season_contestant_id
+       where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'epreuves' then
+      (select count(*) from challenges c
+        join episodes e on e.id = c.episode_id
+       where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'resultats' then
+      (select count(*) from challenge_results r
+        join challenges c on c.id = r.challenge_id
         join episodes e on e.id = c.episode_id
        where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
     when 'departs' then
@@ -218,7 +234,45 @@ select is(
   'la version du référentiel avance — c''est elle que le client compare'
 );
 
--- ════════════════════════════════════════════════════════════════════════════
+
+select is(fictif_compte('tribus'), 2, 'chaque tribu citée est créée une fois');
+
+select is(
+  (select count(*)::int from team_memberships tm
+     join season_contestants sc on sc.id = tm.season_contestant_id
+    where sc.display_name = 'Aël' and tm.from_day is not null),
+  2,
+  'les deux séjours sont publiés, avec leurs bornes en JOURS'
+);
+
+select is(
+  (select tm.to_day from team_memberships tm
+     join season_contestants sc on sc.id = tm.season_contestant_id
+     join teams t on t.id = tm.team_id
+    where sc.display_name = 'Aël' and t.name = 'Rouge'),
+  5,
+  'une borne fermée reste fermée'
+);
+
+select is(fictif_compte('epreuves'), 2, 'une épreuve de confort, une d''immunité');
+
+select is(
+  (select c.format::text from challenges c
+     join episodes e on e.id = c.episode_id
+    where e.season_id = 'cccccccc-0000-0000-0000-000000000001' and c.kind = 'comfort'),
+  'individual',
+  'un candidat vainqueur : épreuve individuelle'
+);
+
+select is(
+  (select c.format::text from challenges c
+     join episodes e on e.id = c.episode_id
+    where e.season_id = 'cccccccc-0000-0000-0000-000000000001' and c.kind = 'immunity'),
+  'team',
+  'une TRIBU vainqueur : épreuve d''équipe — le format se déduit, il ne se suppose pas'
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 3. On ne publie pas deux fois
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -248,7 +302,9 @@ reset role;
 
 select is(
   fictif_compte('participations') + fictif_compte('voix') + fictif_compte('tours')
-    + fictif_compte('departs') + fictif_compte('episodes'),
+    + fictif_compte('departs') + fictif_compte('episodes')
+    + fictif_compte('tribus') + fictif_compte('appartenances')
+    + fictif_compte('epreuves') + fictif_compte('resultats'),
   0,
   'tout ce qui avait été créé a disparu — la photo servait à cela'
 );

@@ -3,9 +3,9 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **105 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> **109 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. La publication est prouvée autrement :
-> 20 assertions pgTAP contre la base hébergée
+> 26 assertions pgTAP contre la base hébergée
 > (`npm run test:publication:remote`).
 >
 > **La fonction Edge est déployée et a tourné pour de vrai** le 05/09/2026. Le
@@ -391,6 +391,53 @@ binôme ».
   0 ajoutée, 0 doublon ;
 - **les deux portes refusent.** Sans secret, ou avec un mauvais secret, la
   fonction répond `401` — même en présentant la clé anonyme.
+
+## Les tribus et les épreuves
+
+Relevé du 05/09/2026 sur les pages de saison, **avant** d'écrire une ligne :
+
+| Ce qui a été compté                          | Résultat                                                   |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| lignes de la colonne « Tribu »               | 639, **toutes** parenthésées                               |
+| formes de l'intervalle                       | 3 : `jour N – N`, `jour N –`, `jour N`                     |
+| lignes qui sont un **statut**, pas une tribu | 46 (`Banni`, `Bannie`, `Éliminé`, `Éliminée`)              |
+| valeurs des colonnes d'épreuve               | 368 : 120 tribus, 210 candidats, **38 ni l'un ni l'autre** |
+
+Trois conséquences, chacune tirée de ce tableau :
+
+- **l'appartenance se date en JOURS.** La source écrit « Ikalu (jour 2 – 5) » et
+  ne parle jamais en épisodes. `team_memberships` gagne donc `from_day` et
+  `to_day` ; les colonnes en épisodes restent nulles, faute d'une
+  correspondance que la page ne donne pas ;
+- **« Bannie » n'est pas une tribu.** La source range l'état du candidat après
+  sa sortie dans la même colonne. Sans cette distinction, la publication
+  créerait une tribu « Bannie » et lui donnerait quatre membres ;
+- **un vainqueur est une tribu OU un candidat**, et la source n'écrit qu'un
+  nom. Le recoupement classe chaque valeur ; les 38 qui ne désignent rien de
+  connu — un nom d'épreuve, une équipe formée pour l'occasion — deviennent des
+  anomalies et ne sont **pas** rattachées au hasard.
+
+Le format de l'épreuve se **déduit** du vainqueur : `team` si une tribu a
+gagné, `individual` si un candidat. Le supposer individuel ferait passer une
+victoire de tribu pour une victoire personnelle.
+
+## « Déjà traitée » suppose le même traitement
+
+L'arrêt « révision inchangée » a menti le jour où l'extraction s'est enrichie :
+la page All Stars n'avait pas bougé, l'import répondait `unchanged`, et les
+tribus n'atteignaient jamais le référentiel.
+
+`import_runs` retient donc la **version de sortie** de l'extraction
+(`EXTRACTOR_VERSION`), et le raccourci n'opère que si la révision **et** la
+version coïncident. Ce n'est pas une version de code : un remaniement qui ne
+change pas le modèle intermédiaire ne l'incrémente pas.
+
+Une limite reste, et elle mérite d'être dite : la publication est
+**incrémentale**, elle applique des différences. Quand c'est la _dérivation_
+qui change — publier des épreuves à partir d'un payload d'épisode inchangé —
+aucune différence ne la porte. Il faut alors **défaire et rejouer** le lot, ce
+que `revert_publication` puis `publish_run` savent faire depuis que les
+exécutions annulées sont republiables.
 
 ### Déclencher la fonction
 

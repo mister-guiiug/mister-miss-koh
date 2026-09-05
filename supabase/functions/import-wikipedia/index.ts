@@ -95,6 +95,18 @@ function makePort(admin: SupabaseClient): ImportPort {
       return data?.source_revision ?? null;
     },
 
+    async lastExtractorVersion(documentId) {
+      const { data } = await admin
+        .from("import_runs")
+        .select("extractor_version")
+        .eq("source_document_id", documentId)
+        .in("status", ["diffed", "published", "unchanged"])
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.extractor_version ?? null;
+    },
+
     async lastExtractHash(documentId) {
       const { data } = await admin
         .from("import_runs")
@@ -130,6 +142,7 @@ function makePort(admin: SupabaseClient): ImportPort {
           finished_at: new Date().toISOString(),
           source_revision: patch.revision ?? null,
           source_revision_at: patch.revisedAt ?? null,
+          extractor_version: patch.extractorVersion ?? null,
           extract_hash: patch.extractHash ?? null,
           error_message: patch.error ?? null,
           differences_total: patch.differencesTotal ?? 0,

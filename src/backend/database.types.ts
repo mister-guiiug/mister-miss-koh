@@ -1701,34 +1701,40 @@ export type Database = {
       team_memberships: {
         Row: {
           created_at: string;
+          from_day: number | null;
           from_episode_number: number | null;
           id: string;
           published_at: string | null;
           season_contestant_id: string;
           source_document_id: string | null;
           team_id: string;
+          to_day: number | null;
           to_episode_number: number | null;
           validation_status: Database['public']['Enums']['validation_status'];
         };
         Insert: {
           created_at?: string;
+          from_day?: number | null;
           from_episode_number?: number | null;
           id?: string;
           published_at?: string | null;
           season_contestant_id: string;
           source_document_id?: string | null;
           team_id: string;
+          to_day?: number | null;
           to_episode_number?: number | null;
           validation_status?: Database['public']['Enums']['validation_status'];
         };
         Update: {
           created_at?: string;
+          from_day?: number | null;
           from_episode_number?: number | null;
           id?: string;
           published_at?: string | null;
           season_contestant_id?: string;
           source_document_id?: string | null;
           team_id?: string;
+          to_day?: number | null;
           to_episode_number?: number | null;
           validation_status?: Database['public']['Enums']['validation_status'];
         };
@@ -2206,6 +2212,10 @@ export type Database = {
         | { Args: { '': string }; Returns: string }
         | { Args: { how_many: number; why: string }; Returns: string };
       slugify_fr: { Args: { p_input: string }; Returns: string };
+      team_kind_of: {
+        Args: { p_name: string };
+        Returns: Database['public']['Enums']['team_kind'];
+      };
       throws_ok: { Args: { '': string }; Returns: string };
       todo:
         | { Args: { how_many: number }; Returns: boolean[] }

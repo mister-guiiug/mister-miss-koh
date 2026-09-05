@@ -181,8 +181,7 @@ le double verrou (droits SQL + politiques) sont décrits dans
 ## Ce qui n'est pas encore écrit
 
 - Les vues calculées (immunités, classements, chronologie).
-- Les **tribus** : la publication ne sait pas encore transformer
-  « Ikalu (jour 2 – 5) » en `teams` + `team_memberships`.
+- Les **binômes** : la source les décrit en prose, pas en tableau.
 
 Le jeu de données de démonstration existe (`src/backend/demo.ts`), marqué
 « Donnée fictive de démonstration » ; le schéma est appliqué sur la base

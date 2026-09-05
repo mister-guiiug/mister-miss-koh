@@ -99,7 +99,7 @@ function fold(value: string): string {
  * ni un candidat ni l'un de ces mots devient une anomalie, à relire. Une liste
  * trop large avalerait en silence un nom mal orthographié.
  */
-const STATUS_WORDS = new Set([
+export const STATUS_WORDS = new Set([
   "banni",
   "bannie",
   "elimine",

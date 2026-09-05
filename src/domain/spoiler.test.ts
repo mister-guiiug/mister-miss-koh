@@ -13,6 +13,8 @@ const ep = (
   aired,
   comfortWinnerIds: [],
   immunityWinnerIds: [],
+  comfortWinnerTeamIds: [],
+  immunityWinnerTeamIds: [],
 });
 
 const episodes = [
