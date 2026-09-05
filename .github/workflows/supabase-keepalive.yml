@@ -1,0 +1,28 @@
+# Anti-pause Supabase Free — appelant planifié du réutilisable du socle.
+#
+# Trois pièces, aucune n'est facultative : la table `keep_alive`
+# (migration 0005), les deux secrets ci-dessous, et ce workflow. Sans la
+# table, le ping répond 404 en silence et le projet se met en pause au bout
+# de sept jours. Vérifier par `gh workflow run supabase-keepalive.yml`, pas
+# en attendant le prochain cron.
+#
+# UNE TENSION ASSUMÉE : `VITE_SUPABASE_URL` et l'`anon key` sont des valeurs
+# PUBLIQUES (elles sont dans le bundle), rangées en `vars` pour le
+# déploiement. Le réutilisable, lui, les déclare en `secrets:` — c'est son
+# contrat, et un secret ne fait ici que masquer les journaux. La même valeur
+# vit donc aux deux endroits ; le socle devra aligner son réutilisable sur sa
+# propre règle.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '23 5 */3 * *' # ~tous les 3 jours, décalé de mister-molkky
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-supabase-keepalive.yml@v3
+    # Nommés, pas hérités : le réutilisable déclare exactement ces deux secrets.
+    secrets:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

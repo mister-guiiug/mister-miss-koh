@@ -4,7 +4,7 @@ import { Button } from '@mister-guiiug/dev-wpa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-wpa-config/react/theme-provider';
 import { useAppStore } from '../../store/useAppStore';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
-import { coverage } from '../../backend/referentialRepository';
+import { coverage, type Origin } from '../../backend/referentialRepository';
 import type { SpoilerMode } from '../../domain/spoiler';
 import { Provenance } from '../../components/Provenance';
 
@@ -22,6 +22,15 @@ const SPOILER_OPTIONS: { value: SpoilerMode; label: string; hint: string }[] = [
   { value: 'reveal_all', label: 'Tout voir', hint: 'Aucun masquage.' },
 ];
 
+const ORIGIN_LABEL: Record<
+  Origin,
+  { text: string; tone: 'success' | 'warning' | 'muted' }
+> = {
+  server: { text: 'le serveur', tone: 'success' },
+  cache: { text: 'la dernière version enregistrée', tone: 'warning' },
+  demo: { text: 'la démonstration (donnée fictive)', tone: 'muted' },
+};
+
 export function SettingsScreen() {
   const theme = useThemeContext();
   const spoiler = useAppStore(s => s.spoiler);
@@ -31,6 +40,9 @@ export function SettingsScreen() {
   const reduceMotion = useAppStore(s => s.reduceMotion);
   const setReduceMotion = useAppStore(s => s.setReduceMotion);
   const referential = useAppStore(s => s.referential);
+  const origin = useAppStore(s => s.origin);
+  const notice = useAppStore(s => s.notice);
+  const loading = useAppStore(s => s.loading);
   const reload = useAppStore(s => s.reload);
 
   return (
@@ -105,12 +117,22 @@ export function SettingsScreen() {
         <CardHeader
           title="Données"
           action={
-            <Button variant="outline" size="sm" onClick={() => void reload()}>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={loading}
+              onClick={() => void reload()}
+            >
               Actualiser les données
             </Button>
           }
         />
         {referential && <Provenance data={referential.provenance} />}
+        {notice && (
+          <p role="status" className="notice">
+            {notice}
+          </p>
+        )}
         <dl className="stats">
           <dt>Backend</dt>
           <dd>
@@ -118,19 +140,22 @@ export function SettingsScreen() {
               {BACKEND}
             </Badge>
           </dd>
-          <dt>Référentiel servi par</dt>
+          <dt>Adaptateur du référentiel</dt>
           <dd>
             {coverage.remote.includes('referential')
-              ? 'le serveur'
-              : 'la copie locale'}
-            {BACKEND === 'supabase' &&
-              coverage.local.includes('referential') && (
-                <small className="muted">
-                  {' '}
-                  — l’adaptateur distant n’est pas encore écrit
-                </small>
-              )}
+              ? 'distant (Supabase)'
+              : 'local'}
           </dd>
+          {origin && (
+            <>
+              <dt>Cette lecture vient de</dt>
+              <dd>
+                <Badge tone={ORIGIN_LABEL[origin].tone}>
+                  {ORIGIN_LABEL[origin].text}
+                </Badge>
+              </dd>
+            </>
+          )}
           {MISSING_FOR_SUPABASE.length > 0 && (
             <>
               <dt>Pour activer Supabase</dt>
