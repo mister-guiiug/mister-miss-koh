@@ -10,8 +10,9 @@ favoris et partage révocable.
 > déclarées par Wikipédia. Les politiques d'isolation (22 assertions) et la
 > publication transactionnelle (19 assertions) passent contre cette base. Elle
 > ne publie encore aucune saison : l'application le dit et affiche la
-> démonstration. La fonction Edge n'est pas déployée, et **aucun import réel
-> n'a tourné** — voir [Ce qui reste à faire](#ce-qui-reste-à-faire).
+> démonstration. La fonction Edge est **déployée**, et un **premier import réel**
+> a tourné : 78 différences proposées, toutes en attente de relecture — voir
+> [Ce qui reste à faire](#ce-qui-reste-à-faire).
 
 ## Ce que c'est, et ce que ce n'est pas
 
@@ -169,6 +170,25 @@ Chaque saison découverte naît en `unknown` / `pending_review` : on sait qu'une
 page existe, pas ce qu'elle contient. C'est un import relu **puis publié** qui
 la rend visible.
 
+### La fonction d'import
+
+Déployée sur le projet hébergé, sans Docker :
+
+```bash
+supabase functions deploy import-wikipedia --project-ref oqldfzrsandcguajyxbh --use-api
+```
+
+Elle s'ouvre par un secret de planification (`IMPORT_CRON_SECRET`, posé avec
+`supabase secrets set --env-file`, conservé en local dans `.env.supabase.local`)
+ou par un compte portant le rôle `admin` ou `validator`, **vérifié en base**. La
+vérification de jeton de la plateforme restant active, un appel présente aussi
+la clé anonyme en `Authorization` ; elle n'ouvre rien par elle-même.
+
+Le premier import réel a tourné le 05/09/2026 : 78 différences proposées,
+aucune validée automatiquement, référentiel publié inchangé. Détail et
+comportements vérifiés dans
+[docs/pipeline-wikipedia.md](./docs/pipeline-wikipedia.md).
+
 ### Tests des politiques
 
 `supabase test db` exige Docker (`pg_prove` en conteneur), qui ne démarre pas
@@ -191,9 +211,10 @@ npm run test:publication:remote
 
 Dans l'ordre :
 
-1. le **déploiement de la fonction Edge** `import-wikipedia` et son secret
-   `IMPORT_CRON_SECRET` — le code est testé, rien n'est déployé, **aucun import
-   réel n'a tourné** ;
+1. la **relecture du premier lot** puis sa publication. Elle demande un compte
+   portant le rôle `admin` ou `validator` ; aucun n'existe, et `user_roles` n'a
+   aucune politique d'écriture par l'API : la première attribution se fait en
+   SQL, délibérément ;
 2. les secrets du **keep-alive** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
    que le workflow réutilisable déclare comme tels), que seul le propriétaire
    du dépôt peut poser ;

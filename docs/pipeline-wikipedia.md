@@ -4,13 +4,13 @@ Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
 > **105 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
-> `deno fmt --check` et `deno check`. La publication, elle, est prouvée
-> autrement : 19 assertions pgTAP contre la base hébergée
+> `deno fmt --check` et `deno check`. La publication est prouvée autrement :
+> 19 assertions pgTAP contre la base hébergée
 > (`npm run test:publication:remote`).
 >
-> Une réserve nette demeure : le **câblage SQL** de la fonction Edge
-> (`import-wikipedia/index.ts`) n'a **jamais tourné contre une base** — la
-> fonction n'est pas déployée. Il compile et il se relit ; il n'est pas prouvé.
+> **La fonction Edge est déployée et a tourné pour de vrai** le 05/09/2026. Le
+> câblage SQL, qui était jusque-là relu mais pas prouvé, l'est désormais : voir
+> « Le premier import réel » plus bas.
 
 ## Les principes
 
@@ -313,13 +313,65 @@ Trois refus délibérés :
 **19 assertions pgTAP, exécutées contre la base hébergée** le 05/09/2026 :
 `npm run test:publication:remote`.
 
+## Le premier import réel
+
+Le 05/09/2026, contre la base hébergée, sur `Koh-Lanta All Stars`.
+
+```
+status  : diffed       revision : 239179934
+records : 78           durée    : 1,58 s
+```
+
+| Entité              | Classe        | Proposées | Statut           |
+| ------------------- | ------------- | --------: | ---------------- |
+| `season_contestant` | `unambiguous` |        18 | `pending_review` |
+| `council_vote`      | `suspicious`  |        52 | `pending_review` |
+| `council_round`     | `unambiguous` |         5 | `pending_review` |
+| `episode`           | `unambiguous` |         3 | `pending_review` |
+
+**Aucune différence validée automatiquement, et c'est le comportement voulu.**
+La politique du document interdit l'automatisation (`auto_validate_unambiguous`
+faux, `max_auto_changes` à zéro), et les 52 voix dépassent de toute façon le
+plafond par entité du diff : un lot de cette taille n'est pas une mise à jour,
+c'est une première ingestion, et elle mérite un regard. Le référentiel publié
+n'a pas bougé d'une ligne.
+
+Une anomalie relevée, non bloquante : le tableau des votes a une ligne dont le
+nombre de cellules diffère des autres. Elle est signalée, et ses cellules
+manquantes valent `null`.
+
+**Trois comportements vérifiés en production :**
+
+- **la révision garde la porte.** Le second appel rend `unchanged` sans relire
+  la page. Une planification fréquente est donc inoffensive ;
+- **`discover` ne dérive pas.** Relancée sur la catégorie réelle : 18 trouvées,
+  0 ajoutée, 0 doublon ;
+- **les deux portes refusent.** Sans secret, ou avec un mauvais secret, la
+  fonction répond `401` — même en présentant la clé anonyme.
+
+### Déclencher la fonction
+
+La vérification de jeton de la plateforme reste **activée** : un appel porte
+donc la clé anonyme en `Authorization`, **et** le secret de planification en
+`x-import-secret`. La clé anonyme n'ouvre rien ici ; c'est le secret, ou un
+rôle `admin`/`validator` vérifié en base, qui décide.
+
+```bash
+supabase functions deploy import-wikipedia --project-ref oqldfzrsandcguajyxbh --use-api
+```
+
+`--use-api` empaquette côté serveur : aucun Docker n'est nécessaire.
+`IMPORT_CRON_SECRET` se pose par `supabase secrets set --env-file`, jamais sur
+une ligne de commande, et vit en local dans `.env.supabase.local`, ignoré par
+git.
+
 ## Ce qui reste à écrire
 
 1. les **colliers d'immunité**, quatrième tableau de la section
    « Déroulement », non encore lu ;
 2. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
    `team_memberships` ;
-3. le **déploiement** de la fonction (`supabase functions deploy
-import-wikipedia`, secret `IMPORT_CRON_SECRET`) et un premier import réel :
-   les migrations sont appliquées sur la base hébergée depuis le 05/09/2026,
-   la fonction ne l'est pas, et **aucun `import_run` n'existe encore**.
+3. la **relecture puis la publication** du premier lot. Elle demande un compte
+   portant le rôle `admin` ou `validator` : aucun n'existe à ce jour, et
+   `user_roles` n'a **aucune politique d'écriture** par l'API — la première
+   attribution se fait donc en SQL, délibérément.
