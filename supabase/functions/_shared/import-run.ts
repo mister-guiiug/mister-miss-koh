@@ -34,6 +34,7 @@ import {
 import { parseTables } from "./html-table.ts";
 import { extractVotes } from "./extract-votes.ts";
 import { extractContestants, extractProgress } from "./extract-season.ts";
+import { extractAdvantages } from "./extract-advantages.ts";
 import { crossCheck } from "./cross-check.ts";
 import {
   autoValidatable,
@@ -63,8 +64,9 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  1 — candidats, épisodes, tours, voix
  *  2 — + séjours en tribu (bornes en jours), motif de départ, vainqueurs
  *      d'épreuve recoupés
+ *  3 — + colliers d'immunité (détenteurs datés, statut, voix annulées)
  */
-export const EXTRACTOR_VERSION = "2";
+export const EXTRACTOR_VERSION = "3";
 
 export interface SourceDocument {
   readonly id: string;
@@ -140,6 +142,7 @@ const ENTITIES = [
   "episode",
   "council_round",
   "council_vote",
+  "advantage",
 ] as const;
 
 const SECTIONS = {
@@ -147,6 +150,9 @@ const SECTIONS = {
   progress: "Déroulement",
   votes: "Détails des votes",
 } as const;
+
+/** Facultative : 9 pages de saison sur 18 la portent (relevé du 05/09/2026). */
+const SECTION_ADVANTAGES = "Colliers d'immunité";
 
 /** Anomalies qui interdisent d'aller plus loin. */
 function isFatal(anomaly: Anomaly): boolean {
@@ -250,10 +256,33 @@ export async function runImport(
     const progress = extractProgress(progressTable.grid, document.seasonSlug);
     const votes = extractVotes(votesTable.grid, document.seasonSlug);
 
+    // ── Les colliers, s'il y en a ────────────────────────────────────────
+    //
+    // Cette section est FACULTATIVE : neuf pages de saison sur dix-huit la
+    // portent. Son absence n'est donc pas une structure incomprise — c'est
+    // une saison sans colliers, ou une page qui n'en parle pas.
+    const advantagesSection = findSection(sections, SECTION_ADVANTAGES);
+    let advantages: ReturnType<typeof extractAdvantages> = {
+      advantages: [],
+      anomalies: [],
+    };
+    if (advantagesSection) {
+      const advantagesHtml = await fetchSectionHtml(
+        wiki,
+        document.title,
+        advantagesSection.index,
+      );
+      const advantagesTable = parseTables(advantagesHtml)[0];
+      if (advantagesTable) {
+        advantages = extractAdvantages(advantagesTable.grid, document.seasonSlug);
+      }
+    }
+
     const anomalies: Anomaly[] = [
       ...contestants.anomalies,
       ...progress.anomalies,
       ...votes.anomalies,
+      ...advantages.anomalies,
       ...crossCheck(contestants, progress, votes),
     ];
 
@@ -293,6 +322,7 @@ export async function runImport(
       contestants,
       progress,
       votes,
+      advantages,
       anomalies,
     );
     const hash = await extractHash(records);
@@ -377,6 +407,7 @@ export function buildRecords(
   contestants: ReturnType<typeof extractContestants>,
   progress: ReturnType<typeof extractProgress>,
   votes: ReturnType<typeof extractVotes>,
+  advantages: ReturnType<typeof extractAdvantages>,
   anomalies: readonly Anomaly[],
 ): {
   records: IncomingRecord[];
@@ -447,6 +478,25 @@ export function buildRecords(
       reportedVotesTotal: r.reportedVotesTotal,
       rawTally: r.rawTally,
     }, byColumn.get(r.columnIndex) ?? []);
+  }
+
+  for (const a of advantages.advantages) {
+    push("advantage", a.naturalKey, {
+      kind: "immunity_necklace",
+      location: a.location,
+      status: a.status,
+      foundDay: a.foundDay,
+      playedEpisodeNumber: a.playedEpisodeNumber,
+      playedDay: a.playedDay,
+      annulledVotes: a.annulledVotes,
+      annulledVotesTotal: a.annulledVotesTotal,
+      holders: a.holders.map((h) => ({
+        name: h.name,
+        fromDay: h.fromDay,
+        toDay: h.toDay,
+        original: h.original,
+      })),
+    }, []);
   }
 
   for (const v of votes.votes) {

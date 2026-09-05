@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(26);
+select plan(29);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,9 @@ insert into import_differences
   ('dddddddd-0000-0000-0000-000000000001', 'council_vote', 'saison-fictive:e1:r1:Aël',
    'insert', 'unambiguous', 'validated',
    '{"voter":"Aël","target":"Bastien","struck":false}'),
+  ('dddddddd-0000-0000-0000-000000000001', 'advantage', 'saison-fictive:collier:1',
+   'insert', 'unambiguous', 'validated',
+   '{"kind":"immunity_necklace","location":"Camp unique","status":"not_used","foundDay":6,"playedDay":null,"playedEpisodeNumber":null,"annulledVotes":null,"annulledVotesTotal":null,"holders":[{"name":"Aël","fromDay":6,"toDay":null,"original":true},{"name":"Bastien","fromDay":6,"toDay":null,"original":true},{"name":"Inconnue","fromDay":6,"toDay":null,"original":false}]}'),
   -- Non validée : elle ne doit PAS être appliquée.
   ('dddddddd-0000-0000-0000-000000000001', 'council_vote', 'saison-fictive:e1:r1:Bastien',
    'insert', 'ambiguous', 'pending_review',
@@ -123,6 +126,13 @@ language sql stable as $$
         join challenges c on c.id = r.challenge_id
         join episodes e on e.id = c.episode_id
        where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'colliers' then
+      (select count(*) from advantages
+        where season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'detenteurs' then
+      (select count(*) from advantage_holders h
+        join season_contestants sc on sc.id = h.season_contestant_id
+       where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
     when 'departs' then
       (select count(*) from departures d
         join season_contestants sc on sc.id = d.season_contestant_id
@@ -224,8 +234,8 @@ select is(
 
 select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 5,
-  'les cinq différences validées sont marquées publiées'
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 6,
+  'les six différences validées sont marquées publiées'
 );
 
 select is(
@@ -272,6 +282,24 @@ select is(
   'une TRIBU vainqueur : épreuve d''équipe — le format se déduit, il ne se suppose pas'
 );
 
+select is(fictif_compte('colliers'), 1, 'le collier est publié');
+
+select is(
+  (select string_agg(sc.display_name, ' et ' order by h.ordinal)
+     from advantage_holders h
+     join season_contestants sc on sc.id = h.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'Aël et Bastien',
+  'les détenteurs suivent l''ordre de la source, et le nom inconnu est écarté'
+);
+
+select is(
+  (select a.status from advantages a
+    where a.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'not_used',
+  'le statut est celui que l''extraction a normalisé'
+);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 3. On ne publie pas deux fois
 -- ════════════════════════════════════════════════════════════════════════════
@@ -304,7 +332,8 @@ select is(
   fictif_compte('participations') + fictif_compte('voix') + fictif_compte('tours')
     + fictif_compte('departs') + fictif_compte('episodes')
     + fictif_compte('tribus') + fictif_compte('appartenances')
-    + fictif_compte('epreuves') + fictif_compte('resultats'),
+    + fictif_compte('epreuves') + fictif_compte('resultats')
+    + fictif_compte('colliers') + fictif_compte('detenteurs'),
   0,
   'tout ce qui avait été créé a disparu — la photo servait à cela'
 );
@@ -318,7 +347,7 @@ select is(
 
 select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 5,
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 6,
   'les différences redeviennent validées : c''est leur application qui a été jugée mauvaise, pas elles'
 );
 

@@ -3,9 +3,9 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **109 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> **116 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. La publication est prouvée autrement :
-> 26 assertions pgTAP contre la base hébergée
+> 29 assertions pgTAP contre la base hébergée
 > (`npm run test:publication:remote`).
 >
 > **La fonction Edge est déployée et a tourné pour de vrai** le 05/09/2026. Le
@@ -82,16 +82,17 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 ## Modules
 
-| Fichier             | Rôle                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------- |
-| `mediawiki.ts`      | Client API : révision, sections, HTML d'une section, empreinte stable              |
-| `html-table.ts`     | HTML → grille développée (`rowspan`/`colspan`), sans dépendance                    |
-| `extract-votes.ts`  | Grille → tours, voix, statuts, anomalies                                           |
-| `extract-season.ts` | Grilles → candidats et épisodes (dates, épreuves, conseils)                        |
-| `parse-fr.ts`       | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation |
-| `cross-check.ts`    | Recoupement des trois tableaux entre eux                                           |
-| `diff.ts`           | Extrait + référentiel → différences classées, et ce qui est automatisable          |
-| `catalogue.ts`      | Découverte des pages de saison par la catégorie, et leur enregistrement            |
+| Fichier                 | Rôle                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `mediawiki.ts`          | Client API : révision, sections, HTML d'une section, empreinte stable              |
+| `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), sans dépendance                    |
+| `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                           |
+| `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                        |
+| `parse-fr.ts`           | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation |
+| `cross-check.ts`        | Recoupement des trois tableaux entre eux                                           |
+| `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable          |
+| `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement            |
+| `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées              |
 
 Trois pièges que les tests figent :
 
@@ -421,6 +422,44 @@ Le format de l'épreuve se **déduit** du vainqueur : `team` si une tribu a
 gagné, `individual` si un candidat. Le supposer individuel ferait passer une
 victoire de tribu pour une victoire personnelle.
 
+## Les colliers d'immunité
+
+Quatrième tableau de la source. Relevé du 05/09/2026 :
+
+| Ce qui a été compté                | Résultat                            |
+| ---------------------------------- | ----------------------------------- |
+| pages de saison qui ont la section | **9 sur 18**, dont All Stars        |
+| colliers lus                       | 63, dont 52 avec un détenteur nommé |
+| formes d'en-tête                   | 6, toutes en deux lignes            |
+| statuts hors vocabulaire           | 3, sur une seule page               |
+
+La section est **facultative** : son absence n'est pas une structure
+incomprise, c'est une saison qui n'en parle pas. Les colonnes se cherchent
+dans la **seconde** ligne d'en-tête, celle qui porte tous les libellés, avec
+une liste de synonymes acceptés — « Localisation » ou « Localisation ou
+circonstance », « Propriétaire d'origine » ou « Détenteur ».
+
+Trois choix, tirés des mêmes lignes :
+
+- **« Non découvert » n'est pas un nom.** Le tableau pré-dimensionne ses
+  lignes : un collier repéré mais jamais trouvé en remplit une entièrement.
+  Le lire comme un détenteur inventerait un aventurier, exactement comme
+  « Banni » inventait une tribu ;
+- **un collier passe de main en main**, et la source le dit — deux colonnes,
+  « Propriétaire d'origine » et « Autre(s) propriétaire(s) ». Une colonne
+  `holder_id` unique ne pouvait pas porter cela, ni « Dorian et Lola » qui
+  trouvent ensemble. D'où `advantage_holders`, bâtie comme les appartenances
+  de tribu : un intervalle en jours, pas un attribut ;
+- **trois statuts sur soixante-trois sortent du vocabulaire** — « Utilisé
+  (collier maudit) », « Finaliste ». Ils deviennent `unknown` et une anomalie,
+  jamais « utilisé » par défaut.
+
+**Ce que l'anti-spoiler peut, et ce qu'il ne peut pas.** Un collier **joué**
+porte son épisode : c'est lui qui le protège. Un collier trouvé et pas encore
+joué n'est daté qu'en **jours**, et rien ne traduit un jour en épisode. Il est
+alors gardé jusqu'au **dernier épisode diffusé** : conservateur, mais jamais
+faux.
+
 ## « Déjà traitée » suppose le même traitement
 
 L'arrêt « révision inchangée » a menti le jour où l'extraction s'est enrichie :
@@ -457,10 +496,8 @@ git.
 
 ## Ce qui reste à écrire
 
-1. les **colliers d'immunité**, quatrième tableau de la section
-   « Déroulement », non encore lu ;
-2. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
+1. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
    `team_memberships` ;
-3. les **tribus**, les **binômes** et les **épreuves** : la publication ne les
+2. les **tribus**, les **binômes** et les **épreuves** : la publication ne les
    écrit pas encore, et l'application affiche donc « — » en face de « Confort »
    et « Immunité ».

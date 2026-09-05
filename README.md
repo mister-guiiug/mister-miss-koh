@@ -5,9 +5,9 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **douze** migrations sont appliquées sur le projet Supabase hébergé, qui
+> Les **treize** migrations sont appliquées sur le projet Supabase hébergé, qui
 > suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
-> d'isolation (22 assertions) et la publication transactionnelle (26 assertions)
+> d'isolation (22 assertions) et la publication transactionnelle (29 assertions)
 > passent contre cette base.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
@@ -51,10 +51,10 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                    |
-| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 40 tests verts            |
-| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 109 tests verts           |
+| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 42 tests verts            |
+| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 116 tests verts           |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
-| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 26 assertions vertes      |
+| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 29 assertions vertes      |
 | `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut                  |
 
@@ -105,7 +105,7 @@ supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
                  0009 correctifs · 0010 tribus et épreuves · 0011 version
-                 d'extraction · 0012 format d'épreuve
+                 d'extraction · 0012 format d'épreuve · 0013 colliers
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS et publication (pgTAP)
 ```
@@ -133,7 +133,7 @@ Trois choix qui structurent le code :
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les douze migrations y
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les treize migrations y
 sont appliquées ; `src/backend/database.types.ts` en est généré.
 
 ```bash
@@ -220,7 +220,9 @@ Dans l'ordre :
 2. les secrets du **keep-alive** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
    que le workflow réutilisable déclare comme tels), que seul le propriétaire
    du dépôt peut poser ;
-3. les **colliers d'immunité**, quatrième tableau de la source, non encore lu ;
+3. les **résumés d'épisodes** : la source les rédige en prose, et le projet
+   ne stocke que des faits tabulaires — ce serait un changement de nature, pas
+   une extraction de plus ;
 4. authentification, pseudonyme, profil, notes synchronisées et partage —
    les tables et les politiques sont prêtes, les écrans non ;
 5. animations Rive — les composants, les rôles et les replis existent ;

@@ -191,6 +191,29 @@ const rows: Rows = {
       caused_by_departure_id: 'd1',
     },
   ],
+  advantages: [
+    {
+      id: 'adv-1',
+      kind: 'immunity_necklace',
+      label: 'Camp unique',
+      status: 'not_used',
+      found_day: 6,
+      played_episode_id: null,
+      advantage_holders: [
+        { season_contestant_id: 'sc-b', ordinal: 1 },
+        { season_contestant_id: 'sc-a', ordinal: 0 },
+      ],
+    },
+    {
+      id: 'adv-2',
+      kind: 'immunity_necklace',
+      label: 'Camp des Rouge',
+      status: 'used',
+      found_day: 2,
+      played_episode_id: 'e1',
+      advantage_holders: [{ season_contestant_id: 'sc-c', ordinal: 0 }],
+    },
+  ],
   version: 7,
   provenance: {
     url: 'https://exemple.test/page',
@@ -237,6 +260,31 @@ describe('mapReferential', () => {
     const e1 = ref.episodes[0];
     expect(new Set(e1?.comfortWinnerIds)).toEqual(new Set(['sc-a', 'sc-b']));
     expect(e1?.immunityWinnerIds).toEqual(['sc-c']);
+  });
+
+  it('un avantage porte ses détenteurs DANS L’ORDRE de la source', () => {
+    const collier = ref.advantages.find(a => a.id === 'adv-1');
+    expect(collier?.holderIds).toEqual(['sc-a', 'sc-b']);
+    expect(collier?.foundDay).toBe(6);
+    expect(collier?.status).toBe('not_used');
+  });
+
+  it('un avantage joué se révèle à SON épisode ; sinon au dernier diffusé', () => {
+    // La source ne date la découverte qu'en jours, et rien ne traduit un jour
+    // en épisode : garder le dernier diffusé ne révèle rien à qui n'est pas
+    // déjà à jour.
+    expect(
+      ref.advantages.find(a => a.id === 'adv-2')?.playedEpisodeNumber
+    ).toBe(1);
+    expect(
+      ref.advantages.find(a => a.id === 'adv-2')?.revealEpisodeNumber
+    ).toBe(1);
+    expect(
+      ref.advantages.find(a => a.id === 'adv-1')?.playedEpisodeNumber
+    ).toBeNull();
+    expect(
+      ref.advantages.find(a => a.id === 'adv-1')?.revealEpisodeNumber
+    ).toBe(1);
   });
 
   it('une TRIBU vainqueur est nommée, jamais dépliée en ses membres', () => {

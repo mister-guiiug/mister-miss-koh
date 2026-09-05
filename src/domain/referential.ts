@@ -114,6 +114,33 @@ export const DepartureSchema = z.object({
   causedById: z.string().nullable(),
 });
 
+export const AdvantageSchema = z.object({
+  id: z.string(),
+  kind: z.enum([
+    'immunity_necklace',
+    'vote_advantage',
+    'comfort_advantage',
+    'other',
+  ]),
+  /** Où il a été trouvé, tel que la source l'écrit : « Camp réunifié ». */
+  label: z.string().nullable(),
+  status: z.enum(['used', 'not_used', 'undiscovered', 'unknown']),
+  /** Jour de jeu. La source ne donne pas d'épisode pour la découverte. */
+  foundDay: z.number().int().positive().nullable(),
+  playedEpisodeNumber: z.number().int().positive().nullable(),
+  /**
+   * L'épisode à partir duquel l'existence de cet avantage cesse d'être un
+   * spoiler.
+   *
+   * S'il a été JOUÉ, c'est l'épisode où il l'a été — la source le dit. Sinon,
+   * la source ne date sa découverte qu'en JOURS, et rien ne permet de traduire
+   * un jour en épisode : on retient alors le dernier épisode diffusé, ce qui
+   * ne révèle rien à qui n'est pas déjà à jour. Prudent plutôt que deviné.
+   */
+  revealEpisodeNumber: z.number().int().positive().nullable(),
+  holderIds: z.array(z.string()),
+});
+
 export const ProvenanceSchema = z.object({
   kind: z.enum(['demo', 'wikipedia']),
   label: z.string(),
@@ -132,12 +159,14 @@ export const ReferentialSchema = z.object({
   rounds: z.array(RoundSchema),
   votes: z.array(VoteSchema),
   departures: z.array(DepartureSchema),
+  advantages: z.array(AdvantageSchema).default([]),
   provenance: ProvenanceSchema,
 });
 
 export type SeasonRule = z.infer<typeof SeasonRuleSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
 export type Contestant = z.infer<typeof ContestantSchema>;
+export type Advantage = z.infer<typeof AdvantageSchema>;
 export type Team = z.infer<typeof TeamSchema>;
 export type Pair = z.infer<typeof PairSchema>;
 export type Episode = z.infer<typeof EpisodeSchema>;

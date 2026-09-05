@@ -29,6 +29,7 @@ import {
   ReferentialSchema,
   type Round,
   type Departure,
+  type Advantage,
 } from '../domain/referential';
 import { DEMO_REFERENTIAL } from './demo';
 import type {
@@ -143,6 +144,18 @@ const DepartureRow = z.object({
   caused_by_departure_id: z.string().nullable(),
 });
 
+const AdvantageRow = z.object({
+  id: z.string(),
+  kind: z.string(),
+  label: z.string().nullable(),
+  status: z.string().nullable(),
+  found_day: z.number().nullable(),
+  played_episode_id: z.string().nullable(),
+  advantage_holders: z
+    .array(z.object({ season_contestant_id: z.string(), ordinal: z.number() }))
+    .default([]),
+});
+
 const ProvenanceRow = z.object({
   url: z.string(),
   last_seen_revision: z.string().nullable(),
@@ -157,6 +170,7 @@ export const RowsSchema = z.object({
   pairs: z.array(PairRow),
   episodes: z.array(EpisodeRow),
   departures: z.array(DepartureRow),
+  advantages: z.array(AdvantageRow).default([]),
   version: z.number().int().nonnegative(),
   provenance: ProvenanceRow.nullable(),
 });
@@ -179,6 +193,20 @@ const RULE_KINDS = new Set([
   'council_without_host',
   'comfort_island',
   'other',
+]);
+
+const ADVANTAGE_KINDS = new Set([
+  'immunity_necklace',
+  'vote_advantage',
+  'comfort_advantage',
+  'other',
+]);
+
+const ADVANTAGE_STATUSES = new Set([
+  'used',
+  'not_used',
+  'undiscovered',
+  'unknown',
 ]);
 
 const DEPARTURE_KINDS = new Set([
@@ -298,6 +326,35 @@ export function mapReferential(input: unknown, today: string): Referential {
     )
   );
 
+  // Le dernier épisode diffusé sert de garde pour un avantage que la source ne
+  // date qu'en jours : personne ne le voit avant d'être à jour.
+  const lastAired = rows.episodes
+    .filter(e => e.councils.length > 0 || e.challenges.length > 0)
+    .reduce((max, e) => Math.max(max, e.number), 0);
+
+  const advantages: Advantage[] = rows.advantages.map(a => {
+    const playedEpisodeNumber = a.played_episode_id
+      ? (episodeNumberById.get(a.played_episode_id) ?? null)
+      : null;
+    return {
+      id: a.id,
+      kind: (ADVANTAGE_KINDS.has(a.kind)
+        ? a.kind
+        : 'other') as Advantage['kind'],
+      label: a.label,
+      status: (a.status && ADVANTAGE_STATUSES.has(a.status)
+        ? a.status
+        : 'unknown') as Advantage['status'],
+      foundDay: a.found_day,
+      playedEpisodeNumber,
+      revealEpisodeNumber:
+        playedEpisodeNumber ?? (lastAired > 0 ? lastAired : null),
+      holderIds: [...a.advantage_holders]
+        .sort((x, y) => x.ordinal - y.ordinal)
+        .map(h => h.season_contestant_id),
+    };
+  });
+
   const departures: Departure[] = rows.departures.map(d => ({
     contestantId: d.season_contestant_id,
     episodeNumber: d.episode_id
@@ -391,6 +448,7 @@ export function mapReferential(input: unknown, today: string): Referential {
     rounds,
     votes,
     departures,
+    advantages,
     provenance: {
       kind: 'wikipedia',
       label: rows.provenance?.reference_sources?.label ?? 'Source externe',
@@ -428,7 +486,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
   if (seasonError) throw new Error(`saisons : ${seasonError.message}`);
   if (!season) throw new NoPublishedSeason();
 
-  const [contestants, teams, pairs, episodes, version, provenance] =
+  const [contestants, teams, pairs, episodes, advantages, version, provenance] =
     await Promise.all([
       client
         .from('season_contestants')
@@ -452,6 +510,12 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
         .eq('season_id', season.id)
         .order('number'),
       client
+        .from('advantages')
+        .select(
+          'id, kind, label, status, found_day, played_episode_id, advantage_holders(season_contestant_id, ordinal)'
+        )
+        .eq('season_id', season.id),
+      client
         .from('referential_versions')
         .select('id')
         .eq('season_id', season.id)
@@ -474,6 +538,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
     ['tribus', teams],
     ['binômes', pairs],
     ['épisodes', episodes],
+    ['avantages', advantages],
     ['versions', version],
     ['provenance', provenance],
   ] as const) {
@@ -499,6 +564,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
     pairs: pairs.data ?? [],
     episodes: episodes.data ?? [],
     departures: departures.data ?? [],
+    advantages: advantages.data ?? [],
     version: version.data?.id ?? 0,
     provenance: provenance.data ?? null,
   };

@@ -5,7 +5,7 @@ Tests : [`supabase/tests/rls.test.sql`](../supabase/tests/rls.test.sql), lancés
 par `supabase test db`.
 
 > **Tous exécutés contre la base hébergée** le 05/09/2026, sans Docker :
-> 22 assertions sur 22 pour l'isolation, 26 sur 26 pour la publication. Voir
+> 22 assertions sur 22 pour l'isolation, 29 sur 29 pour la publication. Voir
 > [Exécution](#exécution).
 
 ## Le principe : deux verrous, pas un
@@ -109,7 +109,7 @@ la dernière requête renvoie d'un bloc — `supabase db query` ne rend que le
 dernier jeu de lignes. Même fichier, même plan, même `rollback`.
 
 Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **22
-assertions sur 22** passent, et **26 sur 26** pour la publication
+assertions sur 22** passent, et **29 sur 29** pour la publication
 transactionnelle (`npm run test:publication:remote`). Deux faits vérifiés au passage : pgTAP enregistre
 ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
 collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de

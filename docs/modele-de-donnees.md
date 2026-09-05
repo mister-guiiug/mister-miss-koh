@@ -165,7 +165,7 @@ schéma poussé à moitié refuse tout. Les politiques, les fonctions de partage
 le double verrou (droits SQL + politiques) sont décrits dans
 [politiques-rls.md](./politiques-rls.md).
 
-## Trois ajouts du 05/09/2026
+## Cinq ajouts du 05/09/2026
 
 - **`season_status` gagne `unknown`.** Le catalogue se découvre par l'API : au
   moment où une page y entre, on connaît son titre, pas son état. Le défaut
@@ -177,6 +177,13 @@ le double verrou (droits SQL + politiques) sont décrits dans
 - **`publish_run` et `revert_publication`** (`0007_publication.sql`) sont les
   seules écritures du référentiel publié. Voir
   [pipeline-wikipedia.md](./pipeline-wikipedia.md).
+- **`team_memberships` gagne `from_day` / `to_day`.** La colonne « Tribu » de
+  la source date en JOURS, jamais en épisodes ; convertir demanderait une
+  correspondance que la page ne donne pas.
+- **`advantage_holders` remplace `advantages.holder_id`.** Un collier passe de
+  main en main — la source a deux colonnes pour cela — et « Dorian et Lola »
+  le trouvent ensemble. Une colonne unique ne pouvait porter ni l'un ni
+  l'autre ; deux vérités auraient divergé.
 
 ## Ce qui n'est pas encore écrit
 
