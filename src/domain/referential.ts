@@ -113,7 +113,6 @@ export const ProvenanceSchema = z.object({
   url: z.string().nullable(),
   revision: z.string().nullable(),
   fetchedAt: z.string().nullable(),
-  licence: z.string().nullable(),
   version: z.number().int().nonnegative(),
 });
 

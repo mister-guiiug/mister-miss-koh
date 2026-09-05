@@ -152,9 +152,11 @@ Toute table du référentiel porte `source_document_id`, `validation_status` et
 source, son lien, la révision lue, la date de récupération et le statut de
 validation — et l'avertissement que Wikipédia est collaboratif.
 
-Le contenu source est en **CC BY-SA 4.0** (vérifié via `meta=siteinfo`) :
-l'attribution est obligatoire et le partage à l'identique s'impose aux données
-dérivées. Voir [attribution.md](./attribution.md).
+Cette traçabilité n'est pas une obligation de licence — le référentiel ne
+retient que des **faits tabulaires**, et le projet ne revendique aucune licence
+sur eux. Elle est là parce qu'une valeur venue d'une source collaborative,
+corrigible rétroactivement, n'a de valeur que si l'on peut remonter à sa page
+et à sa révision. Voir [attribution.md](./attribution.md).
 
 ## Sécurité : voir `0004_rls.sql`
 
@@ -163,9 +165,24 @@ schéma poussé à moitié refuse tout. Les politiques, les fonctions de partage
 le double verrou (droits SQL + politiques) sont décrits dans
 [politiques-rls.md](./politiques-rls.md).
 
+## Trois ajouts du 05/09/2026
+
+- **`season_status` gagne `unknown`.** Le catalogue se découvre par l'API : au
+  moment où une page y entre, on connaît son titre, pas son état. Le défaut
+  `announced` affirmait d'une saison de 2019 qu'elle est à venir.
+- **`reference_sources` perd `licence`, `licence_url` et
+  `attribution_required`.** Le produit ne revendique plus de licence sur les
+  données — il n'en retient que des faits tabulaires. La traçabilité, elle,
+  reste entière.
+- **`publish_run` et `revert_publication`** (`0007_publication.sql`) sont les
+  seules écritures du référentiel publié. Voir
+  [pipeline-wikipedia.md](./pipeline-wikipedia.md).
+
 ## Ce qui n'est pas encore écrit
 
 - Les vues calculées (immunités, classements, chronologie).
+- Les **tribus** : la publication ne sait pas encore transformer
+  « Ikalu (jour 2 – 5) » en `teams` + `team_memberships`.
 
 Le jeu de données de démonstration existe (`src/backend/demo.ts`), marqué
 « Donnée fictive de démonstration » ; le schéma est appliqué sur la base

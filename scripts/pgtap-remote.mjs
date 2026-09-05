@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Joue `supabase/tests/rls.test.sql` contre la base LIÉE, sans Docker.
+ * Joue un fichier pgTAP de `supabase/tests/` contre la base LIÉE, sans Docker.
  *
  * `supabase test db` exige `pg_prove` dans un conteneur, et Docker ne démarre
  * pas partout. `supabase db query --linked` exécute bien le fichier, mais ne
@@ -15,16 +15,20 @@
  *
  * Prérequis : `supabase link` fait, et `SUPABASE_ACCESS_TOKEN` dans
  * l'environnement (ou une session `supabase login`).
+ *
+ * Usage : node scripts/pgtap-remote.mjs <fichier.test.sql>
  */
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const ASSERTIONS = /^select (is|ok|throws_ok|hasnt_column|plan)\(/gm;
+const ASSERTIONS =
+  /^select (is|isnt|ok|lives_ok|throws_ok|hasnt_column|has_column|plan)\(/gm;
 
+const name = process.argv[2] ?? 'rls.test.sql';
 const source = readFileSync(
-  new URL('../supabase/tests/rls.test.sql', import.meta.url),
+  new URL(`../supabase/tests/${name}`, import.meta.url),
   'utf8'
 );
 
@@ -48,7 +52,7 @@ const rewritten = source
     ].join('\n')
   );
 
-const file = join(mkdtempSync(join(tmpdir(), 'koh-rls-')), 'rls-remote.sql');
+const file = join(mkdtempSync(join(tmpdir(), 'koh-pgtap-')), 'remote.sql');
 writeFileSync(file, rewritten);
 
 const run = spawnSync('supabase', ['db', 'query', '--linked', '--file', file], {
@@ -63,7 +67,7 @@ const match = /"tap":\s*("(?:[^"\\]|\\.)*")/.exec(out);
 
 if (!match) {
   const reason = /"message":\s*"((?:[^"\\]|\\.)*)"/.exec(out);
-  console.error('Aucun verdict renvoyé.');
+  console.error(`Aucun verdict renvoyé pour ${name}.`);
   console.error(
     reason
       ? JSON.parse(`"${reason[1]}"`)
@@ -79,5 +83,5 @@ const failed = lines.filter(l => l.startsWith('not ok')).length;
 const passed = lines.filter(l => /^ok \d/.test(l)).length;
 const planned = Number(/^1\.\.(\d+)$/.exec(lines[0] ?? '')?.[1] ?? 0);
 
-console.log(`\n${passed} ok, ${failed} not ok, ${planned} prévues`);
+console.log(`\n${name} — ${passed} ok, ${failed} not ok, ${planned} prévues`);
 process.exit(failed === 0 && passed === planned ? 0 : 1);

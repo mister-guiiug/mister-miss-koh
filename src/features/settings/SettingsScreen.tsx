@@ -171,9 +171,10 @@ export function SettingsScreen() {
         <CardHeader title="À propos" />
         <p className="muted">
           Aventure Tracker est une application non officielle, sans lien avec
-          les ayants droit de l’émission. Les données référentielles proviennent
-          d’une source collaborative sous licence CC BY-SA 4.0 et ne sont jamais
-          présentées comme officielles. Version {__APP_VERSION__}.
+          les ayants droit de l’émission. Les données référentielles sont des
+          faits relevés sur une source collaborative — chacun porte sa page, sa
+          révision et sa date de lecture — et ne sont jamais présentés comme
+          officiels. Version {__APP_VERSION__}.
         </p>
       </Card>
     </div>

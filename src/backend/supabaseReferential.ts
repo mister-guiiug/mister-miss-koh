@@ -144,9 +144,7 @@ const ProvenanceRow = z.object({
   url: z.string(),
   last_seen_revision: z.string().nullable(),
   last_seen_at: z.string().nullable(),
-  reference_sources: z
-    .object({ label: z.string(), licence: z.string() })
-    .nullable(),
+  reference_sources: z.object({ label: z.string() }).nullable(),
 });
 
 export const RowsSchema = z.object({
@@ -368,7 +366,6 @@ export function mapReferential(input: unknown, today: string): Referential {
       url: rows.provenance?.url ?? null,
       revision: rows.provenance?.last_seen_revision ?? null,
       fetchedAt: rows.provenance?.last_seen_at ?? null,
-      licence: rows.provenance?.reference_sources?.licence ?? null,
       version: rows.version,
     },
   };
@@ -434,7 +431,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
         ? client
             .from('source_documents')
             .select(
-              'url, last_seen_revision, last_seen_at, reference_sources(label, licence)'
+              'url, last_seen_revision, last_seen_at, reference_sources(label)'
             )
             .eq('id', season.source_document_id)
             .maybeSingle()

@@ -114,6 +114,14 @@ const STATUS_WORDS = new Set([
   "exclue",
   "hors jeu",
   "-",
+  // Relevés sur les saisons passées le 05/09/2026, par un parcours des 11
+  // pages exploitables : 69 cellules refusées, cinq libellés seulement.
+  // « jury » seul ne suffit pas — la cellule porte « Jury final ».
+  "jury final",
+  "exile",
+  "exilee",
+  "victoire",
+  "defaite",
 ]);
 
 const LABEL_EPISODE = "► Épisode";

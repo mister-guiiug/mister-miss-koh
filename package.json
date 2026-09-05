@@ -4,7 +4,7 @@
   "license": "MIT",
   "version": "0.1.0",
   "type": "module",
-  "description": "Aventure Tracker — PWA de suivi d'une saison d'aventure : candidats, épisodes, épreuves, conseils, votes et départs, avec notes privées, favoris et partage révocable. Données référentielles tracées depuis Wikipédia (CC BY-SA 4.0), jamais présentées comme officielles. Non officiel.",
+  "description": "Aventure Tracker — PWA de suivi des saisons d'aventure : candidats, épisodes, épreuves, conseils, votes et départs, avec notes privées, favoris et partage révocable. Faits tracés depuis l'API Wikipédia, jamais présentés comme officiels. Non officiel.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && pwa-bundle-budget",
@@ -24,7 +24,8 @@
     "supabase:push": "supabase db push",
     "supabase:types": "supabase gen types typescript --linked > src/backend/database.types.ts",
     "prepare": "husky || true",
-    "test:rls:remote": "node scripts/rls-remote.mjs"
+    "test:rls:remote": "node scripts/pgtap-remote.mjs rls.test.sql",
+    "test:publication:remote": "node scripts/pgtap-remote.mjs publication.test.sql"
   },
   "bundleBudget": {
     "totalGzipKb": 260

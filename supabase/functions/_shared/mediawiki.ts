@@ -168,6 +168,54 @@ export async function fetchSections(
   }));
 }
 
+/**
+ * Pages d'une catégorie.
+ *
+ * C'est par là que le catalogue des saisons se découvre : on ne code pas une
+ * liste de titres, on demande à l'encyclopédie ce qu'elle déclare comme une
+ * saison. Une page renommée, ajoutée ou retirée se répercute d'elle-même.
+ *
+ * `cmtype=page` écarte les sous-catégories et les fichiers. La pagination est
+ * suivie jusqu'au bout, avec un plafond : une catégorie qui bouclerait ne doit
+ * pas faire tourner l'import indéfiniment.
+ */
+export async function fetchCategoryMembers(
+  config: WikiConfig,
+  category: string,
+  maxPages = 10,
+): Promise<Array<{ pageId: number; title: string }>> {
+  const members: Array<{ pageId: number; title: string }> = [];
+  let cont: string | undefined;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const params: Record<string, string> = {
+      action: "query",
+      list: "categorymembers",
+      cmtitle: category,
+      cmtype: "page",
+      cmprop: "ids|title",
+      cmlimit: "500",
+    };
+    if (cont) params.cmcontinue = cont;
+
+    const body = await callApi(config, params) as {
+      query?: { categorymembers?: Array<{ pageid?: number; title?: string }> };
+      continue?: { cmcontinue?: string };
+    };
+
+    for (const m of body.query?.categorymembers ?? []) {
+      if (m.pageid && m.title) members.push({ pageId: m.pageid, title: m.title });
+    }
+
+    cont = body.continue?.cmcontinue;
+    if (!cont) return members;
+  }
+
+  throw new WikiError(
+    `la catégorie ${category} n'a pas fini de se paginer en ${maxPages} appels`,
+  );
+}
+
 /** HTML rendu d'une section, modèles développés. */
 export async function fetchSectionHtml(
   config: WikiConfig,

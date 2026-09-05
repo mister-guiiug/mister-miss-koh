@@ -3,11 +3,14 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **90 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
-> `deno fmt --check` et `deno check`. Une réserve nette : le **câblage SQL** de
-> la fonction Edge (`import-wikipedia/index.ts`) n'a **jamais tourné contre une
-> base** — Docker ne démarre pas sur le poste. Il compile et il se relit ; il
-> n'est pas prouvé.
+> **105 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> `deno fmt --check` et `deno check`. La publication, elle, est prouvée
+> autrement : 19 assertions pgTAP contre la base hébergée
+> (`npm run test:publication:remote`).
+>
+> Une réserve nette demeure : le **câblage SQL** de la fonction Edge
+> (`import-wikipedia/index.ts`) n'a **jamais tourné contre une base** — la
+> fonction n'est pas déployée. Il compile et il se relit ; il n'est pas prouvé.
 
 ## Les principes
 
@@ -88,6 +91,7 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 | `parse-fr.ts`       | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation |
 | `cross-check.ts`    | Recoupement des trois tableaux entre eux                                           |
 | `diff.ts`           | Extrait + référentiel → différences classées, et ce qui est automatisable          |
+| `catalogue.ts`      | Découverte des pages de saison par la catégorie, et leur enregistrement            |
 
 Trois pièges que les tests figent :
 
@@ -219,13 +223,103 @@ permissive. C'est souhaitable : la première ingestion d'une saison mérite un
 regard, et c'est la seule qui soit aussi volumineuse. Un import de routine, lui,
 se valide.
 
+## Le catalogue : toutes les saisons, découvertes et non listées
+
+`catalogue.ts` demande à l'API ce que l'encyclopédie **déclare** comme une
+saison — les pages de `Catégorie:Saison de Koh-Lanta` — au lieu de porter une
+liste de titres. Une liste écrite à la main vieillit en silence : une saison
+ajoutée n'arrive jamais, une page renommée casse l'import sans dire pourquoi.
+
+Le 05/09/2026, la catégorie compte **18 pages**. Ce n'est pas la liste
+officielle des saisons diffusées, et l'application ne le prétend pas.
+
+Ce que la découverte écrit : un `source_documents` et une `seasons` **en
+attente**, d'état `unknown`. Pas un candidat, pas un vote. Une page découverte
+donne un titre, pas une date de diffusion — `announced` affirmerait d'une
+saison de 2019 qu'elle est à venir. Ce que la découverte **n'écrit pas** : elle
+ne supprime jamais. Une page retirée de la catégorie reste suivie ; l'effacer
+emporterait en cascade des données publiées, sur la foi d'une modification que
+n'importe qui peut faire.
+
+`0008_catalogue_saisons.sql` amorce ces 18 lignes, relevées par
+`fetchSeasonCatalogue` le 05/09/2026, pour qu'une base neuve ne dépende pas
+d'un appel réseau au premier démarrage. L'action `discover` de la fonction Edge
+relit la catégorie et ajoute ce qui manque.
+
+## Les saisons passées : ce que la première version affirmait à tort
+
+L'extraction avait été écrite sur la seule page All Stars, et **trois de ses
+règles n'étaient vraies que d'elle**. Passée sur les 18 pages, elle donnait
+ceci :
+
+| Relevé du 05/09/2026            | Avant    | Après         |
+| ------------------------------- | -------- | ------------- |
+| pages où les candidats sont lus | 3 sur 11 | **11 sur 11** |
+| valeurs de vote incomprises     | 69       | **0**         |
+| symboles de genre illisibles    | 20       | **0**         |
+
+Les trois règles, et ce que la donnée réelle en a dit :
+
+- **« Saisons précédentes » était exigée.** C'est une colonne des éditions de
+  retour ; huit saisons sur onze ne l'ont pas. Elle est désormais facultative.
+- **Le nom se déduisait de la colonne « Âge ».** Une colonne « Profession »
+  s'intercale ailleurs : `colÂge - 1` lisait « Étudiante en STAPS » comme un
+  nom, et le nom comme un symbole de genre — d'où les vingt genres illisibles.
+  Le nom est maintenant la **dernière colonne du chapeau « Candidat(s) »**, seul
+  ancrage vrai de toutes les éditions.
+- **Le vocabulaire des statuts était trop court.** Cinq libellés manquaient, et
+  cinq seulement : « Jury final », « Exilé », « Exilée », « Victoire »,
+  « Défaite ». Ils ne sont pas devinés : ils ont été **relevés** sur les pages.
+
+Le sous-titre du décompte s'écrit aussi « Vote » au singulier — accepté.
+
+Ce qui **reste refusé, et doit l'être** : quatre structures que l'extraction ne
+comprend pas (deux tableaux de déroulement transposés, où les épisodes sont en
+colonnes ; un tableau de votes d'une autre forme). Elles produisent
+`structure_inconnue` et **aucune donnée**. Quatre `episode_duplique` signalent
+des épisodes qui apparaissent deux fois — un fait de la source, à relire, pas
+une erreur de lecture.
+
+## La publication : le seul endroit qui écrit le référentiel
+
+`0007_publication.sql`. Une fonction, une transaction, et une photo.
+
+`publish_run(run_id)` applique les différences **validées** dans l'ordre des
+dépendances — candidats, épisodes, tours, voix, puis les départs qui en
+découlent — rend la saison visible, marque l'exécution et fait avancer
+`referential_versions`. Un conseil publié sans ses votes serait pire qu'un
+conseil absent : PostgreSQL défait tout à la première erreur.
+
+`revert_publication(publication_id, motif)` ne rejoue pas l'inverse : il
+**repose** les lignes telles que `rollback_snapshot` les avait photographiées
+avant modification, et supprime celles qui avaient été créées. Les différences
+redeviennent `validated` — c'est leur application qui a été jugée mauvaise, pas
+elles.
+
+Trois refus délibérés :
+
+- **les suppressions**, sauf sur les voix. Supprimer un candidat ou un épisode
+  emporte ses enfants en cascade ; la photo ne les contient pas, et le retour
+  arrière serait incomplet — donc mensonger. Le lot est refusé et les
+  différences en cause nommées, à rejeter à la main ;
+- **les tribus**. « Ikalu (jour 2 – 5) » porte un nom, deux bornes et une
+  convention de tiret : découper cela relève de l'extraction, pas d'une
+  fonction SQL ;
+- **le rapprochement des personnes entre saisons.** La source ne donne que des
+  prénoms. `contestants.slug` porte donc la saison : deux « Camille » de deux
+  éditions ne fusionnent pas en une personne à qui l'on prêterait un parcours
+  qu'elle n'a pas eu.
+
+**19 assertions pgTAP, exécutées contre la base hébergée** le 05/09/2026 :
+`npm run test:publication:remote`.
+
 ## Ce qui reste à écrire
 
-1. la **publication transactionnelle** et le `rollback_snapshot` — la seule
-   pièce du pipeline qui vive entièrement dans la base ;
-2. les **colliers d'immunité**, quatrième tableau de la section
+1. les **colliers d'immunité**, quatrième tableau de la section
    « Déroulement », non encore lu ;
+2. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
+   `team_memberships` ;
 3. le **déploiement** de la fonction (`supabase functions deploy
 import-wikipedia`, secret `IMPORT_CRON_SECRET`) et un premier import réel :
    les migrations sont appliquées sur la base hébergée depuis le 05/09/2026,
-   la fonction ne l'est pas, et aucun `import_run` n'existe encore.
+   la fonction ne l'est pas, et **aucun `import_run` n'existe encore**.

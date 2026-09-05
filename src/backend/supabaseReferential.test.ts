@@ -175,7 +175,7 @@ const rows: Rows = {
     url: 'https://exemple.test/page',
     last_seen_revision: '239179934',
     last_seen_at: '2026-09-05T08:00:00Z',
-    reference_sources: { label: 'Wikipédia (fr)', licence: 'CC BY-SA 4.0' },
+    reference_sources: { label: 'Wikipédia (fr)' },
   },
 };
 
@@ -263,14 +263,13 @@ describe('mapReferential', () => {
     });
   });
 
-  it('la provenance dit la source, la révision, la licence et la version', () => {
+  it('la provenance dit la source, la révision et la version — et rien sur une licence', () => {
     expect(ref.provenance).toEqual({
       kind: 'wikipedia',
       label: 'Wikipédia (fr)',
       url: 'https://exemple.test/page',
       revision: '239179934',
       fetchedAt: '2026-09-05T08:00:00Z',
-      licence: 'CC BY-SA 4.0',
       version: 7,
     });
   });

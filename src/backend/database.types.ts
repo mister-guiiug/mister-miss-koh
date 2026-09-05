@@ -1272,37 +1272,28 @@ export type Database = {
       reference_sources: {
         Row: {
           api_url: string | null;
-          attribution_required: boolean;
           base_url: string;
           created_at: string;
           id: string;
           label: string;
-          licence: string;
-          licence_url: string;
           notes: string | null;
           terms_url: string | null;
         };
         Insert: {
           api_url?: string | null;
-          attribution_required?: boolean;
           base_url: string;
           created_at?: string;
           id: string;
           label: string;
-          licence: string;
-          licence_url: string;
           notes?: string | null;
           terms_url?: string | null;
         };
         Update: {
           api_url?: string | null;
-          attribution_required?: boolean;
           base_url?: string;
           created_at?: string;
           id?: string;
           label?: string;
-          licence?: string;
-          licence_url?: string;
           notes?: string | null;
           terms_url?: string | null;
         };
@@ -1989,6 +1980,27 @@ export type Database = {
       };
     };
     Views: {
+      pg_all_foreign_keys: {
+        Row: {
+          fk_columns: unknown[] | null;
+          fk_constraint_name: unknown;
+          fk_schema_name: unknown;
+          fk_table_name: unknown;
+          fk_table_oid: unknown;
+          is_deferrable: boolean | null;
+          is_deferred: boolean | null;
+          match_type: string | null;
+          on_delete: string | null;
+          on_update: string | null;
+          pk_columns: unknown[] | null;
+          pk_constraint_name: unknown;
+          pk_index_name: unknown;
+          pk_schema_name: unknown;
+          pk_table_name: unknown;
+          pk_table_oid: unknown;
+        };
+        Relationships: [];
+      };
       public_import_status: {
         Row: {
           last_published_at: string | null;
@@ -2007,9 +2019,102 @@ export type Database = {
           },
         ];
       };
+      tap_funky: {
+        Row: {
+          args: string | null;
+          is_definer: boolean | null;
+          is_strict: boolean | null;
+          is_visible: boolean | null;
+          kind: unknown;
+          langoid: unknown;
+          name: unknown;
+          oid: unknown;
+          owner: unknown;
+          returns: string | null;
+          returns_set: boolean | null;
+          schema: unknown;
+          volatility: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
+      _cleanup: { Args: never; Returns: boolean };
+      _contract_on: { Args: { '': string }; Returns: unknown };
+      _currtest: { Args: never; Returns: number };
+      _db_privs: { Args: never; Returns: unknown[] };
+      _extensions: { Args: never; Returns: unknown[] };
+      _get: { Args: { '': string }; Returns: number };
+      _get_latest: { Args: { '': string }; Returns: number[] };
+      _get_note: { Args: { '': string }; Returns: string };
+      _is_verbose: { Args: never; Returns: boolean };
+      _prokind: { Args: { p_oid: unknown }; Returns: unknown };
+      _query: { Args: { '': string }; Returns: string };
+      _refine_vol: { Args: { '': string }; Returns: string };
+      _retval: { Args: { '': string }; Returns: string };
+      _table_privs: { Args: never; Returns: unknown[] };
+      _temptypes: { Args: { '': string }; Returns: string };
+      _todo: { Args: never; Returns: string };
+      col_is_null:
+        | {
+            Args: {
+              column_name: unknown;
+              description?: string;
+              schema_name: unknown;
+              table_name: unknown;
+            };
+            Returns: string;
+          }
+        | {
+            Args: {
+              column_name: unknown;
+              description?: string;
+              table_name: unknown;
+            };
+            Returns: string;
+          };
+      col_not_null:
+        | {
+            Args: {
+              column_name: unknown;
+              description?: string;
+              schema_name: unknown;
+              table_name: unknown;
+            };
+            Returns: string;
+          }
+        | {
+            Args: {
+              column_name: unknown;
+              description?: string;
+              table_name: unknown;
+            };
+            Returns: string;
+          };
+      diag:
+        | {
+            Args: { msg: unknown };
+            Returns: {
+              error: true;
+            } & 'Could not choose the best candidate function between: public.diag(msg => text), public.diag(msg => anyelement). Try renaming the parameters or the function itself in the database so function overloading can be resolved';
+          }
+        | {
+            Args: { msg: string };
+            Returns: {
+              error: true;
+            } & 'Could not choose the best candidate function between: public.diag(msg => text), public.diag(msg => anyelement). Try renaming the parameters or the function itself in the database so function overloading can be resolved';
+          };
+      diag_test_name: { Args: { '': string }; Returns: string };
+      do_tap:
+        | { Args: never; Returns: string[] }
+        | { Args: { '': string }; Returns: string[] };
       export_my_data: { Args: never; Returns: Json };
+      fail:
+        | { Args: never; Returns: string }
+        | { Args: { '': string }; Returns: string };
+      findfuncs: { Args: { '': string }; Returns: string[] };
+      finish: { Args: { exception_on_failure?: boolean }; Returns: string[] };
+      format_type_string: { Args: { '': string }; Returns: string };
       generate_share_token: { Args: never; Returns: string };
       get_shared_note: {
         Args: { share_token: string };
@@ -2044,7 +2149,12 @@ export type Database = {
         Args: { wanted: Database['public']['Enums']['app_role'] };
         Returns: boolean;
       };
+      has_unique: { Args: { '': string }; Returns: string };
+      in_todo: { Args: never; Returns: boolean };
+      is_empty: { Args: { '': string }; Returns: string };
       is_staff: { Args: never; Returns: boolean };
+      isnt_empty: { Args: { '': string }; Returns: string };
+      lives_ok: { Args: { '': string }; Returns: string };
       log_event: {
         Args: {
           p_action: string;
@@ -2054,6 +2164,28 @@ export type Database = {
         };
         Returns: undefined;
       };
+      no_plan: { Args: never; Returns: boolean[] };
+      num_failed: { Args: never; Returns: number };
+      os_name: { Args: never; Returns: string };
+      pass:
+        | { Args: never; Returns: string }
+        | { Args: { '': string }; Returns: string };
+      pg_version: { Args: never; Returns: string };
+      pg_version_num: { Args: never; Returns: number };
+      pgtap_version: { Args: never; Returns: number };
+      publish_run: {
+        Args: { p_notes?: string; p_run_id: string };
+        Returns: string;
+      };
+      publishable_table: { Args: { p_table: string }; Returns: boolean };
+      restore_row: {
+        Args: { p_before: Json; p_table: string };
+        Returns: undefined;
+      };
+      revert_publication: {
+        Args: { p_publication_id: string; p_reason: string };
+        Returns: number;
+      };
       review_difference: {
         Args: {
           comment_text?: string;
@@ -2062,6 +2194,28 @@ export type Database = {
         };
         Returns: undefined;
       };
+      round_outcome: {
+        Args: { p_kind: string };
+        Returns: Database['public']['Enums']['council_round_outcome'];
+      };
+      row_snapshot: { Args: { p_id: string; p_table: string }; Returns: Json };
+      runtests:
+        | { Args: never; Returns: string[] }
+        | { Args: { '': string }; Returns: string[] };
+      skip:
+        | { Args: { '': string }; Returns: string }
+        | { Args: { how_many: number; why: string }; Returns: string };
+      slugify_fr: { Args: { p_input: string }; Returns: string };
+      throws_ok: { Args: { '': string }; Returns: string };
+      todo:
+        | { Args: { how_many: number }; Returns: boolean[] }
+        | { Args: { how_many: number; why: string }; Returns: boolean[] }
+        | { Args: { why: string }; Returns: boolean[] }
+        | { Args: { how_many: number; why: string }; Returns: boolean[] };
+      todo_end: { Args: never; Returns: boolean[] };
+      todo_start:
+        | { Args: never; Returns: boolean[] }
+        | { Args: { '': string }; Returns: boolean[] };
     };
     Enums: {
       advantage_kind:
@@ -2119,7 +2273,7 @@ export type Database = {
         | 'council_without_host'
         | 'comfort_island'
         | 'other';
-      season_status: 'announced' | 'airing' | 'completed';
+      season_status: 'announced' | 'airing' | 'completed' | 'unknown';
       share_scope:
         'profile' | 'note' | 'note_collection' | 'favorites' | 'ranking';
       spoiler_mode: 'reveal_all' | 'hide_unwatched' | 'hide_future';
@@ -2129,7 +2283,9 @@ export type Database = {
       visibility_level: 'private' | 'link' | 'public';
     };
     CompositeTypes: {
-      [_ in never]: never;
+      _time_trial_type: {
+        a_time: number | null;
+      };
     };
   };
 };
@@ -2326,7 +2482,7 @@ export const Constants = {
         'comfort_island',
         'other',
       ],
-      season_status: ['announced', 'airing', 'completed'],
+      season_status: ['announced', 'airing', 'completed', 'unknown'],
       share_scope: [
         'profile',
         'note',

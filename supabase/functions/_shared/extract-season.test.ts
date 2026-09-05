@@ -189,13 +189,28 @@ Deno.test("fixture : la numérotation des épisodes est continue", () => {
 
 // ── Structures dégradées ──────────────────────────────────────────────────
 
-Deno.test("un en-tête renommé arrête l'extraction des candidats", () => {
+Deno.test("sans chapeau « Candidat », l'extraction s'arrête au lieu de deviner", () => {
+  // La version précédente exigeait AUSSI « Âge » et « Saisons précédentes » :
+  // elle refusait de ce fait huit saisons sur onze. Le seul ancrage qui vaut
+  // pour toutes les éditions est le chapeau du nom.
   const grid = parseTables(
-    "<table><tr><th>Candidat</th><th>Age</th></tr><tr><td>X</td><td>30</td></tr></table>",
+    "<table><tr><th>Nom</th><th>Age</th></tr><tr><td>X</td><td>30</td></tr></table>",
   )[0].grid;
   const out = extractContestants(grid, SEASON);
   assertEquals(out.contestants, []);
   assertEquals(out.anomalies[0].code, "structure_inconnue");
+});
+
+Deno.test("« Âge » absent ne bloque plus rien : l'âge devient inconnu", () => {
+  const grid = parseTables(
+    "<table><tr><th>Candidat</th><th>Candidat</th><th>Tribu</th></tr>" +
+      "<tr><td>♂</td><td>X</td><td>Rouge</td></tr></table>",
+  )[0].grid;
+  const out = extractContestants(grid, SEASON);
+  assertEquals(out.contestants.length, 1);
+  assertEquals(out.contestants[0].displayName, "X");
+  assertEquals(out.contestants[0].age, null);
+  assertEquals(out.contestants[0].gender, "m");
 });
 
 Deno.test("une colonne « Conseil » disparue arrête le déroulement", () => {
@@ -207,4 +222,64 @@ Deno.test("une colonne « Conseil » disparue arrête le déroulement", () => {
   const out = extractProgress(grid, SEASON);
   assertEquals(out.episodes, []);
   assert(out.anomalies[0].message.includes("Éliminé(s)"));
+});
+
+// ── Une saison PASSÉE, sur sa vraie page ──────────────────────────────────
+//
+// « La Guerre des chefs » (2019) est la contre-épreuve de l'édition All Stars :
+// pas de colonne « Saisons précédentes », une colonne « Profession » intercalée
+// entre le nom et l'âge, un chapeau au pluriel, et un sous-titre « Vote » au
+// singulier. La première version de l'extraction échouait sur les quatre.
+
+const gdcCandidatsHtml = await Deno.readTextFile(
+  new URL("./fixtures/guerre-des-chefs-candidats-section.html", import.meta.url),
+);
+const gdcCandidats = extractContestants(
+  parseTables(gdcCandidatsHtml)[0].grid,
+  "guerre-des-chefs",
+);
+
+Deno.test("saison passée : les candidats sont lus sans « Saisons précédentes »", () => {
+  assertEquals(gdcCandidats.contestants.length, 21);
+  assertEquals(
+    gdcCandidats.anomalies.filter((a) => a.code === "structure_inconnue"),
+    [],
+    "l'absence d'une colonne propre aux éditions de retour n'est pas une structure inconnue",
+  );
+});
+
+Deno.test("saison passée : le nom n'est pas la profession", () => {
+  // `colÂge - 1` désignait « Étudiante en STAPS ». Le nom se lit désormais
+  // comme la dernière colonne du chapeau « Candidats », d'où qu'il soit.
+  const alisea = gdcCandidats.contestants.find((c) => c.displayName === "Aliséa");
+  assert(alisea, "Aliséa introuvable");
+  assertEquals(alisea.age, 20);
+  assertEquals(
+    alisea.gender,
+    "f",
+    "le symbole se lit, il n'est plus confondu avec le nom",
+  );
+  assertEquals(alisea.previousSeasons, []);
+  assertEquals(alisea.departure, "Abandon médical");
+  assert(
+    !gdcCandidats.contestants.some((c) => c.displayName.includes("Étudiante")),
+    "aucune profession ne doit être prise pour un nom",
+  );
+});
+
+const gdcProgress = extractProgress(
+  parseTables(
+    await Deno.readTextFile(
+      new URL("./fixtures/guerre-des-chefs-deroulement-section.html", import.meta.url),
+    ),
+  )[0].grid,
+  "guerre-des-chefs",
+);
+
+Deno.test("saison passée : le sous-titre « Vote » au singulier est reconnu", () => {
+  assertEquals(gdcProgress.episodes.length, 14);
+  assert(
+    gdcProgress.episodes.some((e) => e.rawTally !== ""),
+    "sans le singulier, la colonne des décomptes reste introuvable et tout rawTally est vide",
+  );
 });

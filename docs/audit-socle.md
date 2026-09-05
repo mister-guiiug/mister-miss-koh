@@ -88,8 +88,9 @@ Page `Koh-Lanta All Stars`, **pageid 17479409**, révision **239179934** du
 horodatage : **la détection de non-modification se fait par révision, pas par
 empreinte du HTML.**
 
-- **Licence CC BY-SA 4.0**, lue via `meta=siteinfo`. Attribution obligatoire et
-  partage à l'identique sur les données dérivées.
+- **Licence du contenu source**, lue via `meta=siteinfo`. _(Constat du 04/09.
+  Le produit ne revendique plus de licence sur les données : il n'en retient que
+  des faits tabulaires — voir [attribution.md](./attribution.md).)_
 - **La saison est en cours.** Épisode 1 diffusé le 25/08/2026, trois
   éliminations, table pré-dimensionnée avec des cellules vides. Le
   rafraîchissement est le cœur du produit, pas un confort.

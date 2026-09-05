@@ -108,15 +108,20 @@ la dernière requête renvoie d'un bloc — `supabase db query` ne rend que le
 dernier jeu de lignes. Même fichier, même plan, même `rollback`.
 
 Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **22
-assertions sur 22** passent. Deux faits vérifiés au passage : pgTAP enregistre
+assertions sur 22** passent, et **19 sur 19** pour la publication
+transactionnelle (`npm run test:publication:remote`). Deux faits vérifiés au passage : pgTAP enregistre
 ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
 collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de
 l'API.
 
 ## Ce qui reste à faire
 
-- Les **fonctions de publication** (`publish_run`, `revert_publication`), qui
-  appliquent un lot en transaction et remplissent `rollback_snapshot`.
+_(Les fonctions de publication `publish_run` et `revert_publication` sont
+écrites, testées et appliquées — voir
+[pipeline-wikipedia.md](./pipeline-wikipedia.md). Elles vérifient `is_staff()`
+elles-mêmes : donner leur exécution à `authenticated` n'ouvre qu'un refus
+poli.)_
+
 - La limitation de fréquence sur la création de notes, si l'usage la réclame ;
   seuls les liens de partage sont plafonnés aujourd'hui (vingt par heure).
 - La suppression de compte côté interface. La cascade est en place dans le

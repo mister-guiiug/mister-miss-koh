@@ -6,9 +6,9 @@
 -- ║ `authenticated` et jeton portant son identifiant — puis compte ce qu'il   ║
 -- ║ voit. Une politique qui laisse fuir une ligne fait tomber un compte.      ║
 -- ║                                                                          ║
--- ║ ⚠️ NON EXÉCUTÉS À CE JOUR : le démon Docker ne démarre pas sur le poste   ║
--- ║ de développement. Rien ici n'est déclaré vert tant que `supabase test db` ║
--- ║ n'a pas tourné.                                                           ║
+-- ║ `supabase test db` exige Docker, qui ne démarre pas sur le poste de       ║
+-- ║ développement. Le même fichier se joue contre la base LIÉE par            ║
+-- ║ `npm run test:rls:remote` : 22 sur 22 le 05/09/2026.                      ║
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
@@ -31,9 +31,8 @@ insert into profiles (id, pseudonym, visibility) values
   ('11111111-1111-1111-1111-111111111111', 'Alpha', 'private'),
   ('22222222-2222-2222-2222-222222222222', 'Beta', 'public');
 
-insert into reference_sources (id, label, base_url, licence, licence_url)
-values ('demo_src', 'Source fictive', 'https://exemple.test',
-        'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0/');
+insert into reference_sources (id, label, base_url)
+values ('demo_src', 'Source fictive', 'https://exemple.test');
 
 insert into seasons (id, slug, name, validation_status) values
   ('33333333-3333-3333-3333-333333333333', 'saison-publiee', 'Saison publiée', 'published'),

@@ -1,14 +1,17 @@
 # mister-miss-koh — « Aventure Tracker »
 
-PWA de suivi d'une saison d'aventure : candidats, épisodes, épreuves, conseils,
-votes et départs, avec notes personnelles, favoris et partage révocable.
+PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
+épisodes, épreuves, conseils, votes et départs, avec notes personnelles,
+favoris et partage révocable.
 
-> **État : base hébergée, lecture réelle.** L'application démarre, se construit
-> et se teste ; le pipeline d'import est écrit et testé ; les cinq migrations
-> sont **appliquées** sur le projet Supabase hébergé, et les 22 assertions RLS
-> passent contre lui. Cette base ne publie encore aucune saison : l'application
-> le dit et affiche la démonstration. L'Edge Function d'import n'est pas
-> déployée — voir [Ce qui reste à faire](#ce-qui-reste-à-faire).
+> **État : base hébergée, catalogue complet, publication vérifiée.**
+> L'application démarre, se construit et se teste. Les **huit** migrations sont
+> appliquées sur le projet Supabase hébergé, qui suit les **18 pages de saison**
+> déclarées par Wikipédia. Les politiques d'isolation (22 assertions) et la
+> publication transactionnelle (19 assertions) passent contre cette base. Elle
+> ne publie encore aucune saison : l'application le dit et affiche la
+> démonstration. La fonction Edge n'est pas déployée, et **aucun import réel
+> n'a tourné** — voir [Ce qui reste à faire](#ce-qui-reste-à-faire).
 
 ## Ce que c'est, et ce que ce n'est pas
 
@@ -42,25 +45,28 @@ Le serveur de développement écoute sur le port 5236 (configuration
 
 ## Vérifier
 
-| Commande                  | Ce qu'elle vérifie                                    | État au 05/09/2026        |
-| ------------------------- | ----------------------------------------------------- | ------------------------- |
-| `npm run lint`            | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement |
-| `npm run type-check`      | TypeScript strict, `tsc -b`                           | propre                    |
-| `npm test`                | Vitest — cœur métier, adaptateur Supabase, accueil    | 38 tests verts            |
-| `npm run test:edge`       | Deno — pipeline d'import                              | 90 tests verts            |
-| `npm run test:rls:remote` | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
-| `npm run build`           | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
-| `npm run doctor`          | `pwa-doctor` du socle                                 | 0 défaut                  |
+| Commande                          | Ce qu'elle vérifie                                    | État au 05/09/2026        |
+| --------------------------------- | ----------------------------------------------------- | ------------------------- |
+| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement |
+| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 38 tests verts            |
+| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 105 tests verts           |
+| `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
+| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 19 assertions vertes      |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
+| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut                  |
 
-## Deux licences, parce qu'il y a deux choses
+## Licence, et ce que le projet stocke
 
-| Quoi                           | Licence                            |
-| ------------------------------ | ---------------------------------- |
-| Le **code**                    | MIT — voir [LICENSE](./LICENSE)    |
-| Les **données référentielles** | CC BY-SA 4.0, héritée de la source |
+Le dépôt est sous licence **MIT** — voir [LICENSE](./LICENSE) — et cette licence
+couvre le **code**.
 
-Le partage à l'identique découle de la licence du contenu source, vérifiée à la
-source et non supposée. Voir [docs/attribution.md](./docs/attribution.md).
+Le référentiel ne retient que des **faits tabulaires** : un prénom, un âge, une
+date, un nom de tribu, qui a voté pour qui, un décompte. Aucune prose de la
+source n'est copiée — ni résumé d'épisode, ni paragraphe rédigé. Le projet ne
+revendique donc aucune licence sur les données, et garde en revanche leur
+**traçabilité** entière : page, révision, date de lecture, pour chaque valeur.
+Voir [docs/attribution.md](./docs/attribution.md).
 
 ## Socle
 
@@ -95,8 +101,9 @@ src/
   features/      accueil, tableau de bord, candidats, épisodes, réglages, hors-ligne
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
+                 0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
-  tests/         isolation RLS (pgTAP)
+  tests/         isolation RLS et publication (pgTAP)
 ```
 
 Trois choix qui structurent le code :
@@ -116,13 +123,13 @@ Trois choix qui structurent le code :
 | [docs/audit-socle.md](./docs/audit-socle.md)               | Audit factuel du socle, et ce qu'il change au plan |
 | [docs/modele-de-donnees.md](./docs/modele-de-donnees.md)   | Schéma, diagramme, et les six écarts assumés       |
 | [docs/politiques-rls.md](./docs/politiques-rls.md)         | Double verrou, partage par fonction, tests         |
-| [docs/pipeline-wikipedia.md](./docs/pipeline-wikipedia.md) | Extraction, recoupement, diff, orchestrateur       |
-| [docs/attribution.md](./docs/attribution.md)               | Source, licences, obligations, accès responsable   |
+| [docs/pipeline-wikipedia.md](./docs/pipeline-wikipedia.md) | Catalogue, extraction, diff, publication           |
+| [docs/attribution.md](./docs/attribution.md)               | Source, traçabilité, accès responsable             |
 
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les cinq migrations y
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les huit migrations y
 sont appliquées ; `src/backend/database.types.ts` en est généré.
 
 ```bash
@@ -150,6 +157,18 @@ un schéma poussé à moitié refuse tout au lieu d'exposer. `0004_rls.sql` ouvr
 ensuite le strict nécessaire, avec un double verrou — droits SQL retirés puis
 redonnés un par un, **en plus** des politiques.
 
+### Le catalogue des saisons
+
+Les saisons suivies ne sont pas une liste écrite à la main : ce sont les pages
+que l'API MediaWiki déclare dans `Catégorie:Saison de Koh-Lanta` — **18 le
+05/09/2026**. `0008_catalogue_saisons.sql` les amorce ; l'action `discover` de
+la fonction Edge relit la catégorie et ajoute ce qui manque, sans jamais rien
+supprimer.
+
+Chaque saison découverte naît en `unknown` / `pending_review` : on sait qu'une
+page existe, pas ce qu'elle contient. C'est un import relu **puis publié** qui
+la rend visible.
+
 ### Tests des politiques
 
 `supabase test db` exige Docker (`pg_prove` en conteneur), qui ne démarre pas
@@ -160,20 +179,25 @@ sans Docker, par un lanceur qui collecte chaque verdict pgTAP :
 npm run test:rls:remote
 ```
 
-Le 05/09/2026, contre la base hébergée : **22 assertions sur 22** passent. Le
-`rollback` final ne laisse rien derrière lui.
+Le 05/09/2026, contre la base hébergée : **22 assertions sur 22** pour
+l'isolation, **19 sur 19** pour la publication. Le `rollback` final ne laisse
+rien derrière lui.
+
+```bash
+npm run test:publication:remote
+```
 
 ## Ce qui reste à faire
 
 Dans l'ordre :
 
-1. la **publication transactionnelle** du pipeline et son retour arrière ;
-2. le **déploiement de l'Edge Function** `import-wikipedia` et son secret
-   `IMPORT_CRON_SECRET` — le code est testé, rien n'est déployé, aucun import
-   réel n'a tourné ;
-3. les secrets du **keep-alive** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+1. le **déploiement de la fonction Edge** `import-wikipedia` et son secret
+   `IMPORT_CRON_SECRET` — le code est testé, rien n'est déployé, **aucun import
+   réel n'a tourné** ;
+2. les secrets du **keep-alive** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
    que le workflow réutilisable déclare comme tels), que seul le propriétaire
    du dépôt peut poser ;
+3. les **tribus** et les **colliers d'immunité** : lus par personne à ce jour ;
 4. authentification, pseudonyme, profil, notes synchronisées et partage —
    les tables et les politiques sont prêtes, les écrans non ;
 5. animations Rive — les composants, les rôles et les replis existent ;

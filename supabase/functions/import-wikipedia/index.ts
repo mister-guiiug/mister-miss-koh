@@ -29,6 +29,12 @@ import {
   type SourceDocument,
 } from "../_shared/import-run.ts";
 import type { Difference, IncomingRecord, StoredRecord } from "../_shared/diff.ts";
+import {
+  type CataloguePage,
+  type CataloguePort,
+  discoverSeasons,
+} from "../_shared/catalogue.ts";
+import type { WikiConfig } from "../_shared/mediawiki.ts";
 
 const USER_AGENT = Deno.env.get("IMPORT_USER_AGENT") ??
   "mister-miss-koh/0.1 (https://github.com/mister-guiiug/mister-miss-koh)";
@@ -238,6 +244,68 @@ function makePort(admin: SupabaseClient): ImportPort {
   };
 }
 
+/**
+ * Le port du catalogue : découvrir une page, c'est ajouter un DOCUMENT à
+ * suivre et une SAISON en attente. Jamais un candidat, jamais un vote, jamais
+ * une publication.
+ */
+function makeCataloguePort(admin: SupabaseClient, sourceId: string): CataloguePort {
+  return {
+    async knownExternalIds() {
+      const { data } = await admin
+        .from("source_documents")
+        .select("external_id")
+        .eq("source_id", sourceId);
+      return (data ?? [])
+        .map((row: { external_id: string | null }) => row.external_id)
+        .filter((id): id is string => typeof id === "string");
+    },
+
+    async registerSeason(page: CataloguePage) {
+      const { data, error } = await admin
+        .from("source_documents")
+        .insert({
+          source_id: sourceId,
+          external_id: page.externalId,
+          title: page.title,
+          url: page.url,
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`document non enregistré : ${page.title}`);
+
+      // `unknown` / `pending_review` : on sait qu'une page existe, pas ce
+      // qu'elle contient. La clé `anon` ne verra rien tant qu'un import n'aura
+      // pas été relu puis publié.
+      const { error: seasonError } = await admin.from("seasons").insert({
+        slug: page.slug,
+        name: page.title,
+        status: "unknown",
+        source_document_id: data.id,
+        validation_status: "pending_review",
+      });
+      if (seasonError) throw new Error(`saison non enregistrée : ${page.slug}`);
+
+      await admin.from("import_policies").insert({
+        source_document_id: data.id,
+        entity: null,
+        auto_validate_unambiguous: false,
+        max_auto_changes: 0,
+        auto_validate_retroactive: false,
+      });
+    },
+
+    async log(action, summary) {
+      await admin.from("audit_events").insert({
+        action,
+        summary,
+        target_type: "catalogue",
+        target_id: sourceId,
+      });
+    },
+  };
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return json({ error: "méthode non autorisée" }, 405);
@@ -285,12 +353,46 @@ Deno.serve(async (request) => {
     }
   }
 
-  let body: { documentId?: string; force?: boolean } = {};
+  let body: {
+    action?: "import" | "discover";
+    documentId?: string;
+    force?: boolean;
+    category?: string;
+  } = {};
   try {
     body = await request.json();
   } catch {
     return json({ error: "corps de requête illisible" }, 400);
   }
+
+  // ── Découverte du catalogue ────────────────────────────────────────────
+  //
+  // Elle n'a pas besoin d'un document : c'est elle qui en crée. Une saison
+  // ajoutée sur Wikipédia arrive donc sans qu'une ligne du dépôt ait bougé.
+  if (body.action === "discover") {
+    const { data: source } = await admin
+      .from("reference_sources")
+      .select("id, api_url, base_url")
+      .eq("id", "wikipedia_fr")
+      .maybeSingle();
+    if (!source?.api_url) {
+      return json({ error: "source wikipedia_fr sans api_url" }, 500);
+    }
+
+    const wiki: WikiConfig = { apiUrl: source.api_url, userAgent: USER_AGENT };
+    try {
+      const outcome = await discoverSeasons(
+        makeCataloguePort(admin, source.id),
+        wiki,
+        { category: body.category, baseUrl: source.base_url ?? undefined },
+      );
+      return json(outcome);
+    } catch (error) {
+      console.error("import-wikipedia/discover", error);
+      return json({ error: "la découverte du catalogue a échoué" }, 500);
+    }
+  }
+
   if (!body.documentId) return json({ error: "documentId manquant" }, 400);
 
   // `force` est réservé au déclenchement manuel : une planification qui

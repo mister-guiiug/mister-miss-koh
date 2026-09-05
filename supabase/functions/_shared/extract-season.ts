@@ -48,12 +48,43 @@ export interface ContestantsExtraction {
 }
 
 /** Index de la colonne dont l'en-tête correspond, sinon -1. */
-function columnByHeader(grid: Grid, row: number, label: string): number {
-  const target = fold(label);
+function columnByHeader(grid: Grid, row: number, ...labels: string[]): number {
+  const targets = labels.map(fold);
   for (let c = 0; c < (grid[row]?.length ?? 0); c += 1) {
-    if (fold(grid[row][c]?.text ?? "") === target) return c;
+    if (targets.includes(fold(grid[row][c]?.text ?? ""))) return c;
   }
   return -1;
+}
+
+/**
+ * Colonne dont l'en-tête COMMENCE par ce libellé.
+ *
+ * « Départ » s'écrit aussi « Départ et réf. » et « Départ et réfs. » selon les
+ * saisons. Exiger l'égalité perdrait la colonne dans les deux tiers des cas ;
+ * accepter n'importe quelle sous-chaîne ferait correspondre autre chose un
+ * jour. Le préfixe est le compromis qui se justifie.
+ */
+function columnByPrefix(grid: Grid, row: number, prefix: string): number {
+  const target = fold(prefix);
+  for (let c = 0; c < (grid[row]?.length ?? 0); c += 1) {
+    if (fold(grid[row][c]?.text ?? "").startsWith(target)) return c;
+  }
+  return -1;
+}
+
+/**
+ * Étendue des colonnes coiffées par le même chapeau, à partir de `from`.
+ * Rend [début, fin] inclus.
+ */
+function headerSpan(grid: Grid, row: number, from: number): [number, number] {
+  const label = fold(grid[row]?.[from]?.text ?? "");
+  let end = from;
+  while (
+    end + 1 < (grid[row]?.length ?? 0) && fold(grid[row][end + 1]?.text ?? "") === label
+  ) {
+    end += 1;
+  }
+  return [from, end];
 }
 
 export function extractContestants(
@@ -63,34 +94,42 @@ export function extractContestants(
   const anomalies: Anomaly[] = [];
   const header = 0;
 
-  const colAge = columnByHeader(grid, header, "Âge");
-  const colPrevious = columnByHeader(grid, header, "Saisons précédentes");
-  const colTeam = columnByHeader(grid, header, "Tribu");
-  const colJury = columnByHeader(grid, header, "Jury final");
-
-  if (colAge === -1 || colPrevious === -1) {
+  // LE SEUL ANCRAGE STRUCTUREL EST LE CHAPEAU « CANDIDAT ».
+  //
+  // La première version exigeait « Âge » ET « Saisons précédentes », et
+  // déduisait le nom de `colÂge - 1`. Les deux hypothèses sont propres aux
+  // éditions de retour : sur les 11 pages de saison exploitables du
+  // 05/09/2026, « Saisons précédentes » n'existe que sur 3, et une colonne
+  // « Profession » s'intercale ailleurs entre le nom et l'âge — `colÂge - 1`
+  // lisait donc « Étudiante en STAPS » comme un nom, et le nom comme un
+  // symbole de genre. C'était exactement l'erreur que le besoin interdit :
+  // une règle d'UNE saison codée comme universelle.
+  const colCandidate = columnByHeader(grid, header, "Candidat", "Candidats");
+  if (colCandidate === -1) {
     return {
       contestants: [],
       anomalies: [{
         code: "structure_inconnue",
-        message:
-          "en-têtes « Âge » ou « Saisons précédentes » introuvables — le tableau des candidats a changé",
+        message: "en-tête « Candidat » introuvable — le tableau des candidats a changé",
       }],
     };
   }
 
-  // « Candidat » couvre deux colonnes : le symbole, puis le nom. Le nom est
-  // donc la colonne juste avant l'âge, quel que soit le nombre de colonnes
-  // que le chapeau occupe.
-  const colName = colAge - 1;
-  const colGender = colAge - 2;
+  // Le chapeau couvre deux colonnes : le symbole de genre, puis le nom.
+  const [colGender, colName] = headerSpan(grid, header, colCandidate);
+
+  const colAge = columnByHeader(grid, header, "Âge");
+  const colPrevious = columnByHeader(grid, header, "Saisons précédentes");
+  const colTeam = columnByHeader(grid, header, "Tribu");
+  const colJury = columnByHeader(grid, header, "Jury final");
+  const colDeparture = columnByPrefix(grid, header, "Départ");
 
   const contestants: ExtractedContestant[] = [];
   for (let r = header + 1; r < grid.length; r += 1) {
     const name = grid[r][colName]?.text.trim() ?? "";
     if (!name) continue;
 
-    const rawAge = grid[r][colAge]?.text ?? "";
+    const rawAge = colAge >= 0 ? (grid[r][colAge]?.text ?? "") : "";
     const age = parseAge(rawAge);
     if (rawAge && age === null) {
       anomalies.push({
@@ -100,7 +139,8 @@ export function extractContestants(
       });
     }
 
-    const rawGender = colGender >= 0 ? (grid[r][colGender]?.text ?? "") : "";
+    // Le symbole n'existe que si le chapeau couvre bien deux colonnes.
+    const rawGender = colGender < colName ? (grid[r][colGender]?.text ?? "") : "";
     const gender = parseGender(rawGender);
     if (rawGender && gender === null) {
       anomalies.push({
@@ -125,7 +165,10 @@ export function extractContestants(
       team: colTeam >= 0 ? (grid[r][colTeam]?.text.trim() || null) : null,
       // Vide = la source ne dit rien, PAS « non ». La saison est en cours.
       finalJury: jury === "" ? null : fold(jury) !== "non",
-      departure: null,
+      // Le motif du départ, TEL QUE la source l'écrit (« Abandon médical »,
+      // « Éliminée »…). Vide sur une saison en cours : personne n'est encore
+      // parti, et ce n'est pas une absence de donnée.
+      departure: colDeparture >= 0 ? (grid[r][colDeparture]?.text.trim() || null) : null,
     });
   }
 
@@ -165,15 +208,19 @@ export interface ProgressExtraction {
   readonly anomalies: readonly Anomaly[];
 }
 
-/** Colonne dont la paire (chapeau, sous-titre) correspond. */
-function columnByPair(grid: Grid, top: string, sub: string): number {
+/**
+ * Colonne dont la paire (chapeau, sous-titre) correspond. Plusieurs
+ * sous-titres sont acceptés : la colonne des décomptes s'intitule « Votes »
+ * sur les saisons récentes et « Vote » sur d'autres.
+ */
+function columnByPair(grid: Grid, top: string, ...subs: string[]): number {
   const wantTop = fold(top);
-  const wantSub = fold(sub);
+  const wantSubs = subs.map(fold);
   const width = Math.max(grid[0]?.length ?? 0, grid[1]?.length ?? 0);
   for (let c = 0; c < width; c += 1) {
     const t = fold(grid[0][c]?.text ?? "");
     const s = fold(grid[1]?.[c]?.text ?? "");
-    if (t === wantTop && s === wantSub) return c;
+    if (t === wantTop && wantSubs.includes(s)) return c;
   }
   return -1;
 }
@@ -186,7 +233,7 @@ export function extractProgress(grid: Grid, seasonSlug: string): ProgressExtract
   const colComfort = columnByPair(grid, "Épreuves", "Confort");
   const colImmunity = columnByPair(grid, "Épreuves", "Immunité");
   const colEliminated = columnByPair(grid, "Conseil", "Éliminé(s)");
-  const colVotes = columnByPair(grid, "Conseil", "Votes");
+  const colVotes = columnByPair(grid, "Conseil", "Votes", "Vote");
   const colDeparture = columnByPair(grid, "Conseil", "Départ");
 
   const missing: string[] = [];

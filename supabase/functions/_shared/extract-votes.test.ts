@@ -205,3 +205,42 @@ Deno.test("fixture : les voix du tour annulé sont toutes barrées", () => {
   assert(cast.length > 0);
   assert(cast.every((v) => v.struck), "un tour annulé n'a que des voix barrées");
 });
+
+Deno.test("les libellés relevés sur les saisons passées sont des statuts, pas des inconnues", () => {
+  // Cinq libellés, et cinq seulement, refusés par le vocabulaire initial sur
+  // les onze pages de saison exploitables du 05/09/2026 : 69 cellules. Les
+  // laisser « incomprises » noierait les vraies anomalies sous le bruit.
+  const grid = gridOf([
+    ["► Épisode", "1", "2", "3", "4", "5"],
+    ["► Éliminé", "Maxime", "", "", "", ""],
+    ["► Votes", "5/10", "", "", "", ""],
+    ["▼ Candidats", "Votes", "", "", "", ""],
+    ["Camille", "Maxime", "Jury final", "Exilée", "Victoire", "Défaite"],
+    ["Maxime", "Camille", "Jury final", "Exilé", "Victoire", "Défaite"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "valeur_inconnue"),
+    [],
+    "aucun de ces libellés ne doit passer pour un nom mal orthographié",
+  );
+  assertEquals(out.rounds.length, 1, "un statut ne crée pas de scrutin");
+  assertEquals(out.statuses.length, 8, "quatre colonnes de statuts, deux candidats");
+});
+
+Deno.test("« Jury » seul ne couvre pas « Jury final »", () => {
+  // Le vocabulaire compare la cellule ENTIÈRE : ajouter « jury final » était
+  // nécessaire, et ce test fige pourquoi.
+  const grid = gridOf([
+    ["► Épisode", "1", "2"],
+    ["► Éliminé", "Maxime", ""],
+    ["► Votes", "5/10", ""],
+    ["▼ Candidats", "Votes", ""],
+    ["Camille", "Maxime", "Jury finale"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assert(
+    out.anomalies.some((a) => a.code === "valeur_inconnue"),
+    "un libellé voisin mais non listé reste une anomalie",
+  );
+});

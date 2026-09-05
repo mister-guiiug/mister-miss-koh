@@ -36,8 +36,7 @@ export function Provenance({ data }: { data: ProvenanceData }) {
         {data.fetchedAt && (
           <> · lue le {new Date(data.fetchedAt).toLocaleDateString('fr-FR')}</>
         )}
-        {data.licence && <> · {data.licence}</>}. Ces informations ne sont pas
-        officielles.
+        {'. Ces informations ne sont pas officielles.'}
       </span>
     </p>
   );

@@ -334,7 +334,6 @@ const raw = {
     url: null,
     revision: null,
     fetchedAt: null,
-    licence: null,
     version: 0,
   },
 };
