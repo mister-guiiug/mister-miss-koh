@@ -5,7 +5,7 @@ Tests : [`supabase/tests/rls.test.sql`](../supabase/tests/rls.test.sql), lancés
 par `supabase test db`.
 
 > **Tous exécutés contre la base hébergée** le 05/09/2026, sans Docker :
-> 22 assertions sur 22 pour l'isolation, 39 sur 39 pour la publication. Voir
+> 24 assertions sur 24 pour l'isolation, 39 sur 39 pour la publication. Voir
 > [Exécution](#exécution).
 
 ## Le principe : deux verrous, pas un
@@ -76,6 +76,22 @@ Corollaire assumé dans le schéma : **`profiles` ne contient aucune adresse
 La protection est structurelle, pas déclarative — on ne peut pas oublier une
 politique sur une colonne qui n'existe pas.
 
+### Les politiques s'additionnent — une lecture doit le savoir
+
+Deux politiques de lecture cohabitent sur `personal_notes` : « les miennes » et
+« les notes publiques non brouillons ». Elles sont **permissives**, donc
+combinées par **OU**. Un `select` sans clause `user_id` rend par conséquent
+aussi les notes publiques des **autres comptes**.
+
+Ce n'est pas une fuite : une note publique **est** publique, et c'est
+exactement ce qu'on lui demande. C'est en revanche un piège pour l'appelant —
+un écran intitulé « Notes » qui lit sans filtrer afficherait les notes
+d'inconnus. `src/backend/notes.ts` filtre donc sur `user_id`, et le § 2 bis de
+`rls.test.sql` fige le comportement du serveur (« sans filtre, A voit AUSSI la
+note publique de B »). Sans cette assertion, retirer le filtre ne casserait
+rien de visible ici, et le défaut ne se verrait qu'en production, le jour où
+quelqu'un publierait une note.
+
 ### Un jeton inconnu, révoqué ou expiré rend le **même** message
 
 `lien de partage introuvable ou expiré`, dans les trois cas. Les distinguer
@@ -84,7 +100,7 @@ apprendrait à un curieux qu'un jeton a existé — ce qui transforme une
 
 ## Ce que les tests prouvent
 
-Vingt-deux assertions, dont les sept qui comptent :
+Vingt-quatre assertions, dont les huit qui comptent :
 
 1. un utilisateur B ne voit **aucune** note de A, même en la nommant par son
    identifiant ;
@@ -97,7 +113,10 @@ Vingt-deux assertions, dont les sept qui comptent :
 5. la révocation et l'expiration prennent effet **à la requête suivante** ;
 6. un utilisateur ne peut pas s'attribuer un rôle ;
 7. le référentiel non publié reste invisible, et le publié n'est modifiable par
-   personne.
+   personne ;
+8. une lecture **sans filtre** rapporte aussi la note publique d'un autre
+   compte — la limite est réelle, elle est écrite, et c'est le client qui la
+   traite.
 
 ## Exécution
 
@@ -108,8 +127,8 @@ assertion est réécrite pour déposer son verdict dans une table temporaire, qu
 la dernière requête renvoie d'un bloc — `supabase db query` ne rend que le
 dernier jeu de lignes. Même fichier, même plan, même `rollback`.
 
-Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **22
-assertions sur 22** passent, et **39 sur 39** pour la publication
+Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **24
+assertions sur 24** passent, et **39 sur 39** pour la publication
 transactionnelle (`npm run test:publication:remote`). Deux faits vérifiés au passage : pgTAP enregistre
 ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
 collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de

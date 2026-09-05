@@ -1,5 +1,14 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Flame, Home, Moon, Settings, Sun, Tv, Users } from 'lucide-react';
+import {
+  Flame,
+  Home,
+  Moon,
+  NotebookPen,
+  Settings,
+  Sun,
+  Tv,
+  Users,
+} from 'lucide-react';
 import { AppHeader } from '@mister-guiiug/dev-pwa-config/react/app-header';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
@@ -17,6 +26,11 @@ const NAV = [
     icon: <Users size={20} aria-hidden />,
   },
   { href: '/episodes', label: 'Épisodes', icon: <Tv size={20} aria-hidden /> },
+  {
+    href: '/notes',
+    label: 'Notes',
+    icon: <NotebookPen size={20} aria-hidden />,
+  },
   {
     href: '/reglages',
     label: 'Réglages',

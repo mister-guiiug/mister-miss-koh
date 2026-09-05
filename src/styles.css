@@ -202,13 +202,18 @@ a {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--dwc-border-strong);
   border-radius: 10px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
 }
 
 .check input,
@@ -269,6 +274,29 @@ a {
 
 .filters .field {
   flex: 1 1 12rem;
+}
+
+/* Une note : le texte à gauche, l'action destructrice à droite et à l'écart,
+   pour qu'un pouce visant le corps de la note ne l'efface pas. */
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.note > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.note p {
+  margin: 0.25rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .group-title {
