@@ -9,7 +9,7 @@ pas. »**_
 
 **1. `dev-pwa-config` n'existait pas — le 04/09.** Ni en local, ni sur GitHub
 (`Could not resolve to a Repository`). Le socle s'appelait alors
-**`dev-wpa-config`**, publié sous `@mister-guiiug/dev-wpa-config`.
+**`dev-pwa-config`**, publié sous `@mister-guiiug/dev-pwa-config`.
 
 Le besoin demandait de traiter « WPA » comme une coquille. Ce n'en était pas
 une ce jour-là : c'était le **nom publié du paquet npm et du dépôt**, immuable
@@ -121,7 +121,7 @@ imprévisibles et révocables.
 
 | Commande | Résultat |
 | ------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `gh repo view mister-guiiug/dev-pwa-config` (le 04/09) | **échec** — le dépôt s'appelait encore `dev-wpa-config` ; renommé le 05/09 |
+| `gh repo view mister-guiiug/dev-pwa-config` (le 04/09) | **échec** — le dépôt s'appelait encore `dev-pwa-config` ; renommé le 05/09 |
 | lecture de `package.json` du socle | 3.34.0, 148 exports, 0 dépendance de production |
 | `api.php action=query prop=revisions` | pageid 17479409, revid 239179934 |
 | `api.php meta=siteinfo siprop=rightsinfo` | CC BY-SA 4.0 |
