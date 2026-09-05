@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(29);
+select plan(39);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,9 @@ insert into import_differences
   ('dddddddd-0000-0000-0000-000000000001', 'council_vote', 'saison-fictive:e1:r1:Aël',
    'insert', 'unambiguous', 'validated',
    '{"voter":"Aël","target":"Bastien","struck":false}'),
+  ('dddddddd-0000-0000-0000-000000000001', 'council_round', 'saison-fictive:e1:r2',
+   'insert', 'unambiguous', 'validated',
+   '{"episodeNumber":1,"roundNumber":2,"kind":"linked","eliminated":"Aël","causedBy":"Bastien","reportedVotesFor":0,"reportedVotesTotal":null}'),
   ('dddddddd-0000-0000-0000-000000000001', 'advantage', 'saison-fictive:collier:1',
    'insert', 'unambiguous', 'validated',
    '{"kind":"immunity_necklace","location":"Camp unique","status":"not_used","foundDay":6,"playedDay":null,"playedEpisodeNumber":null,"annulledVotes":null,"annulledVotesTotal":null,"holders":[{"name":"Aël","fromDay":6,"toDay":null,"original":true},{"name":"Bastien","fromDay":6,"toDay":null,"original":true},{"name":"Inconnue","fromDay":6,"toDay":null,"original":false}]}'),
@@ -73,6 +76,16 @@ insert into import_differences
   ('dddddddd-0000-0000-0000-000000000001', 'council_vote', 'saison-fictive:e1:r1:Bastien',
    'insert', 'ambiguous', 'pending_review',
    '{"voter":"Bastien","target":"Aël","struck":false}');
+
+insert into import_runs (id, source_document_id, status, source_revision)
+values ('dddddddd-0000-0000-0000-000000000002',
+        'bbbbbbbb-0000-0000-0000-000000000001', 'diffed', '43');
+
+insert into import_differences
+  (run_id, entity, natural_key, operation, class, status, after_value) values
+  ('dddddddd-0000-0000-0000-000000000002', 'season_contestant', 'saison-fictive:Aël',
+   'update', 'retroactive', 'validated',
+   '{"displayName":"Aël","gender":"f","age":32,"previousSeasons":["Saison 1"],"finalJury":null,"teams":[{"name":"Rouge","fromDay":1,"toDay":5}]}');
 
 create or replace function devenir(who uuid) returns void
 language plpgsql as $$
@@ -132,6 +145,13 @@ language sql stable as $$
     when 'detenteurs' then
       (select count(*) from advantage_holders h
         join season_contestants sc on sc.id = h.season_contestant_id
+       where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'duos' then
+      (select count(*) from pairs
+        where season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'saisons_citees_total' then
+      (select count(*) from contestant_previous_seasons cps
+        join season_contestants sc on sc.id = cps.season_contestant_id
        where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
     when 'departs' then
       (select count(*) from departures d
@@ -234,8 +254,8 @@ select is(
 
 select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 6,
-  'les six différences validées sont marquées publiées'
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 7,
+  'les sept différences validées sont marquées publiées'
 );
 
 select is(
@@ -300,6 +320,27 @@ select is(
   'le statut est celui que l''extraction a normalisé'
 );
 
+select is(fictif_compte('duos'), 1, 'le départ lié nomme le duo');
+
+select is(
+  (select a.display_name || ' et ' || b.display_name from pairs p
+     join season_contestants a on a.id = p.member_a_id
+     join season_contestants b on b.id = p.member_b_id
+    where p.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'Bastien et Aël',
+  'l''éliminé du vote d''abord, puis celui que son départ entraîne'
+);
+
+select is(
+  (select cause.display_name from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+     join departures dc on dc.id = d.caused_by_departure_id
+     join season_contestants cause on cause.id = dc.season_contestant_id
+    where sc.display_name = 'Aël'),
+  'Bastien',
+  'le départ lié pointe la cause que L''EXTRACTION a nommée, pas une trouvée en SQL'
+);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 3. On ne publie pas deux fois
 -- ════════════════════════════════════════════════════════════════════════════
@@ -312,6 +353,75 @@ select throws_ok(
   null,
   'une exécution déjà publiée est refusée : appliquer deux fois le même lot doublerait tout'
 );
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 3 bis. UN SECOND LOT sur le même candidat, puis son annulation
+--
+-- C'est l'enchaînement qui a révélé, le 05/09/2026, que la photo retenait les
+-- lignes EFFACÉES d'un remplacement en bloc mais pas celles ÉCRITES. Défaire
+-- le second lot reposait alors les anciennes SANS retirer les nouvelles, et
+-- l'unicité (candidat, libellé) arrêtait tout.
+-- ════════════════════════════════════════════════════════════════════════════
+
+select devenir('aaaaaaaa-0000-0000-0000-000000000001');
+
+select lives_ok(
+  $$select publish_run('dddddddd-0000-0000-0000-000000000002', 'second lot')$$,
+  'un second lot republie le même candidat'
+);
+
+reset role;
+
+select is(
+  fictif_compte('saisons_citees'), 1,
+  'les saisons citées sont REMPLACÉES, pas doublées'
+);
+
+select is(
+  (select age_at_season from season_contestants
+    where season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and display_name = 'Aël'),
+  32,
+  'la correction rétroactive est appliquée'
+);
+
+select devenir('aaaaaaaa-0000-0000-0000-000000000001');
+
+select throws_ok(
+  $$select revert_publication(
+      (select id from publications
+        where run_id = 'dddddddd-0000-0000-0000-000000000001'
+        order by rang desc limit 1),
+      'dans le désordre')$$,
+  'P0001',
+  null,
+  'on refuse de défaire une publication tant qu''une plus récente est active'
+);
+
+select lives_ok(
+  $$select revert_publication(
+      (select id from publications
+        where run_id = 'dddddddd-0000-0000-0000-000000000002'
+        order by rang desc limit 1),
+      'correction contestée')$$,
+  'le second lot s''annule'
+);
+
+reset role;
+
+select is(
+  fictif_compte('saisons_citees'), 1,
+  'après annulation, une seule saison citée — ni doublon ni disparition'
+);
+
+select is(
+  (select age_at_season from season_contestants
+    where season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and display_name = 'Aël'),
+  31,
+  'et le candidat retrouve son âge d''avant'
+);
+
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Le retour arrière repose la base
@@ -333,7 +443,8 @@ select is(
     + fictif_compte('departs') + fictif_compte('episodes')
     + fictif_compte('tribus') + fictif_compte('appartenances')
     + fictif_compte('epreuves') + fictif_compte('resultats')
-    + fictif_compte('colliers') + fictif_compte('detenteurs'),
+    + fictif_compte('colliers') + fictif_compte('detenteurs')
+    + fictif_compte('duos'),
   0,
   'tout ce qui avait été créé a disparu — la photo servait à cela'
 );
@@ -347,7 +458,7 @@ select is(
 
 select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 6,
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 7,
   'les différences redeviennent validées : c''est leur application qui a été jugée mauvaise, pas elles'
 );
 

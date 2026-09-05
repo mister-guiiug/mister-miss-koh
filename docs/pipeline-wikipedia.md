@@ -3,9 +3,9 @@
 Code : [`supabase/functions/_shared`](../supabase/functions/_shared).
 Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
-> **116 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
+> **118 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. La publication est prouvée autrement :
-> 29 assertions pgTAP contre la base hébergée
+> 39 assertions pgTAP contre la base hébergée
 > (`npm run test:publication:remote`).
 >
 > **La fonction Edge est déployée et a tourné pour de vrai** le 05/09/2026. Le
@@ -459,6 +459,32 @@ porte son épisode : c'est lui qui le protège. Un collier trouvé et pas encore
 joué n'est daté qu'en **jours**, et rien ne traduit un jour en épisode. Il est
 alors gardé jusqu'au **dernier épisode diffusé** : conservateur, mais jamais
 faux.
+
+## Les duos : autant que la source en dit, pas un de plus
+
+**La source ne liste pas les duos.** Vérifié le 05/09/2026 : la section
+« Nouveautés » énonce la règle en prose — « si l'un des deux est éliminé lors
+d'un conseil, son partenaire quitte lui aussi immédiatement » — et ne nomme
+aucun couple. Le tableau des candidats n'a pas de colonne de duo. Les neuf
+duos de la saison ne sont écrits nulle part.
+
+**Ce que la structure dit, elle, sans ambiguïté.** Le tableau des votes donne
+une colonne par scrutin : à l'épisode 1, un tour de vote qui élimine Maxime,
+puis une colonne de départ lié où part Joana. Cette seconde colonne n'existe
+_que_ parce que la première a eu lieu. La sortie de Joana est donc causée par
+celle de Maxime, et cela nomme leur duo.
+
+Le lien est porté par l'**extraction** (`causedBy`, version 4 du modèle
+intermédiaire), pas par une requête SQL. La différence : un relecteur le voit
+dans la proposition qu'il valide. La première version le cherchait côté base ;
+c'était juste et au mauvais endroit.
+
+**La limite, écrite et assumée** : un duo n'est connu que lorsqu'un départ le
+révèle. Deux sur neuf à ce jour. Les sept autres ne sont pas « manquants » —
+ils ne sont écrits nulle part, et les deviner à partir des vainqueurs
+d'épreuve, qui se présentent souvent par deux, serait une invention.
+L'application ne montre donc un binôme qu'à partir de l'épisode qui l'a
+révélé : le dire plus tôt divulgâcherait ce départ.
 
 ## « Déjà traitée » suppose le même traitement
 

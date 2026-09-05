@@ -185,6 +185,18 @@ le double verrou (droits SQL + politiques) sont décrits dans
   le trouvent ensemble. Une colonne unique ne pouvait porter ni l'un ni
   l'autre ; deux vérités auraient divergé.
 
+## Deux correctifs du retour arrière (05/09/2026)
+
+- **`publications.rang`**, un ordre total. `published_at` vaut `now()`, l'heure
+  de DÉBUT de transaction : deux publications d'une même transaction la
+  partagent, et « défaire de la plus récente à la plus ancienne » devenait un
+  tirage au sort. `revert_publication` refuse désormais de défaire tant qu'une
+  publication de rang supérieur est active.
+- **La photo montre les deux faces d'un remplacement.** Les blocs qui
+  réécrivent en bloc — saisons citées, appartenances, résultats d'épreuve,
+  détenteurs — retenaient les lignes effacées mais pas celles écrites. Défaire
+  une seconde publication reposait les anciennes sans retirer les nouvelles.
+
 ## Ce qui n'est pas encore écrit
 
 - Les vues calculées (immunités, classements, chronologie).

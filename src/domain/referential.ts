@@ -57,6 +57,15 @@ export const TeamSchema = z.object({
 export const PairSchema = z.object({
   id: z.string(),
   memberIds: z.tuple([z.string(), z.string()]),
+  /**
+   * L'épisode qui a RÉVÉLÉ le duo.
+   *
+   * La source ne liste les duos nulle part : on n'en connaît un que lorsqu'un
+   * départ lié le nomme. Cet épisode est donc à la fois le moment où le duo
+   * devient connaissable et celui à partir duquel l'afficher ne divulgâche
+   * plus rien.
+   */
+  revealEpisodeNumber: z.number().int().positive().nullable(),
 });
 
 export const EpisodeSchema = z.object({

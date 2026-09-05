@@ -106,11 +106,21 @@ const raw = {
     },
   ],
   teams: [{ id: 't-unique', name: 'Tribu unique', colour: null }],
+  // Un duo n'est connu que lorsqu'un départ le révèle : les deux premiers
+  // sont encore en jeu, donc rien à révéler.
   pairs: [
-    { id: 'p-1', memberIds: ['c-ael', 'c-bastien'] },
-    { id: 'p-2', memberIds: ['c-celeste', 'c-dimitri'] },
-    { id: 'p-3', memberIds: ['c-elouan', 'c-fanny'] },
-    { id: 'p-4', memberIds: ['c-gael', 'c-hina'] },
+    { id: 'p-1', memberIds: ['c-ael', 'c-bastien'], revealEpisodeNumber: null },
+    {
+      id: 'p-2',
+      memberIds: ['c-celeste', 'c-dimitri'],
+      revealEpisodeNumber: 2,
+    },
+    {
+      id: 'p-3',
+      memberIds: ['c-elouan', 'c-fanny'],
+      revealEpisodeNumber: null,
+    },
+    { id: 'p-4', memberIds: ['c-gael', 'c-hina'], revealEpisodeNumber: 1 },
   ],
   episodes: [
     {
