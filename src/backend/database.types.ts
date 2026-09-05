@@ -110,14 +110,12 @@ export type Database = {
           created_at: string;
           effect: string | null;
           found_day: number | null;
-          found_episode_id: string | null;
           id: string;
           kind: Database['public']['Enums']['advantage_kind'];
           label: string | null;
           natural_key: string | null;
           played_day: number | null;
           played_episode_id: string | null;
-          played_round_id: string | null;
           published_at: string | null;
           season_id: string;
           source_document_id: string | null;
@@ -131,14 +129,12 @@ export type Database = {
           created_at?: string;
           effect?: string | null;
           found_day?: number | null;
-          found_episode_id?: string | null;
           id?: string;
           kind: Database['public']['Enums']['advantage_kind'];
           label?: string | null;
           natural_key?: string | null;
           played_day?: number | null;
           played_episode_id?: string | null;
-          played_round_id?: string | null;
           published_at?: string | null;
           season_id: string;
           source_document_id?: string | null;
@@ -152,14 +148,12 @@ export type Database = {
           created_at?: string;
           effect?: string | null;
           found_day?: number | null;
-          found_episode_id?: string | null;
           id?: string;
           kind?: Database['public']['Enums']['advantage_kind'];
           label?: string | null;
           natural_key?: string | null;
           played_day?: number | null;
           played_episode_id?: string | null;
-          played_round_id?: string | null;
           published_at?: string | null;
           season_id?: string;
           source_document_id?: string | null;
@@ -169,24 +163,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: 'advantages_found_episode_id_fkey';
-            columns: ['found_episode_id'];
-            isOneToOne: false;
-            referencedRelation: 'episodes';
-            referencedColumns: ['id'];
-          },
-          {
             foreignKeyName: 'advantages_played_episode_id_fkey';
             columns: ['played_episode_id'];
             isOneToOne: false;
             referencedRelation: 'episodes';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'advantages_played_round_id_fkey';
-            columns: ['played_round_id'];
-            isOneToOne: false;
-            referencedRelation: 'council_rounds';
             referencedColumns: ['id'];
           },
           {

@@ -4,6 +4,7 @@
  * fictive ; l'un et l'autre se disent.
  */
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
+import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import type { Provenance as ProvenanceData } from '../domain/referential';
 
 export function Provenance({ data }: { data: ProvenanceData }) {
@@ -33,9 +34,7 @@ export function Provenance({ data }: { data: ProvenanceData }) {
           </>
         )}
         {data.revision && <> · révision {data.revision}</>}
-        {data.fetchedAt && (
-          <> · lue le {new Date(data.fetchedAt).toLocaleDateString('fr-FR')}</>
-        )}
+        {data.fetchedAt && <> · lue le {formatDate(data.fetchedAt)}</>}
         {'. Ces informations ne sont pas officielles.'}
       </span>
     </p>

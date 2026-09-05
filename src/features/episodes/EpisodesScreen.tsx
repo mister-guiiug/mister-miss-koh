@@ -2,6 +2,7 @@ import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
+import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { contestantById } from '../../domain/referential';
 
 type Ref = NonNullable<ReturnType<typeof useAppStore.getState>['referential']>;
@@ -48,14 +49,11 @@ export function EpisodesScreen() {
               title={`Épisode ${e.number}`}
               subtitle={
                 e.airDate
-                  ? new Date(`${e.airDate}T00:00:00`).toLocaleDateString(
-                      'fr-FR',
-                      {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }
-                    )
+                  ? formatDate(`${e.airDate}T00:00:00`, {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
                   : undefined
               }
               action={

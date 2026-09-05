@@ -228,6 +228,17 @@ const TODAY = '2026-09-05';
 describe('mapReferential', () => {
   const ref = mapReferential(rows, TODAY);
 
+  it('accepte une saison d’état « unknown » : le catalogue en produit', () => {
+    // Une page qui entre au catalogue donne un titre, pas une date de
+    // diffusion. Si le schéma refusait cet état, la première saison découverte
+    // puis publiée montrerait une erreur au lieu d'elle-même.
+    const decouverte = mapReferential(
+      { ...rows, season: { ...rows.season, status: 'unknown' as const } },
+      TODAY
+    );
+    expect(decouverte.season.status).toBe('unknown');
+  });
+
   it('valide les lignes à la frontière : une forme inattendue est refusée, pas réparée', () => {
     expect(() =>
       mapReferential({ ...rows, season: { id: 's1' } }, TODAY)

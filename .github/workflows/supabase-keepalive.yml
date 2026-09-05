@@ -6,12 +6,11 @@
 # de sept jours. Vérifier par `gh workflow run supabase-keepalive.yml`, pas
 # en attendant le prochain cron.
 #
-# UNE TENSION ASSUMÉE : `VITE_SUPABASE_URL` et l'`anon key` sont des valeurs
-# PUBLIQUES (elles sont dans le bundle), rangées en `vars` pour le
-# déploiement. Le réutilisable, lui, les déclare en `secrets:` — c'est son
-# contrat, et un secret ne fait ici que masquer les journaux. La même valeur
-# vit donc aux deux endroits ; le socle devra aligner son réutilisable sur sa
-# propre règle.
+# LA TENSION EST LEVÉE : le réutilisable déclare ces deux valeurs en
+# `secrets:`, mais un appelant a le droit d'y passer N'IMPORTE QUELLE
+# expression — y compris `vars`. L'URL et la clé anonyme sont publiques (Vite
+# les copie dans le bundle) et vivent donc en `vars`, une seule fois, comme le
+# déploiement les lit. Aucun secret à poser, aucune valeur en double.
 name: Supabase keep-alive
 
 on:
@@ -22,7 +21,8 @@ on:
 jobs:
   keepalive:
     uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-keepalive.yml@v4
-    # Nommés, pas hérités : le réutilisable déclare exactement ces deux secrets.
+    # Nommés, pas hérités : le réutilisable déclare exactement ces deux
+    # entrées. Les valeurs viennent des VARIABLES du dépôt, pas des secrets.
     secrets:
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
