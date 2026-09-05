@@ -57,3 +57,24 @@ export function linkedDepartures(
     },
   ];
 }
+
+/** Comment une édition regroupe naturellement ses candidats. */
+export type Grouping = 'pair' | 'team';
+
+/**
+ * Par duo, ou par tribu ?
+ *
+ * C'est une PARTICULARITÉ D'ÉDITION, pas une préférence d'affichage : une
+ * saison ordinaire répartit ses candidats en tribus de couleur ; celle-ci les
+ * lie deux à deux, et le tableau des votes le montre en réservant une colonne
+ * au départ du binôme.
+ *
+ * La question se tranche donc sur les DONNÉES, jamais sur le nom de la
+ * saison : un tour de genre `linked` n'existe que là où les destins sont liés.
+ * Une saison sans destin lié n'en produit aucun, et retombe sur ses tribus.
+ */
+export function groupingOf(ref: Referential): Grouping {
+  const linked =
+    ref.rounds.some(r => r.kind === 'linked') || ref.pairs.length > 0;
+  return linked ? 'pair' : 'team';
+}

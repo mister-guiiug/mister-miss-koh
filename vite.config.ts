@@ -115,8 +115,8 @@ export default defineConfig(({ command }) => {
         },
         manifest: {
           id: basePath,
-          name: 'Aventure Tracker',
-          short_name: 'Aventure',
+          name: 'Mister & miss Koh',
+          short_name: 'Mister & miss',
           description:
             'Suivez une saison d’aventure : candidats, épisodes, épreuves, conseils et votes — avec vos notes privées et vos favoris. Non officiel.',
           theme_color: '#c2410c',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEMO_REFERENTIAL } from '../backend/demo';
-import { linkedDepartures, ruleApplies } from './rules';
+import { groupingOf, linkedDepartures, ruleApplies } from './rules';
 import type { Departure, Referential } from './referential';
 
 // Donnée fictive de démonstration.
@@ -96,5 +96,22 @@ describe('linkedDepartures — la règle est lue, jamais présumée', () => {
   it('un binôme déjà sorti ne repart pas une seconde fois', () => {
     // Dans le référentiel de démonstration, Hina est déjà partie à l'épisode 1.
     expect(linkedDepartures(ref, voteOut('Gaël', 1))).toEqual([]);
+  });
+});
+
+describe('groupingOf', () => {
+  it('une saison à destins liés se regroupe par DUO', () => {
+    // Le tour `linked` n'existe que là où le binôme suit l'éliminé : c'est la
+    // donnée qui tranche, pas le nom de la saison.
+    expect(groupingOf(DEMO_REFERENTIAL)).toBe('pair');
+  });
+
+  it('sans destin lié ni duo, on retombe sur les tribus', () => {
+    const ordinaire = {
+      ...DEMO_REFERENTIAL,
+      pairs: [],
+      rounds: DEMO_REFERENTIAL.rounds.filter(r => r.kind !== 'linked'),
+    };
+    expect(groupingOf(ordinaire)).toBe('team');
   });
 });

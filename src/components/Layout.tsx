@@ -48,7 +48,7 @@ export function Layout() {
   return (
     <div className="app-shell">
       <AppHeader
-        title="Aventure Tracker"
+        title="Mister & miss Koh"
         leading={
           <Flame size={22} aria-hidden style={{ color: 'var(--primary)' }} />
         }
