@@ -119,14 +119,14 @@ imprévisibles et révocables.
 
 ## Vérifications exécutées, et leur résultat réel
 
-| Commande                                               | Résultat                                                                   |
+| Commande | Résultat |
 | ------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `gh repo view mister-guiiug/dev-pwa-config` (le 04/09) | **échec** — le dépôt s'appelait encore `dev-wpa-config` ; renommé le 05/09 |
-| lecture de `package.json` du socle                     | 3.34.0, 148 exports, 0 dépendance de production                            |
-| `api.php action=query prop=revisions`                  | pageid 17479409, revid 239179934                                           |
-| `api.php meta=siteinfo siprop=rightsinfo`              | CC BY-SA 4.0                                                               |
-| `api.php action=parse prop=sections                    | wikitext`                                                                  | 15 sections ; structures de candidats, épisodes et votes lues |
-| `supabase --version`                                   | 2.111.0                                                                    |
-| `supabase init`                                        | réussi — Postgres 17, schéma `public` exposé                               |
-| `supabase start`                                       | **échec** — démon Docker non démarré sur le poste                          |
-| Application des migrations                             | **non faite**, faute de base locale                                        |
+| lecture de `package.json` du socle | 3.34.0, 148 exports, 0 dépendance de production |
+| `api.php action=query prop=revisions` | pageid 17479409, revid 239179934 |
+| `api.php meta=siteinfo siprop=rightsinfo` | CC BY-SA 4.0 |
+| `api.php action=parse prop=sections                    | wikitext` | 15 sections ; structures de candidats, épisodes et votes lues |
+| `supabase --version` | 2.111.0 |
+| `supabase init` | réussi — Postgres 17, schéma `public` exposé |
+| `supabase start` | **échec** — démon Docker non démarré sur le poste |
+| Application des migrations | **non faite**, faute de base locale |
