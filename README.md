@@ -4,14 +4,15 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 épisodes, épreuves, conseils, votes et départs, avec notes personnelles,
 favoris et partage révocable.
 
-> **État : base hébergée, catalogue complet, publication vérifiée.**
-> L'application démarre, se construit et se teste. Les **huit** migrations sont
-> appliquées sur le projet Supabase hébergé, qui suit les **18 pages de saison**
-> déclarées par Wikipédia. Les politiques d'isolation (22 assertions) et la
-> publication transactionnelle (19 assertions) passent contre cette base. Elle
-> ne publie encore aucune saison : l'application le dit et affiche la
-> démonstration. La fonction Edge est **déployée**, et un **premier import réel**
-> a tourné : 78 différences proposées, toutes en attente de relecture — voir
+> **État : la saison en cours est publiée, et lue par le site.**
+> Les **neuf** migrations sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
+> d'isolation (22 assertions) et la publication transactionnelle (20 assertions)
+> passent contre cette base.
+> La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
+> de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
+> avec sa provenance et son anti-spoiler. Le retour arrière a servi pour de
+> vrai, à corriger trois défauts de la publication — voir
 > [Ce qui reste à faire](#ce-qui-reste-à-faire).
 
 ## Ce que c'est, et ce que ce n'est pas
@@ -53,7 +54,7 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 38 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 105 tests verts           |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
-| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 19 assertions vertes      |
+| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 20 assertions vertes      |
 | `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut                  |
 
@@ -103,6 +104,7 @@ src/
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
+                 0009 correctifs de publication
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS et publication (pgTAP)
 ```
@@ -130,7 +132,7 @@ Trois choix qui structurent le code :
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les huit migrations y
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les neuf migrations y
 sont appliquées ; `src/backend/database.types.ts` en est généré.
 
 ```bash
@@ -200,7 +202,7 @@ npm run test:rls:remote
 ```
 
 Le 05/09/2026, contre la base hébergée : **22 assertions sur 22** pour
-l'isolation, **19 sur 19** pour la publication. Le `rollback` final ne laisse
+l'isolation, **20 sur 20** pour la publication. Le `rollback` final ne laisse
 rien derrière lui.
 
 ```bash
@@ -211,14 +213,13 @@ npm run test:publication:remote
 
 Dans l'ordre :
 
-1. la **relecture du premier lot** puis sa publication. Elle demande un compte
-   portant le rôle `admin` ou `validator` ; aucun n'existe, et `user_roles` n'a
-   aucune politique d'écriture par l'API : la première attribution se fait en
-   SQL, délibérément ;
+1. les **tribus**, les **binômes** et les **épreuves** : la publication ne les
+   écrit pas encore, et l'application affiche « — » en face de « Confort » et
+   « Immunité » ;
 2. les secrets du **keep-alive** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
    que le workflow réutilisable déclare comme tels), que seul le propriétaire
    du dépôt peut poser ;
-3. les **tribus** et les **colliers d'immunité** : lus par personne à ce jour ;
+3. les **colliers d'immunité**, quatrième tableau de la source, non encore lu ;
 4. authentification, pseudonyme, profil, notes synchronisées et partage —
    les tables et les politiques sont prêtes, les écrans non ;
 5. animations Rive — les composants, les rôles et les replis existent ;

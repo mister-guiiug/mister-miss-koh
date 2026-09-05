@@ -7,11 +7,17 @@
 -- ║ deuxième publication est refusée, et un retour arrière repose la base     ║
 -- ║ dans l'état exact d'avant — y compris en effaçant ce qui avait été créé.  ║
 -- ║                                                                          ║
+-- ║ TOUT EST CADRÉ SUR LA SAISON FICTIVE. La première version comptait les    ║
+-- ║ lignes du schéma entier ; elle passait sur une base vide et s'est mise à  ║
+-- ║ échouer le jour où une VRAIE saison a été publiée — « more than one row   ║
+-- ║ returned by a subquery ». Un test qui n'est vert que sur une base neuve   ║
+-- ║ ne prouve rien le jour où il compte.                                      ║
+-- ║                                                                          ║
 -- ║ « Donnée fictive de démonstration » : aucun de ces noms n'est réel.       ║
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(19);
+select plan(20);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +79,42 @@ begin
     json_build_object('sub', who, 'role', 'authenticated')::text, true);
 end $$;
 
+-- Compteurs CADRÉS sur la saison fictive : la base peut contenir de vraies
+-- saisons publiées, et elles ne regardent pas ces tests.
+create or replace function fictif_compte(quoi text) returns integer
+language sql stable as $$
+  select case quoi
+    when 'participations' then
+      (select count(*) from season_contestants
+        where season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'personnes' then
+      (select count(*) from contestants where slug like 'saison-fictive-%')
+    when 'saisons_citees' then
+      (select count(*) from contestant_previous_seasons cps
+        join season_contestants sc on sc.id = cps.season_contestant_id
+       where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'episodes' then
+      (select count(*) from episodes
+        where season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'tours' then
+      (select count(*) from council_rounds cr
+        join councils c on c.id = cr.council_id
+        join episodes e on e.id = c.episode_id
+       where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'voix' then
+      (select count(*) from council_votes v
+        join council_rounds cr on cr.id = v.round_id
+        join councils c on c.id = cr.council_id
+        join episodes e on e.id = c.episode_id
+       where e.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    when 'departs' then
+      (select count(*) from departures d
+        join season_contestants sc on sc.id = d.season_contestant_id
+       where sc.season_id = 'cccccccc-0000-0000-0000-000000000001')
+    else null
+  end::integer
+$$;
+
 -- ════════════════════════════════════════════════════════════════════════════
 -- 1. Qui a le droit
 -- ════════════════════════════════════════════════════════════════════════════
@@ -86,8 +128,10 @@ select throws_ok(
   'un utilisateur sans rôle ne publie rien'
 );
 
+reset role;
+
 select is(
-  (select count(*)::int from season_contestants), 0,
+  fictif_compte('participations'), 0,
   'et le refus n''a rien écrit'
 );
 
@@ -95,7 +139,6 @@ select is(
 -- 2. La publication applique le lot, et lui seul
 -- ════════════════════════════════════════════════════════════════════════════
 
-reset role;
 select devenir('aaaaaaaa-0000-0000-0000-000000000001'); -- relecteur
 
 select lives_ok(
@@ -105,16 +148,9 @@ select lives_ok(
 
 reset role;
 
-select is(
-  (select count(*)::int from season_contestants
-   where season_id = 'cccccccc-0000-0000-0000-000000000001'), 2,
-  'les deux candidats validés sont publiés'
-);
+select is(fictif_compte('participations'), 2, 'les deux candidats validés sont publiés');
 
-select is(
-  (select count(*)::int from contestants), 2,
-  'chaque participation a créé sa personne'
-);
+select is(fictif_compte('personnes'), 2, 'chaque participation a créé sa personne');
 
 select is(
   (select slug from contestants where display_name = 'Aël'),
@@ -122,27 +158,38 @@ select is(
   'l''identifiant de personne porte la saison : deux prénoms identiques ne fusionnent pas'
 );
 
-select is(
-  (select count(*)::int from contestant_previous_seasons), 1,
-  'les saisons citées suivent le candidat'
-);
+select is(fictif_compte('saisons_citees'), 1, 'les saisons citées suivent le candidat');
 
 select is(
-  (select count(*)::int from council_votes), 1,
+  fictif_compte('voix'), 1,
   'seule la voix VALIDÉE est publiée — l''ambiguë reste en attente'
 );
 
 select is(
-  (select outcome::text from council_rounds), 'elimination',
+  (select cr.outcome::text from council_rounds cr
+     join councils c on c.id = cr.council_id
+     join episodes e on e.id = c.episode_id
+    where e.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'elimination',
   'le genre de tour extrait devient l''issue du tour'
 );
 
 select is(
-  (select kind::text from departures d
-    join season_contestants sc on sc.id = d.season_contestant_id
-   where sc.display_name = 'Bastien'),
+  (select d.kind::text from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and sc.display_name = 'Bastien'),
   'vote',
   'le départ découle du tour, sans règle supposée'
+);
+
+select is(
+  (select count(*)::int from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and d.round_id is not null),
+  1,
+  'le départ porte SON TOUR : sans `round_id`, l''écran ne peut pas nommer l''éliminé'
 );
 
 select is(
@@ -190,18 +237,18 @@ select throws_ok(
 
 select lives_ok(
   $$select revert_publication(
-      (select id from publications limit 1), 'décompte contesté')$$,
+      (select id from publications
+        where run_id = 'dddddddd-0000-0000-0000-000000000001'
+        order by published_at desc limit 1),
+      'décompte contesté')$$,
   'le relecteur annule la publication'
 );
 
 reset role;
 
 select is(
-  (select count(*)::int from season_contestants) +
-  (select count(*)::int from council_votes) +
-  (select count(*)::int from council_rounds) +
-  (select count(*)::int from departures) +
-  (select count(*)::int from episodes),
+  fictif_compte('participations') + fictif_compte('voix') + fictif_compte('tours')
+    + fictif_compte('departs') + fictif_compte('episodes'),
   0,
   'tout ce qui avait été créé a disparu — la photo servait à cela'
 );

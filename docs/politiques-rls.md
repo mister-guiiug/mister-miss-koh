@@ -4,8 +4,9 @@ Migration : [`supabase/migrations/0004_rls.sql`](../supabase/migrations/0004_rls
 Tests : [`supabase/tests/rls.test.sql`](../supabase/tests/rls.test.sql), lancés
 par `supabase test db`.
 
-> **Aucun de ces tests n'a été exécuté à ce jour** : le démon Docker ne démarre
-> pas sur le poste de développement. Rien n'est déclaré vert.
+> **Tous exécutés contre la base hébergée** le 05/09/2026, sans Docker :
+> 22 assertions sur 22 pour l'isolation, 20 sur 20 pour la publication. Voir
+> [Exécution](#exécution).
 
 ## Le principe : deux verrous, pas un
 
@@ -102,17 +103,41 @@ Vingt-deux assertions, dont les sept qui comptent :
 
 `supabase test db` exige Docker — `pg_prove` tourne en conteneur — et Docker ne
 démarre pas sur le poste de développement. Le fichier se joue donc **contre la
-base liée** par `npm run test:rls:remote` (`scripts/rls-remote.mjs`) : chaque
+base liée** par `npm run test:rls:remote` (`scripts/pgtap-remote.mjs`) : chaque
 assertion est réécrite pour déposer son verdict dans une table temporaire, que
 la dernière requête renvoie d'un bloc — `supabase db query` ne rend que le
 dernier jeu de lignes. Même fichier, même plan, même `rollback`.
 
 Le 05/09/2026, contre le projet hébergé `oqldfzrsandcguajyxbh` : **22
-assertions sur 22** passent, et **19 sur 19** pour la publication
+assertions sur 22** passent, et **20 sur 20** pour la publication
 transactionnelle (`npm run test:publication:remote`). Deux faits vérifiés au passage : pgTAP enregistre
 ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
 collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de
 l'API.
+
+## L'identité qui a publié
+
+La première publication devait porter un nom : `publish_run` vérifie
+`is_staff()`, et `user_roles.user_id` référence `auth.users`. Une identité de
+service a donc été créée en SQL, le 05/09/2026 :
+
+| Champ    | Valeur                                         |
+| -------- | ---------------------------------------------- |
+| `id`     | `00000000-0000-4000-8000-000000000001`         |
+| courriel | `publication-initiale@mister-miss-koh.invalid` |
+| rôle     | `admin`                                        |
+
+**Ce n'est pas un compte.** Pas de mot de passe, pas d'adresse joignable — le
+domaine `.invalid` est réservé et ne peut recevoir aucun courrier. Personne ne
+peut obtenir de jeton pour elle. Elle existe pour deux raisons : satisfaire la
+clé étrangère, et faire qu'une publication soit attribuée à quelqu'un dans
+`audit_events`, `import_differences.reviewed_by` et
+`publications.published_by`.
+
+Elle n'est **pas** dans une migration, délibérément : une identité privilégiée
+inscrite dans le dépôt serait publiée avec lui. Quand un vrai relecteur aura un
+compte, lui donner son rôle se fera de la même façon, en SQL — la table refuse
+toute écriture par l'API, quelle que soit la clé.
 
 ## Ce qui reste à faire
 

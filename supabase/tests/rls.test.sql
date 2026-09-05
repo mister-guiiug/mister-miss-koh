@@ -78,8 +78,13 @@ end $$;
 
 select devenir_anonyme();
 
+-- CADRÉ SUR LES DEUX SAISONS DU DÉCOR. Compter toutes les saisons passait tant
+-- que la base était vide, et s'est mis à échouer le jour où une VRAIE saison a
+-- été publiée. Un test qui n'est vert que sur une base neuve ne prouve rien le
+-- jour où il compte.
 select is(
-  (select count(*)::int from seasons), 1,
+  (select count(*)::int from seasons
+    where slug in ('saison-publiee', 'saison-brouillon')), 1,
   'anonyme : seule la saison PUBLIÉE est visible'
 );
 select is(

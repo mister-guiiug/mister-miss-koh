@@ -5,7 +5,7 @@ Tests : `cd supabase/functions && deno test --allow-read _shared/`.
 
 > **105 tests, tous exécutés et verts** le 05/09/2026, avec `deno lint`,
 > `deno fmt --check` et `deno check`. La publication est prouvée autrement :
-> 19 assertions pgTAP contre la base hébergée
+> 20 assertions pgTAP contre la base hébergée
 > (`npm run test:publication:remote`).
 >
 > **La fonction Edge est déployée et a tourné pour de vrai** le 05/09/2026. Le
@@ -310,7 +310,7 @@ Trois refus délibérés :
   éditions ne fusionnent pas en une personne à qui l'on prêterait un parcours
   qu'elle n'a pas eu.
 
-**19 assertions pgTAP, exécutées contre la base hébergée** le 05/09/2026 :
+**20 assertions pgTAP, exécutées contre la base hébergée** le 05/09/2026 :
 `npm run test:publication:remote`.
 
 ## Le premier import réel
@@ -339,6 +339,49 @@ n'a pas bougé d'une ligne.
 Une anomalie relevée, non bloquante : le tableau des votes a une ligne dont le
 nombre de cellules diffère des autres. Elle est signalée, et ses cellules
 manquantes valent `null`.
+
+### La relecture, puis la publication
+
+Les 78 propositions ont été relues avant d'être validées, et voici ce qui a été
+vérifié — pas « ça compile », mais « ça correspond » :
+
+- les **18 candidats** portent un nom, un genre, un âge et une tribu lisibles ;
+- les **3 épisodes** ont leur date, et le troisième est marqué non diffusé ;
+- les **52 voix** ne désignent que des candidats connus : aucun votant, aucune
+  cible hors des dix-huit, aucun bulletin sans destinataire ;
+- surtout, **la répartition des voix reproduit exactement les décomptes** que
+  le tableau « Déroulement » annonce de son côté : 9 Laure / 9 Maxime puis
+  11 Maxime / 7 Laure à l'épisode 1, et 12 Moussa / 2 Vincent / 1 Laure /
+  1 Nicolas à l'épisode 2. Deux tableaux écrits séparément s'accordent au
+  bulletin près : c'est le recoupement qui fait son travail.
+
+`publish_run` a ensuite appliqué le lot : saison publiée, 18 participations,
+3 épisodes, 2 conseils, 3 tours, 52 voix, 4 départs, 103 lignes photographiées
+pour le retour arrière.
+
+### Trois défauts que seule la publication pouvait révéler
+
+Le résultat, relu **dans l'application**, montrait
+`? éliminé·e (11/18 voix)` et un tour de trop. Trois défauts, corrigés par
+`0009_publication_correctifs.sql` :
+
+1. **le départ inséré ne portait pas son `round_id`.** La branche de mise à
+   jour le posait, celle d'insertion l'oubliait — un défaut invisible tant
+   qu'aucun départ n'avait été publié deux fois ;
+2. **un tour `linked` était écrit dans `council_rounds`.** Ce n'est pas un
+   scrutin : personne n'y vote. L'extraction en produit un parce que la
+   **source** lui réserve une colonne, et l'application en reconstitue déjà un,
+   synthétique, à partir du départ. La soirée en montrait donc deux ;
+3. **une exécution `reverted` ne pouvait plus être republiée**, ce qui rendait
+   le retour arrière inutilisable pour corriger une publication : il aurait
+   fallu réimporter et tout relire.
+
+Le correctif s'est appliqué comme il devait : **retour arrière puis
+republication, dans une seule transaction**, pour que le site ne reste jamais
+sans saison. `revert_publication` a reposé les 103 lignes, `publish_run` a
+réappliqué le lot corrigé. La soirée affiche désormais ses trois événements
+réels — tour annulé, « Maxime éliminé·e (11/18 voix) », « Joana part avec son
+binôme ».
 
 **Trois comportements vérifiés en production :**
 
@@ -371,7 +414,6 @@ git.
    « Déroulement », non encore lu ;
 2. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
    `team_memberships` ;
-3. la **relecture puis la publication** du premier lot. Elle demande un compte
-   portant le rôle `admin` ou `validator` : aucun n'existe à ce jour, et
-   `user_roles` n'a **aucune politique d'écriture** par l'API — la première
-   attribution se fait donc en SQL, délibérément.
+3. les **tribus**, les **binômes** et les **épreuves** : la publication ne les
+   écrit pas encore, et l'application affiche donc « — » en face de « Confort »
+   et « Immunité ».
