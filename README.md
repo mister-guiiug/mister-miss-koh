@@ -1,4 +1,4 @@
-# mister-miss-koh — « Aventure Tracker »
+# mister-miss-koh — « Mister & miss Koh »
 
 PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 épisodes, épreuves, conseils, votes et départs, avec notes personnelles,
