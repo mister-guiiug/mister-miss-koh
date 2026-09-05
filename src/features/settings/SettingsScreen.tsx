@@ -1,8 +1,10 @@
+import { Link } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useAppStore } from '../../store/useAppStore';
+import { useSession } from '../../hooks/useSession';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';
 import type { SpoilerMode } from '../../domain/spoiler';
@@ -33,6 +35,7 @@ const ORIGIN_LABEL: Record<
 
 export function SettingsScreen() {
   const theme = useThemeContext();
+  const { account, available } = useSession();
   const spoiler = useAppStore(s => s.spoiler);
   const setSpoiler = useAppStore(s => s.setSpoiler);
   const animations = useAppStore(s => s.animations);
@@ -111,6 +114,20 @@ export function SettingsScreen() {
           />
           <span>Réduire les mouvements (en plus du réglage système)</span>
         </label>
+      </Card>
+
+      <Card>
+        <CardHeader title="Compte" />
+        <p className="muted">
+          {!available
+            ? 'Sans backend, il n’y a pas de compte : vos réglages et vos favoris restent sur cet appareil.'
+            : account === undefined
+              ? 'Vérification de la session…'
+              : account
+                ? `Connecté·e en tant que ${account.email ?? 'compte sans adresse'}.`
+                : 'Non connecté·e. Un compte ne sert qu’à retrouver vos notes d’un autre appareil ; tout le reste fonctionne sans.'}
+        </p>
+        {available && <Link to="/compte">Gérer le compte</Link>}
       </Card>
 
       <Card>

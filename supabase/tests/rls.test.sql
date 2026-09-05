@@ -8,11 +8,11 @@
 -- ║                                                                          ║
 -- ║ `supabase test db` exige Docker, qui ne démarre pas sur le poste de       ║
 -- ║ développement. Le même fichier se joue contre la base LIÉE par            ║
--- ║ `npm run test:rls:remote` : 22 sur 22 le 05/09/2026.                      ║
+-- ║ `npm run test:rls:remote` : 24 sur 24 le 05/09/2026.                      ║
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(22);
+select plan(24);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 -- Deux comptes, une note privée chacun, et une saison à moitié publiée.
@@ -47,7 +47,13 @@ values
   ('66666666-6666-6666-6666-666666666666',
    '11111111-1111-1111-1111-111111111111',
    '33333333-3333-3333-3333-333333333333',
-   'Note partagée de A', 'contenu partagé', 'link');
+   'Note partagée de A', 'contenu partagé', 'link'),
+  -- La note PUBLIQUE de B : c'est elle qui révèle que les politiques
+  -- s'additionnent, et pourquoi le client filtre sur `user_id` (§ 2 bis).
+  ('88888888-8888-8888-8888-888888888888',
+   '22222222-2222-2222-2222-222222222222',
+   '33333333-3333-3333-3333-333333333333',
+   'Note publique de B', 'contenu publié', 'public');
 
 insert into share_links (id, owner_id, token, scope, note_id) values
   ('77777777-7777-7777-7777-777777777777',
@@ -150,8 +156,32 @@ select is(
   'la note de A a survécu aux tentatives de modification ET de suppression de B'
 );
 select is(
-  (select count(*)::int from personal_notes), 2,
+  (select count(*)::int from personal_notes
+    where user_id = '11111111-1111-1111-1111-111111111111'), 2,
   'A voit ses deux notes'
+);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2 bis. Les politiques s'ADDITIONNENT — et le client doit le savoir
+-- ════════════════════════════════════════════════════════════════════════════
+-- Deux politiques de lecture cohabitent sur `personal_notes` : « les miennes »
+-- et « les notes publiques ». Elles sont PERMISSIVES : PostgreSQL les combine
+-- par OU. Une lecture sans clause `user_id` rend donc aussi les notes publiques
+-- des AUTRES comptes — ce que le serveur a raison de faire, et ce qu'un écran
+-- intitulé « Mes notes » aurait tort d'afficher.
+--
+-- Les deux assertions ci-dessous sont la RAISON du filtre `.eq('user_id', …)`
+-- dans `src/backend/notes.ts`. Sans elles, ce filtre passerait un jour pour une
+-- précaution superflue, et sa disparition ne casserait rien de visible ici.
+
+select is(
+  (select count(*)::int from personal_notes), 3,
+  'sans filtre, A voit AUSSI la note publique de B — les politiques s''additionnent'
+);
+select is(
+  (select count(*)::int from personal_notes
+    where id = '88888888-8888-8888-8888-888888888888'), 1,
+  'et cette note publique de B est bien lisible, en la nommant'
 );
 
 -- ════════════════════════════════════════════════════════════════════════════

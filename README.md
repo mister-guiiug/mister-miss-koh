@@ -99,8 +99,10 @@ src/
   backend/       sélection du backend, port du référentiel, démonstration
   store/         zustand — référentiel + données personnelles (magasin versionné)
   animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti)
+  hooks/         useSpoilerLimit, useSession (compte courant)
   components/    Layout, SpoilerGuard, Provenance
-  features/      accueil, tableau de bord, candidats, épisodes, réglages, hors-ligne
+  features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
+                 réglages, hors-ligne
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
@@ -211,13 +213,46 @@ sans Docker, par un lanceur qui collecte chaque verdict pgTAP :
 npm run test:rls:remote
 ```
 
-Le 05/09/2026, contre la base hébergée : **22 assertions sur 22** pour
-l'isolation, **20 sur 20** pour la publication. Le `rollback` final ne laisse
+Le 05/09/2026, contre la base hébergée : **24 assertions sur 24** pour
+l'isolation, **39 sur 39** pour la publication. Le `rollback` final ne laisse
 rien derrière lui.
 
 ```bash
 npm run test:publication:remote
 ```
+
+## Comptes et notes
+
+**Aucun mot de passe, nulle part.** On entre par un lien à usage unique envoyé
+à une adresse (`signInWithOtp`) : l'application ne voit passer aucun secret et
+n'en conserve aucun. Il n'y a donc ni réinitialisation, ni stockage, ni fuite
+possible par le bundle.
+
+Deux réglages sans lesquels le lien ne ramène nulle part :
+
+- le **flux PKCE** (`src/backend/supabaseReferential.ts`). Le flux implicite
+  renvoie le jeton dans le _fragment_ (`#access_token=…`), l'endroit exact où
+  `HashRouter` lit la route : le routeur y verrait une adresse inconnue et
+  remplacerait le tout par « / », emportant le jeton. PKCE passe par
+  `?code=…`, que le routeur ne touche pas ;
+- la **liste d'URL autorisées** du projet, posée le 05/09/2026 sur
+  `https://mister-guiiug.github.io/mister-miss-koh/` (aussi `site_url`) et
+  `http://localhost:5236/`. Elle valait `http://localhost:3000` par défaut,
+  c'est-à-dire nulle part.
+
+Les notes vivent **sur le serveur**, contrairement aux favoris et aux épisodes
+vus qui restent sur l'appareil : on relit une note ailleurs, et on ne veut pas
+la perdre en vidant un cache. Une note vise exactement **une** chose (saison,
+candidat, épisode…), garantie par une contrainte de cardinalité ; la
+suppression est **logique** (`deleted_at`), pour qu'un lien partagé cesse
+d'ouvrir la note au moment où son auteur la retire.
+
+Enfin, la lecture filtre sur `user_id`, et ce n'est pas une précaution
+superflue : les politiques RLS sont **permissives**, donc combinées par OU. À
+côté de « je vois les miennes » vit « tout le monde voit les notes publiques ».
+Le serveur a raison ; c'est à la requête de dire ce qu'elle cherche. Deux
+assertions pgTAP (§ 2 bis de `rls.test.sql`) figent ce comportement, faute de
+quoi la disparition du filtre ne casserait rien de visible.
 
 ## Ce qui reste à faire
 
@@ -228,7 +263,11 @@ Dans l'ordre :
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
-3. authentification, pseudonyme, profil, notes synchronisées et partage —
-   les tables et les politiques sont prêtes, les écrans non ;
-4. animations Rive — les composants, les rôles et les replis existent ;
+3. le **partage d'une note** (lien révocable) et le **profil** (pseudonyme,
+   visibilité) : les tables, la fonction à jeton et les politiques sont prêtes
+   et testées, les écrans non. La connexion et les notes, elles, sont livrées ;
+4. la **suppression de compte** : la cascade existe en base, mais l'effacer
+   demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
+   l'avoir ;
+5. animations Rive — les composants, les rôles et les replis existent ;
    **aucun fichier `.riv` n'est fourni**, et aucun ne sera inventé.

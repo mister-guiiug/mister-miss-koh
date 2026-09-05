@@ -630,8 +630,23 @@ export function createSupabaseRepository(
   };
 }
 
-/** La fabrique du socle : configuration lue tout de suite, client créé au premier appel. */
+/**
+ * La fabrique du socle : configuration lue tout de suite, client créé au
+ * premier appel.
+ *
+ * `flowType: 'pkce'` N'EST PAS UN RÉGLAGE DE SÉCURITÉ ICI, C'EST UNE
+ * NÉCESSITÉ DE ROUTAGE. Le flux implicite renvoie le jeton dans le FRAGMENT
+ * (`#access_token=…`) — l'endroit exact où `HashRouter` lit la route. Le
+ * routeur y verrait une adresse inconnue, la remplacerait par « / », et le
+ * jeton disparaîtrait avant d'avoir servi ; la connexion échouerait sans
+ * message, une fois sur deux, selon qui lit l'URL en premier. PKCE renvoie
+ * `?code=…` dans la QUERY, que le routeur ne touche pas.
+ */
 export const supabaseFactory = createSupabaseClientFactory<SupabaseClient>({
   env: import.meta.env,
-  auth: { persistSession: true, autoRefreshToken: true },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    flowType: 'pkce',
+  },
 });

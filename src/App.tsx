@@ -24,6 +24,8 @@ import { DashboardScreen } from './features/dashboard/DashboardScreen';
 import { ContestantsScreen } from './features/contestants/ContestantsScreen';
 import { ContestantDetailScreen } from './features/contestants/ContestantDetailScreen';
 import { EpisodesScreen } from './features/episodes/EpisodesScreen';
+import { NotesScreen } from './features/notes/NotesScreen';
+import { AccountScreen } from './features/account/AccountScreen';
 import { SettingsScreen } from './features/settings/SettingsScreen';
 import { OfflineScreen } from './features/offline/OfflineScreen';
 
@@ -49,6 +51,8 @@ function RoutedApp() {
           <Route path="/candidats" element={<ContestantsScreen />} />
           <Route path="/candidats/:id" element={<ContestantDetailScreen />} />
           <Route path="/episodes" element={<EpisodesScreen />} />
+          <Route path="/notes" element={<NotesScreen />} />
+          <Route path="/compte" element={<AccountScreen />} />
           <Route path="/reglages" element={<SettingsScreen />} />
           <Route path="/hors-connexion" element={<OfflineScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
