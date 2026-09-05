@@ -63,7 +63,7 @@ source et non supposée. Voir [docs/attribution.md](./docs/attribution.md).
 L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 4.0.0),
 paquet de configuration et de composants de la famille `miss-*` / `mister-*`.
 
-> Jusqu'à la 3.34.0, le paquet et son dépôt s'appelaient `dev-pwa-config`. Ils
+> Jusqu'à la 3.34.0, le paquet et son dépôt s'appelaient `dev-wpa-config`. Ils
 > ont été renommés le 05/09/2026 ; la 4.0.0 ne change que le nom, et l'ancien
 > paquet reste publié sans évoluer.
 
