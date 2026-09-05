@@ -128,6 +128,25 @@ export default defineConfig(({ command }) => {
           lang: 'fr',
           dir: 'ltr',
           categories: ['entertainment', 'lifestyle'],
+          // De VRAIES captures, prises par Playwright sur l'application qui lit
+          // la base hébergée (`captures.mjs`). Une illustration dessinée ferait
+          // une belle fiche d'installation et une promesse fausse.
+          screenshots: [
+            {
+              src: 'screenshots/etroit.png',
+              sizes: '390x844',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'La soirée d’un épisode : épreuves, conseil et départs',
+            },
+            {
+              src: 'screenshots/large.png',
+              sizes: '1280x800',
+              type: 'image/png',
+              form_factor: 'wide',
+              label: 'Les candidats de la saison, et qui est encore en jeu',
+            },
+          ],
           icons: [
             {
               src: 'icon-192.png',

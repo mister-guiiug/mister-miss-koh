@@ -27,7 +27,14 @@ export const SeasonSchema = z.object({
   slug: z.string(),
   name: z.string(),
   editionLabel: z.string().nullable(),
-  status: z.enum(['announced', 'airing', 'completed']),
+  /**
+   * `unknown` existe depuis que le catalogue se découvre par l'API : une page
+   * qui y entre donne un titre, pas une date de diffusion. Le schéma doit
+   * accepter ce que la base peut contenir, sinon la première saison découverte
+   * puis publiée serait REFUSÉE à la frontière — et l'écran montrerait une
+   * erreur au lieu d'une saison.
+   */
+  status: z.enum(['announced', 'airing', 'completed', 'unknown']),
   rules: z.array(SeasonRuleSchema),
 });
 

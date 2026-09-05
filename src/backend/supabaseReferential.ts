@@ -51,7 +51,7 @@ const SeasonRow = z.object({
   slug: z.string(),
   name: z.string(),
   edition_label: z.string().nullable(),
-  status: z.enum(['announced', 'airing', 'completed']),
+  status: z.enum(['announced', 'airing', 'completed', 'unknown']),
   source_document_id: z.string().nullable(),
   season_rules: z.array(RuleRow).default([]),
 });
