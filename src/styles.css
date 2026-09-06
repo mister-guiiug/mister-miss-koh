@@ -82,21 +82,13 @@ a {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 4.5rem; /* la place que la barre fixe occupe */
 }
 
 /* La barre basse est la navigation PRINCIPALE : elle doit rester atteignable
-   sans remonter la page. Le socle la laisse en `position: relative` et le dit
-   — « non stylé : cibler [data-dwc=bottom-nav] » — parce que toutes les apps
-   n'en font pas une barre d'onglets. Ici, si.
-
-   Le `padding-bottom` de la coquille réserve déjà sa hauteur, sans quoi la
-   barre masquerait la fin de chaque écran. */
+   sans remonter la page. Depuis le socle 4.3, c'est `placement="fixed"` qui
+   la colle et `reserve="bottom-nav"` qui dégage sa hauteur sous le contenu,
+   zone sûre iOS comprise (Layout.tsx). Ici ne reste que son fond. */
 [data-dwc='bottom-nav'] {
-  position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 20;
   background: var(--surface);
 }
 
