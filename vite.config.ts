@@ -54,6 +54,11 @@ export default defineConfig(({ command }) => {
             // `react/rive` du socle l'importe à la demande, il ne doit pas
             // être forcé dans un chunk chargé au démarrage.
             if (norm.includes('/@rive-app/')) return;
+            // Même raison pour l'encodeur d'images du socle : seul le dépôt
+            // d'un portrait l'appelle (`store/usePhotosStore`), et il est
+            // importé à la demande. Le ranger dans un chunk du démarrage le
+            // ferait payer à toutes les visites qui n'y touchent jamais.
+            if (norm.includes('/dev-pwa-config/image.js')) return;
             if (
               norm.includes('/react-dom/') ||
               norm.includes('/node_modules/react/') ||

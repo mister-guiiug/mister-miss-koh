@@ -6,6 +6,9 @@ import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
+import { Avatar } from '../../components/Avatar';
+import { ContestantTraits } from '../../components/ContestantTraits';
+import { PhotoPicker } from '../../components/PhotoPicker';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { PairBlock } from '../../components/PairBlock';
 import { TargetNotes } from '../../components/TargetNotes';
@@ -87,7 +90,6 @@ export function ContestantDetailScreen() {
         <CardHeader
           as="h2"
           title={contestant.displayName}
-          subtitle={contestant.age ? `${contestant.age} ans` : undefined}
           action={
             <FavoriteButton
               name={contestant.displayName}
@@ -97,13 +99,20 @@ export function ContestantDetailScreen() {
             />
           }
         />
-        <p className="chips-row">
-          <Badge tone={view.stillIn ? 'success' : 'muted'}>
-            {view.stillIn ? 'en jeu' : 'sorti·e'}
-          </Badge>
-          {team && <Badge tone="info">{team.name}</Badge>}
-          {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
-        </p>
+        <div className="identity">
+          <Avatar contestant={contestant} size="lg" />
+          <div className="identity-main">
+            <ContestantTraits contestant={contestant} size="md" />
+            <p className="chips-row">
+              <Badge tone={view.stillIn ? 'success' : 'muted'}>
+                {view.stillIn ? 'en jeu' : 'sorti·e'}
+              </Badge>
+              {team && <Badge tone="info">{team.name}</Badge>}
+              {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
+            </p>
+            <PhotoPicker contestant={contestant} />
+          </div>
+        </div>
 
         {/* Le CV : ce que la source dit de la personne AVANT cette saison,
             une ligne par participation, dans l'ordre où la page les cite. */}

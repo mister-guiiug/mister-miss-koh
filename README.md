@@ -25,6 +25,13 @@ provenance, sa révision et son statut de validation.
 L'identité visuelle est **originale** — terre, feu, océan, jungle. Aucun logo,
 totem, photographie, extrait ou élément graphique de l'émission n'est reproduit.
 
+**Les portraits des candidats ne font pas exception.** L'application n'en
+distribue aucun et n'en télécharge aucun : chaque candidat porte une vignette
+d'initiales, et vous pouvez y mettre **votre** image, qui reste sur votre
+appareil (IndexedDB, ré-encodée en vignette, métadonnées retirées). Les photos
+officielles sont des œuvres protégées représentant des personnes
+identifiables ; les republier ici contredirait la ligne ci-dessus.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
@@ -51,11 +58,11 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 100 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 114 tests verts                    |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes               |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 258,2 kB gzip                      |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 261,1 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -97,10 +104,12 @@ src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
                  statistiques (zéro ≠ inconnu), règles de saison, duos
                  supposés (`pairing.ts` — la source prime toujours)
-  backend/       sélection du backend, port du référentiel, démonstration
+  backend/       sélection du backend, port du référentiel, démonstration,
+                 portraits (IndexedDB, sur l'appareil — `photos.ts`)
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
-                 notes du compte (useNotesStore, dépôt injectable)
+                 notes du compte (useNotesStore), portraits (usePhotosStore :
+                 URL d'objet, révoquées dès qu'elles sont remplacées)
   animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti),
                  niveaux de mouvement (`data-motion` sur <html>)
   hooks/         useSpoilerLimit, useSession (compte courant), useNotes (les
@@ -109,6 +118,7 @@ src/
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
                  PairBlock (le binôme : celui de la source, ou le vôtre),
+                 Avatar + ContestantTraits + PhotoPicker (portrait, sexe, âge),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne

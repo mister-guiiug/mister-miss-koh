@@ -5,6 +5,8 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SegmentedControl } from '@mister-guiiug/dev-pwa-config/react/segmented-control';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
+import { Avatar } from '../../components/Avatar';
+import { ContestantTraits } from '../../components/ContestantTraits';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
 import {
@@ -202,7 +204,13 @@ export function ContestantsScreen() {
             <ul className="list">
               {group.rows.map(c => (
                 <li key={c.id} className="row">
-                  <Link to={`/candidats/${c.id}`}>{c.displayName}</Link>
+                  <Avatar contestant={c} />
+                  {/* Le lien ne porte QUE le nom : y enfermer l'âge et le sexe
+                      allongerait son nom accessible sans rien y ajouter. */}
+                  <span className="row-main">
+                    <Link to={`/candidats/${c.id}`}>{c.displayName}</Link>
+                    <ContestantTraits contestant={c} />
+                  </span>
                   <Badge tone={c.inGame ? 'success' : 'muted'} size="xs">
                     {c.inGame ? 'en jeu' : 'sorti·e'}
                   </Badge>
