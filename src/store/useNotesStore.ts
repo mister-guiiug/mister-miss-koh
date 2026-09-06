@@ -22,6 +22,7 @@ import {
   type SharingRepository,
   sharingRepository,
 } from '../backend/sharing';
+import type { Visibility } from '../domain/visibility';
 
 export interface NotesState {
   /** `null` = pas encore chargées (ou personne de connecté). */
@@ -41,10 +42,10 @@ export interface NotesState {
   shareNote(noteId: string): Promise<ShareLink>;
   /** Un lien pour toutes les notes déjà ouvertes. Réutilise celui qui existe. */
   shareCollection(label: string): Promise<ShareLink>;
-  /** Révoque, et referme la visibilité de la note concernée. */
+  /** Révoque, et referme la note SI c'est ce lien qui l'ouvrait. */
   revokeLink(link: ShareLink): Promise<void>;
-  /** Ouvre ou referme une note SANS créer de lien : elle entre dans la collection. */
-  setShareable(noteId: string, shareable: boolean): Promise<void>;
+  /** Déplace la visibilité d'une note, sans créer ni détruire de lien. */
+  setVisibility(noteId: string, visibility: Visibility): Promise<void>;
   /** À la déconnexion : la liste du compte précédent ne doit pas survivre. */
   reset(): void;
 }
@@ -136,11 +137,17 @@ export function createNotesStore(
     },
 
     async shareNote(noteId) {
-      const link = await sharing.shareNote(noteId, null);
+      const current =
+        (get().notes ?? []).find(n => n.id === noteId)?.visibility ?? 'private';
+      const link = await sharing.shareNote(noteId, null, current);
       set({
-        // La note est ouverte à la lecture : l'écran doit le montrer AVANT
-        // que quiconque ouvre le lien, sinon il promet moins qu'il ne fait.
-        notes: withVisibility(get().notes, noteId, 'link'),
+        // Une note privée s'ouvre « par lien » du même geste, et l'écran doit
+        // le montrer AVANT que quiconque ouvre l'adresse ; une note déjà
+        // publique reste publique.
+        notes:
+          current === 'private'
+            ? withVisibility(get().notes, noteId, 'link')
+            : get().notes,
         links: [link, ...(get().links ?? [])],
         error: null,
       });
@@ -162,25 +169,31 @@ export function createNotesStore(
     },
 
     async revokeLink(link) {
-      await sharing.revoke(link);
+      // Refermer la note n'a de sens que si c'est CE lien qui l'ouvrait. Une
+      // note devenue PUBLIQUE reste publique — éteindre une vieille adresse ne
+      // révoque pas une décision prise ailleurs — et une collection ne
+      // désigne aucune note.
+      const held =
+        link.scope === 'note' && link.noteId
+          ? (get().notes ?? []).find(n => n.id === link.noteId)
+          : undefined;
+      const closeNote = held?.visibility === 'link';
+
+      await sharing.revoke(link, closeNote);
       set({
         links: (get().links ?? []).filter(l => l.id !== link.id),
         notes:
-          link.scope === 'note' && link.noteId
+          closeNote && link.noteId
             ? withVisibility(get().notes, link.noteId, 'private')
             : get().notes,
         error: null,
       });
     },
 
-    async setShareable(noteId, shareable) {
-      await sharing.setShareable(noteId, shareable);
+    async setVisibility(noteId, visibility) {
+      await sharing.setVisibility(noteId, visibility);
       set({
-        notes: withVisibility(
-          get().notes,
-          noteId,
-          shareable ? 'link' : 'private'
-        ),
+        notes: withVisibility(get().notes, noteId, visibility),
         error: null,
       });
     },

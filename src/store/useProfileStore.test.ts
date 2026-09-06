@@ -6,6 +6,9 @@ const profile = (over: Partial<Profile> = {}): Profile => ({
   id: 'u-1',
   pseudonym: 'Tarzan',
   handle: 'tarzan',
+  bio: null,
+  visibility: 'private',
+  showNotes: false,
   updatedAt: '2026-09-06T10:00:00.000Z',
   ...over,
 });
@@ -15,6 +18,7 @@ function fakeRepository(over: Partial<ProfileRepository> = {}) {
     load: () => Promise.resolve(null),
     save: () => Promise.resolve(profile()),
     handleAvailable: () => Promise.resolve(true),
+    loadPublic: () => Promise.resolve(null),
     ...over,
   } satisfies ProfileRepository;
 }
@@ -62,7 +66,13 @@ describe('enregistrer', () => {
       })
     );
 
-    await store.getState().save({ pseudonym: 'Tarzan', handle: 'tarzan' });
+    await store.getState().save({
+      pseudonym: 'Tarzan',
+      handle: 'tarzan',
+      bio: null,
+      visibility: 'private',
+      showNotes: false,
+    });
 
     expect(store.getState().profile?.pseudonym).toBe('Jane');
   });
@@ -75,7 +85,13 @@ describe('enregistrer', () => {
     );
 
     await expect(
-      store.getState().save({ pseudonym: 'Tarzan', handle: 'tarzan' })
+      store.getState().save({
+        pseudonym: 'Tarzan',
+        handle: 'tarzan',
+        bio: null,
+        visibility: 'private',
+        showNotes: false,
+      })
     ).rejects.toThrow(/déjà pris/);
   });
 });

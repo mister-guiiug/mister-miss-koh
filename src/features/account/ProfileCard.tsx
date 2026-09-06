@@ -1,11 +1,17 @@
 /**
  * Choisir son pseudonyme — et, si l'on veut, une adresse publique.
  *
- * À QUOI ÇA SERT, DIT AVANT. Le seul endroit où ce nom apparaît aujourd'hui,
- * c'est au bas d'une note qu'on partage par un lien. Sans profil, ces notes
- * sont signées « quelqu'un qui n'a pas choisi de pseudonyme » — ce n'est pas
- * une panne, c'est l'état réel, et l'écran le dit plutôt que d'afficher un
- * champ vide sans raison.
+ * À QUOI ÇA SERT, DIT AVANT. Ce nom signe les notes qu'on partage, et — si
+ * l'on ouvre son profil — nomme la page qu'un visiteur trouve à son adresse.
+ * Sans profil, les notes partagées sont signées « quelqu'un qui n'a pas choisi
+ * de pseudonyme » : ce n'est pas une panne, c'est l'état réel, et l'écran le
+ * dit plutôt que d'afficher un champ vide sans raison.
+ *
+ * UN PROFIL EST PRIVÉ PAR DÉFAUT, et « Public » n'est proposé qu'une fois un
+ * identifiant choisi : la page se rejoint par `#/profil/<identifiant>`, et
+ * l'offrir sans adresse promettrait une page injoignable. Retirer son
+ * identifiant referme donc le profil, plutôt que de laisser un réglage qui
+ * n'ouvre plus rien.
  *
  * DEUX CHAMPS, DEUX NATURES. Le pseudonyme est un libellé : deux personnes
  * peuvent s'appeler pareil. L'identifiant public est une ADRESSE : unique,
@@ -24,14 +30,23 @@ import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
+import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { useProfileStore } from '../../store/useProfileStore';
+import { ShareLinkPanel } from '../../components/ShareLinkPanel';
 import {
+  BIO_MAX,
   HANDLE_MAX,
   PSEUDONYM_MAX,
   checkHandle,
   checkPseudonym,
   suggestHandle,
 } from '../../domain/profile';
+import { profileUrl } from '../../domain/sharing';
+import {
+  PROFILE_VISIBILITIES,
+  canBePublic,
+  type Visibility,
+} from '../../domain/visibility';
 
 type HandleState = 'idle' | 'checking' | 'free' | 'taken';
 
@@ -69,11 +84,21 @@ function ProfileForm() {
 
   const [pseudonym, setPseudonym] = useState(profile?.pseudonym ?? '');
   const [handle, setHandle] = useState(profile?.handle ?? '');
+  const [bio, setBio] = useState(profile?.bio ?? '');
+  const [visibility, setVisibility] = useState<Visibility>(
+    profile?.visibility ?? 'private'
+  );
+  const [showNotes, setShowNotes] = useState(profile?.showNotes ?? false);
   const [state, setState] = useState<HandleState>('idle');
   const [refusal, setRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const suggestion = suggestHandle(pseudonym);
+  /**
+   * SANS ADRESSE, PAS DE PAGE. L'écran public se rejoint par l'identifiant :
+   * proposer « Public » avant qu'il existe promettrait une page injoignable.
+   */
+  const publiable = canBePublic(handle.trim() || null);
   /** Inutile de redemander au serveur l'identifiant qu'on détient déjà. */
   const mine = (value: string) => value === (profile?.handle ?? '');
 
@@ -110,7 +135,15 @@ function ProfileForm() {
         setRefusal('Identifiant indisponible : le profil n’a pas été modifié.');
         return;
       }
-      await save({ pseudonym: pseudonym.trim(), handle: wanted || null });
+      await save({
+        pseudonym: pseudonym.trim(),
+        handle: wanted || null,
+        bio: bio.trim() || null,
+        // Retirer son identifiant referme le profil : le laisser « public »
+        // laisserait une case cochée qui n'ouvre plus rien.
+        visibility: publiable ? visibility : 'private',
+        showNotes,
+      });
       toast.success('Profil enregistré.');
     } catch (cause) {
       setRefusal(cause instanceof Error ? cause.message : String(cause));
@@ -126,9 +159,10 @@ function ProfileForm() {
         subtitle={profile ? undefined : 'aucun pour l’instant'}
       />
       <p className="muted">
-        Ce nom signe les notes que vous partagez par un lien. Sans lui, elles
-        sont signées « quelqu’un qui n’a pas choisi de pseudonyme ». Il ne
-        s’affiche nulle part ailleurs, et vos notes privées restent privées.
+        Ce nom signe les notes que vous partagez. Sans lui, elles sont signées «
+        quelqu’un qui n’a pas choisi de pseudonyme ». Un profil reste{' '}
+        <strong>privé</strong> tant que vous ne décidez pas le contraire, et vos
+        notes privées le restent quoi qu’il arrive.
       </p>
       <form className="stack" onSubmit={e => void submit(e)}>
         <label className="field">
@@ -186,6 +220,60 @@ function ProfileForm() {
           </p>
         )}
 
+        <label className="field">
+          <span>Quelques mots (facultatif)</span>
+          <textarea
+            rows={3}
+            maxLength={BIO_MAX}
+            value={bio}
+            onChange={e => setBio(e.target.value)}
+            placeholder="Ce que vous regardez, ce que vous notez…"
+          />
+        </label>
+
+        <fieldset className="field visibility-field">
+          <legend>Qui peut voir votre profil</legend>
+          {PROFILE_VISIBILITIES.map(option => (
+            <div key={option.value} className="option">
+              <label>
+                <input
+                  type="radio"
+                  name="profil-visibilite"
+                  value={option.value}
+                  checked={visibility === option.value}
+                  disabled={option.value === 'public' && !publiable}
+                  onChange={() => setVisibility(option.value)}
+                />
+                <strong>{option.label}</strong>
+                <small className="muted">
+                  {option.value === 'public' && !publiable
+                    ? 'Choisissez d’abord un identifiant public : c’est l’adresse de la page.'
+                    : option.hint}
+                </small>
+              </label>
+            </div>
+          ))}
+        </fieldset>
+
+        {visibility === 'public' && publiable && (
+          <>
+            <label className="field checkbox-field">
+              <input
+                type="checkbox"
+                checked={showNotes}
+                onChange={e => setShowNotes(e.target.checked)}
+              />
+              <span>
+                Y montrer mes notes <strong>publiques</strong>
+                <small className="muted">
+                  Celles-là seulement — une note « moi seul·e » ou « qui a le
+                  lien » n’y apparaît jamais.
+                </small>
+              </span>
+            </label>
+          </>
+        )}
+
         {refusal && (
           <p role="alert" className="notice">
             {refusal}
@@ -196,6 +284,26 @@ function ProfileForm() {
           {profile ? 'Enregistrer' : 'Créer mon profil'}
         </Button>
       </form>
+
+      {/* HORS du formulaire, et volontairement : cette adresse est celle du
+          profil ENREGISTRÉ, pas de ce qu'on est en train de taper. */}
+      {profile?.visibility === 'public' && profile.handle && (
+        <div className="profile-address">
+          <h4>L’adresse de votre profil</h4>
+          <ShareLinkPanel
+            link={profileUrl(currentAppUrl(), profile.handle)}
+            title={`Le profil de ${profile.pseudonym}`}
+            qrLabel={`QR code du lien vers le profil de ${profile.pseudonym}`}
+            note={
+              <p className="muted qr-note">
+                Cette adresse ne porte aucun jeton et ne se révoque pas : elle
+                est la vôtre, publiquement. Pour la refermer, repassez le profil
+                en « Privé » — la page cesse alors de répondre.
+              </p>
+            }
+          />
+        </div>
+      )}
     </Card>
   );
 }

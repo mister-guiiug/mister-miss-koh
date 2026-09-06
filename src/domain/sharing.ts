@@ -74,6 +74,18 @@ export function contestantUrl(appUrl: string, contestantId: string): string {
   return appRoute(appUrl, `/candidats/${encodeURIComponent(contestantId)}`);
 }
 
+/**
+ * L'adresse d'un profil public.
+ *
+ * C'est l'IDENTIFIANT PUBLIC qui la forme, jamais l'identifiant de compte : le
+ * premier est choisi et changeable, le second désigne une personne dans
+ * `auth.users` et n'a rien à faire dans une URL qu'on colle dans une
+ * conversation.
+ */
+export function profileUrl(appUrl: string, handle: string): string {
+  return appRoute(appUrl, `/profil/${encodeURIComponent(handle)}`);
+}
+
 /** Une note, ou toute une collection. */
 export type SharedKind = 'note' | 'notes';
 

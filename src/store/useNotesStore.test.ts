@@ -60,7 +60,7 @@ function fakeSharing(over: Partial<SharingRepository> = {}): SharingRepository {
         link({ id: 'l-2', scope: 'note_collection', noteId: null })
       ),
     revoke: () => Promise.resolve(),
-    setShareable: () => Promise.resolve(),
+    setVisibility: () => Promise.resolve(),
     readNote: () => Promise.resolve([]),
     readCollection: () => Promise.resolve([]),
     ...over,
@@ -83,6 +83,21 @@ describe('partager une note', () => {
     expect(store.getState().links?.[0]?.token).toBe('jeton');
   });
 
+  it('ne rétrograde PAS une note publique en lui donnant une adresse', async () => {
+    // `shareNote` sert deux intentions : ouvrir une note privée, ou donner une
+    // adresse à une note déjà publique. Confondre les deux la refermerait.
+    const shareNote = vi.fn(() => Promise.resolve(link()));
+    const store = await loaded(
+      [note('n-1', 'public')],
+      fakeSharing({ shareNote })
+    );
+
+    await store.getState().shareNote('n-1');
+
+    expect(shareNote).toHaveBeenCalledWith('n-1', null, 'public');
+    expect(store.getState().notes?.[0]?.visibility).toBe('public');
+  });
+
   it('révoquer retire le lien ET referme la note', async () => {
     const store = await loaded([note('n-1', 'link')]);
     store.setState({ links: [link()] });
@@ -91,6 +106,27 @@ describe('partager une note', () => {
 
     expect(store.getState().links).toEqual([]);
     expect(store.getState().notes?.[0]?.visibility).toBe('private');
+  });
+});
+
+describe('révoquer une adresse sans refermer ce qui est public', () => {
+  it('une note PUBLIQUE reste publique quand on éteint son adresse', async () => {
+    // Éteindre une vieille adresse n'est pas révoquer la décision de publier,
+    // qui a été prise ailleurs et se défait ailleurs.
+    const revoke = vi.fn(() => Promise.resolve());
+    const store = await loaded(
+      [note('n-1', 'public')],
+      fakeSharing({ revoke })
+    );
+    store.setState({ links: [link()] });
+
+    await store.getState().revokeLink(link());
+
+    expect(revoke).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'l-1' }),
+      false
+    );
+    expect(store.getState().notes?.[0]?.visibility).toBe('public');
   });
 });
 
@@ -134,11 +170,11 @@ describe('entrer dans la collection, en sortir', () => {
   it('rend la note partageable, puis privée, sans créer de lien', async () => {
     const store = await loaded([note('n-1')]);
 
-    await store.getState().setShareable('n-1', true);
+    await store.getState().setVisibility('n-1', 'link');
     expect(store.getState().notes?.[0]?.visibility).toBe('link');
     expect(store.getState().links).toBeNull();
 
-    await store.getState().setShareable('n-1', false);
+    await store.getState().setVisibility('n-1', 'private');
     expect(store.getState().notes?.[0]?.visibility).toBe('private');
   });
 });

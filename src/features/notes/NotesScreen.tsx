@@ -91,7 +91,7 @@ export function NotesScreen() {
   const remove = useNotesStore(s => s.remove);
   const restore = useNotesStore(s => s.restore);
   const loadLinks = useNotesStore(s => s.loadLinks);
-  const setShareable = useNotesStore(s => s.setShareable);
+  const setVisibility = useNotesStore(s => s.setVisibility);
   const shareCollection = useNotesStore(s => s.shareCollection);
   const revokeLink = useNotesStore(s => s.revokeLink);
   const toast = useToast();
@@ -239,7 +239,8 @@ export function NotesScreen() {
         // La visibilité D'ABORD, le lien ensuite : un lien de collection créé
         // avant n'ouvrirait rien, et l'écran promettrait plus qu'il ne fait.
         for (const note of chosen) {
-          if (note.visibility === 'private') await setShareable(note.id, true);
+          if (note.visibility === 'private')
+            await setVisibility(note.id, 'link');
         }
         await shareCollection(heading);
       },
@@ -393,9 +394,16 @@ export function NotesScreen() {
                         'Cible retirée du référentiel'
                       )}
                     </strong>{' '}
-                    {note.visibility !== 'private' && (
+                    {/* Deux ouvertures, deux mots : « partagée » les
+                        confondrait, et publier n'est pas confier. */}
+                    {note.visibility === 'link' && (
                       <Badge tone="warning" size="xs">
-                        partagée
+                        par lien
+                      </Badge>
+                    )}
+                    {note.visibility === 'public' && (
+                      <Badge tone="danger" size="xs">
+                        publique
                       </Badge>
                     )}
                     {editing === note.id ? (

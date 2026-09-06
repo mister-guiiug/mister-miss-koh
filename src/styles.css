@@ -927,6 +927,76 @@ body,
   font-size: 0.9rem;
 }
 
+/* ── Choisir qui peut lire ────────────────────────────────────────────────
+   Un groupe de radios en cartes : le bouton à gauche, le libellé et sa
+   conséquence à droite. La conséquence est écrite SOUS le choix, jamais
+   ailleurs — c'est elle qui dit ce qu'on engage. */
+.visibility-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.visibility-field > legend {
+  padding: 0;
+  margin-bottom: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.visibility-field .option label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  align-items: center;
+  cursor: pointer;
+}
+
+.visibility-field .option input {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.visibility-field .option strong {
+  grid-column: 2;
+}
+
+.visibility-field .option small {
+  grid-column: 2;
+  font-size: 0.8rem;
+}
+
+/* Une case à cocher et son explication, même grammaire que ci-dessus. */
+.checkbox-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  align-items: center;
+}
+
+.checkbox-field > input {
+  grid-row: 1 / span 2;
+}
+
+.checkbox-field small {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.profile-address {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.profile-address > h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
 /* Le corps d'une note partagée garde ses retours à la ligne : c'est du texte
    écrit à la main, pas un paragraphe reflué. */
 .shared-body {

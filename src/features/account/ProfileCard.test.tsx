@@ -10,6 +10,9 @@ const profile = (over: Partial<Profile> = {}): Profile => ({
   id: 'u-1',
   pseudonym: 'Tarzan',
   handle: 'tarzan',
+  bio: null,
+  visibility: 'private',
+  showNotes: false,
   updatedAt: '2026-09-06T10:00:00.000Z',
   ...over,
 });
@@ -108,6 +111,59 @@ describe('l’identifiant public', () => {
   });
 });
 
+describe('la visibilité du profil', () => {
+  it('« Public » reste hors d’atteinte tant qu’il n’y a pas d’adresse', async () => {
+    const user = userEvent.setup();
+    renderCard({ profile: null });
+
+    expect(screen.getByLabelText(/Public/)).toBeDisabled();
+    expect(
+      screen.getByText(/Choisissez d’abord un identifiant public/)
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Identifiant public/), 'tarzan');
+
+    expect(screen.getByLabelText(/Public/)).toBeEnabled();
+  });
+
+  it('retirer son identifiant referme le profil, sans laisser la case cochée', async () => {
+    // Un profil « public » sans adresse désignerait une page injoignable.
+    const user = userEvent.setup();
+    renderCard({ profile: profile({ visibility: 'public' }) });
+
+    await user.clear(screen.getByLabelText(/Identifiant public/));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ handle: null, visibility: 'private' })
+    );
+  });
+
+  it('« Y montrer mes notes » n’apparaît qu’une fois le profil public', async () => {
+    const user = userEvent.setup();
+    renderCard({ profile: profile() });
+
+    expect(screen.queryByLabelText(/montrer mes notes/)).toBeNull();
+
+    await user.click(screen.getByLabelText(/Public/));
+
+    expect(screen.getByLabelText(/montrer mes notes/)).toBeInTheDocument();
+  });
+
+  it('l’adresse du profil ne s’affiche que pour ce qui est ENREGISTRÉ', async () => {
+    // Elle vient du profil en base, pas de ce qu'on est en train de taper :
+    // l'annoncer avant d'enregistrer promettrait une page qui n'existe pas.
+    const user = userEvent.setup();
+    const { unmount } = renderCard({ profile: profile() });
+    await user.click(screen.getByLabelText(/Public/));
+    expect(screen.queryByText(/L’adresse de votre profil/)).toBeNull();
+    unmount();
+
+    renderCard({ profile: profile({ visibility: 'public' }) });
+    expect(screen.getByText('L’adresse de votre profil')).toBeInTheDocument();
+  });
+});
+
 describe('enregistrer', () => {
   it('range `null` quand on ne veut pas d’identifiant', async () => {
     const user = userEvent.setup();
@@ -116,7 +172,15 @@ describe('enregistrer', () => {
     await user.type(screen.getByLabelText('Pseudonyme'), '  Tarzan  ');
     await user.click(screen.getByRole('button', { name: 'Créer mon profil' }));
 
-    expect(save).toHaveBeenCalledWith({ pseudonym: 'Tarzan', handle: null });
+    expect(save).toHaveBeenCalledWith({
+      pseudonym: 'Tarzan',
+      handle: null,
+      bio: null,
+      // Sans identifiant, « Public » n'est pas offert : la visibilité reste
+      // celle d'un profil qu'on ne peut pas rejoindre.
+      visibility: 'private',
+      showNotes: false,
+    });
   });
 
   it('revérifie au dernier moment — libre il y a trente secondes ne suffit pas', async () => {
