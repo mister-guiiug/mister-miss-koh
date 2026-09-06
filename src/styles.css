@@ -401,6 +401,11 @@ body,
 
 .stats {
   display: grid;
+  /* `max-content` : chaque liste prend la largeur de SON plus long libellé.
+     Deux cartes empilées ne s'alignent donc pas exactement (190 px d'un côté,
+     174 de l'autre) — essayé avec une colonne fixe partagée, et c'est PIRE :
+     « Voix reçues » se retrouve à un pouce de son « 0 ». Deux cartes sont deux
+     blocs ; leurs colonnes n'ont pas à se répondre. */
   grid-template-columns: max-content 1fr;
   gap: 0.35rem 1rem;
   margin: 0;
