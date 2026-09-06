@@ -64,4 +64,17 @@ describe('ContestantDetailScreen', () => {
       'https://fr.wikipedia.org/wiki/Saison_fictive#Candidats'
     );
   });
+
+  it('le dépôt d’une photo n’est pas dans la colonne d’identité', () => {
+    // Rendu là, le bouton commençait 88 px plus à droite que le titre, le
+    // partage, le binôme et le lien source — un seul contrôle en retrait dans
+    // une carte où tout le reste s'aligne. Ce test fige le bord retrouvé ;
+    // la mesure, elle, ne se voit qu'à l'écran.
+    const { container } = renderAt('c-ael');
+
+    const colonne = container.querySelector('.identity-main');
+    expect(colonne).not.toBeNull();
+    expect(colonne?.querySelector('.photo-picker')).toBeNull();
+    expect(container.querySelector('.photo-picker')).not.toBeNull();
+  });
 });

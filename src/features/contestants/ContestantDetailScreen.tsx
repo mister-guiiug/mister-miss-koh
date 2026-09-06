@@ -111,9 +111,15 @@ export function ContestantDetailScreen() {
               {team && <Badge tone="info">{team.name}</Badge>}
               {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
             </p>
-            <PhotoPicker contestant={contestant} />
           </div>
         </div>
+
+        {/* LE DÉPÔT D'UNE PHOTO N'EST PAS UNE PROPRIÉTÉ DE L'IDENTITÉ. Rendu
+            dans la colonne de droite, il commençait 88 px plus loin que tout
+            le reste de la carte — titre, partage, binôme, lien source
+            s'alignent à gauche, ce bouton seul était en retrait. Sorti de la
+            colonne, il rejoint le même bord que ce qui le suit. */}
+        <PhotoPicker contestant={contestant} />
 
         {/* Ne s'affiche qu'une fois un portrait déposé — il n'y a rien à
             partager avant, et l'annoncer serait promettre du vide. */}
