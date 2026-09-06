@@ -32,6 +32,13 @@ appareil (IndexedDB, ré-encodée en vignette, métadonnées retirées). Les pho
 officielles sont des œuvres protégées représentant des personnes
 identifiables ; les republier ici contredirait la ligne ci-dessus.
 
+**Partager une de vos images, c'est la donner — pas la publier.** L'image part
+par la feuille de partage du système ou par un enregistrement, d'appareil à
+appareil : aucune route ne la dépose sur un serveur, il n'y en a pas pour ça.
+Le QR code, lui, porte le **lien de la fiche**, jamais l'image — un QR code
+contient au plus 2,9 ko, et l'écran affiche les deux tailles côte à côte
+plutôt que de le laisser croire.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
@@ -93,9 +100,12 @@ Ce qu'il apporte et qui est **réellement branché** : `ThemeProvider`,
 `Button`, `EmptyState`, `ErrorBoundary`, `LabelsProvider`, `IconsProvider`
 (lucide), `react/rive` derrière `AppAnimation`, `versioned-store` pour les
 données personnelles, `storage` pour le cache, `backend` pour la sélection du
-backend et sa couverture, `vite-pwa` / `vite-csp` / `pwaSeoPlugin`, les
-workflows CI, déploiement, Lighthouse et nettoyage, `pwa-icons`,
-`pwa-bundle-budget`, `pwa-doctor`.
+backend et sa couverture, `image` pour ré-encoder un portrait déposé, `share`
+(partage natif et repli presse-papiers), `download`, `qr` (peer optionnelle
+`qrcode`, chargée seulement à l'ouverture d'un QR code), `format` (`slugify`,
+`formatBytes`), `vite-pwa` / `vite-csp` / `pwaSeoPlugin`, les workflows CI,
+déploiement, Lighthouse et nettoyage, `pwa-icons`, `pwa-bundle-budget`,
+`pwa-doctor`.
 
 ## Architecture
 
@@ -103,9 +113,11 @@ workflows CI, déploiement, Lighthouse et nettoyage, `pwa-icons`,
 src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
                  statistiques (zéro ≠ inconnu), règles de saison, duos
-                 supposés (`pairing.ts` — la source prime toujours)
+                 supposés (`pairing.ts` — la source prime toujours), partage
+                 (`sharing.ts` — nom de fichier, lien de fiche, capacité d'un QR)
   backend/       sélection du backend, port du référentiel, démonstration,
-                 portraits (IndexedDB, sur l'appareil — `photos.ts`)
+                 portraits (IndexedDB, sur l'appareil — `photos.ts`), envoi
+                 d'une image par la feuille du système (`sharePhoto.ts`)
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
                  notes du compte (useNotesStore), portraits (usePhotosStore :
@@ -119,6 +131,7 @@ src/
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
                  PairBlock (le binôme : celui de la source, ou le vôtre),
                  Avatar + ContestantTraits + PhotoPicker (portrait, sexe, âge),
+                 PhotoShare (envoyer l'image, l'enregistrer, ou le QR du lien),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne
@@ -133,7 +146,7 @@ supabase/
   tests/         isolation RLS et publication (pgTAP)
 ```
 
-Cinq choix qui structurent le code :
+Six choix qui structurent le code :
 
 - **la statistique respecte l'anti-spoiler.** Chaque calcul prend une limite
   d'épisode ; « 3 voix reçues » sur la fiche d'un candidat encore en jeu à
@@ -156,7 +169,14 @@ Cinq choix qui structurent le code :
   l'anti-spoiler le laisse voir — c'est elle qui s'affiche, et la supposition
   est dite confirmée ou contredite plutôt qu'effacée en silence. Un duo révélé
   mais **masqué** ne compte pour rien, pas même pour retirer un nom de la liste
-  des binômes possibles : cette absence-là divulguerait ce que l'écran cache.
+  des binômes possibles : cette absence-là divulguerait ce que l'écran cache ;
+- **partager, c'est donner — pas publier.** Aucune route de partage ne dépose
+  une image sur un serveur. Le fichier est relu depuis IndexedDB **avant** que
+  le bouton n'apparaisse (Safari veut que `navigator.share` parte du geste), et
+  la charge examinée par `canShare` est exactement celle qui sera envoyée —
+  vérifier `{ files }` puis envoyer `{ files, url }` fait dire oui au bouton et
+  non au clic. Ce qui ne peut pas passer est dit avec le chiffre : le QR code
+  porte le lien parce qu'un QR contient au plus 2,9 ko.
 
 ## Documentation
 

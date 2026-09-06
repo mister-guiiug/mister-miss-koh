@@ -42,6 +42,13 @@ export interface PhotosState {
   load(): Promise<void>;
   attach(contestantId: string, file: File): Promise<void>;
   detach(contestantId: string): Promise<void>;
+  /**
+   * Le blob d'un portrait, relu depuis la base — pour le partager ou
+   * l'enregistrer. Les URL d'objet ci-dessus s'affichent mais ne se relisent
+   * pas (voir `backend/photos`), et garder tous les blobs en mémoire pour un
+   * partage qui n'aura peut-être jamais lieu serait payer d'avance.
+   */
+  read(contestantId: string): Promise<Blob | undefined>;
 }
 
 export function createPhotosStore(
@@ -84,6 +91,10 @@ export function createPhotosStore(
         const { [contestantId]: gone, ...rest } = get().urls;
         set({ urls: rest });
         revoke(gone);
+      },
+
+      read(contestantId) {
+        return store.get(contestantId);
       },
     };
   });

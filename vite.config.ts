@@ -54,6 +54,12 @@ export default defineConfig(({ command }) => {
             // `react/rive` du socle l'importe à la demande, il ne doit pas
             // être forcé dans un chunk chargé au démarrage.
             if (norm.includes('/@rive-app/')) return;
+            // Même raison pour `qrcode` (~50 ko) : le module `/qr` du socle
+            // l'importe dynamiquement, à la première ouverture d'un QR code.
+            // `dijkstrajs` est SA dépendance — nommé « vendor », il partirait
+            // dans le bundle initial sans que personne l'y attende.
+            if (norm.includes('/qrcode/') || norm.includes('/dijkstrajs/'))
+              return;
             // Même raison pour l'encodeur d'images du socle : seul le dépôt
             // d'un portrait l'appelle (`store/usePhotosStore`), et il est
             // importé à la demande. Le ranger dans un chunk du démarrage le

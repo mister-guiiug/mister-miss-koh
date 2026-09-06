@@ -25,6 +25,15 @@ const blobKey = (contestantId: string) => `photo:${contestantId}`;
 export interface PhotoStore {
   /** Tous les portraits rangés, par identifiant de candidat. */
   loadAll(): Promise<Record<string, Blob>>;
+  /**
+   * Le blob d'un seul portrait — pour le partager ou l'enregistrer.
+   *
+   * IL FAUT REPASSER PAR LA BASE. L'écran tient déjà une URL d'objet vers ce
+   * blob, mais elle ne se relit pas : `fetch('blob:…')` tombe sous la
+   * directive `connect-src` de notre CSP, qui n'autorise que Supabase. Un
+   * `<img src>` passe, une lecture non.
+   */
+  get(contestantId: string): Promise<Blob | undefined>;
   save(contestantId: string, blob: Blob): Promise<void>;
   remove(contestantId: string): Promise<void>;
 }
@@ -57,6 +66,10 @@ export function createPhotoStore(db: PhotoDb = createIdb('koh')): PhotoStore {
         if (blob) photos[id] = blob;
       }
       return photos;
+    },
+
+    get(contestantId) {
+      return db.getBlob(blobKey(contestantId));
     },
 
     async save(contestantId, blob) {

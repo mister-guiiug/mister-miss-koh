@@ -56,6 +56,17 @@ describe('le rangement des portraits', () => {
     expect(photos['c-ael']).toBe(apres);
   });
 
+  it('rend un portrait seul, et rien pour un candidat sans photo', async () => {
+    const { db } = fakeDb();
+    const store = createPhotoStore(db);
+    const ael = image('ael');
+
+    await store.save('c-ael', ael);
+
+    expect(await store.get('c-ael')).toBe(ael);
+    expect(await store.get('c-bastien')).toBeUndefined();
+  });
+
   it('retirer efface le blob ET la ligne d’index', async () => {
     const { db, kv, blobs } = fakeDb();
     const store = createPhotoStore(db);

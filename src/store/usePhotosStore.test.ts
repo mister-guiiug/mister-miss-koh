@@ -23,6 +23,7 @@ function fakeStore(initial: Record<string, Blob> = {}) {
   const photos = { ...initial };
   const store: PhotoStore = {
     loadAll: () => Promise.resolve({ ...photos }),
+    get: id => Promise.resolve(photos[id]),
     save: (id, blob) => {
       photos[id] = blob;
       return Promise.resolve();
@@ -75,6 +76,18 @@ describe('les portraits en mémoire', () => {
     expect(usePhotos.getState().urls).toEqual({});
     expect(photos['c-ael']).toBeUndefined();
     expect(revoked).toEqual(['blob:1']);
+  });
+
+  it('relit un blob depuis la base, pas depuis l’URL affichée', async () => {
+    // Partager exige le BLOB, et l'URL d'objet ne se relit pas : `fetch` sur
+    // une `blob:` tombe sous la directive `connect-src` de notre CSP.
+    const original = image();
+    const { store } = fakeStore({ 'c-ael': original });
+    const usePhotos = createPhotosStore(store, passePlat);
+    await usePhotos.getState().load();
+
+    expect(await usePhotos.getState().read('c-ael')).toBe(original);
+    expect(await usePhotos.getState().read('c-inconnu')).toBeUndefined();
   });
 
   it('un premier portrait ne révoque rien', async () => {

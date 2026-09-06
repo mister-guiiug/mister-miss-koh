@@ -9,6 +9,7 @@ import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { Avatar } from '../../components/Avatar';
 import { ContestantTraits } from '../../components/ContestantTraits';
 import { PhotoPicker } from '../../components/PhotoPicker';
+import { PhotoShare } from '../../components/PhotoShare';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { PairBlock } from '../../components/PairBlock';
 import { TargetNotes } from '../../components/TargetNotes';
@@ -113,6 +114,10 @@ export function ContestantDetailScreen() {
             <PhotoPicker contestant={contestant} />
           </div>
         </div>
+
+        {/* Ne s'affiche qu'une fois un portrait déposé — il n'y a rien à
+            partager avant, et l'annoncer serait promettre du vide. */}
+        <PhotoShare contestant={contestant} />
 
         {/* Le CV : ce que la source dit de la personne AVANT cette saison,
             une ligne par participation, dans l'ordre où la page les cite. */}
