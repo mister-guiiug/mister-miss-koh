@@ -85,6 +85,16 @@ function fakeClient(rows: NoteRowInput[]) {
     auth: {
       getUser: () => Promise.resolve({ data: { user: { id: 'u-1' } } }),
     },
+    // Supprimer et restaurer passent par des fonctions du serveur, pas par un
+    // `update` — voir la migration 0023. `restore_note` rend une TABLE, donc
+    // un tableau de lignes.
+    rpc(fn: string, payload: unknown) {
+      calls.push({ table: fn, op: 'rpc', payload, filters: [] });
+      return Promise.resolve({
+        data: fn === 'restore_note' ? rows : null,
+        error: null,
+      });
+    },
     from(table: string) {
       return {
         select: () => {
@@ -145,30 +155,50 @@ describe('createNotesRepository', () => {
     expect(insert?.payload).not.toHaveProperty('season_contestant_id');
   });
 
-  it('supprimer, c’est dater — la ligne reste, la lecture cesse', async () => {
+  it('supprimer passe par la FONCTION, jamais par un `update`', async () => {
+    // CE QUE CE TEST EMPÊCHE DE REVENIR. Poser `deleted_at` par un `update`
+    // direct est refusé par le serveur — la ligne issue d'une mise à jour doit
+    // rester visible sous une politique de lecture, et les deux portent
+    // `deleted_at is null`. Personne n'a jamais pu supprimer une note tant que
+    // ce module écrivait en direct (migration 0023).
     const { client, calls } = fakeClient([row()]);
     const repo = createNotesRepository(() => Promise.resolve(client));
+
     await repo.remove('n-1');
-    const update = calls.find(c => c.op === 'update');
-    expect(update?.payload).toHaveProperty('deleted_at');
+
+    expect(calls.find(c => c.op === 'update')).toBeUndefined();
+    expect(calls.find(c => c.op === 'rpc')).toMatchObject({
+      table: 'delete_note',
+      payload: { note_id: 'n-1' },
+    });
   });
 
-  it('annuler, c’est retirer la date — et la note revient AVEC son contenu', async () => {
-    // Rien n'avait été effacé : la restauration ne reconstruit pas une note, et
-    // ne peut donc pas la rendre différente. Le serveur autorise cette écriture
-    // parce que la politique de MISE À JOUR ne filtre pas sur `deleted_at`,
-    // contrairement à celle de lecture — c'est ce qui rend l'annulation
-    // possible sans toucher à la base (voir `useUndo`).
+  it('annuler passe par la fonction aussi — et la note revient AVEC son contenu', async () => {
+    // La ligne à restaurer est INVISIBLE : un `update` ne trouverait rien, et
+    // ne dirait rien non plus. Rien n'avait été effacé, donc la restauration
+    // ne reconstruit pas une note et ne peut pas la rendre différente.
     const { client, calls } = fakeClient([
       row({ body: 'Le second tour méritait un ralenti.' }),
     ]);
     const repo = createNotesRepository(() => Promise.resolve(client));
+
     const restored = await repo.restore('n-1');
 
-    const update = calls.find(c => c.op === 'update');
-    expect(update?.payload).toEqual({ deleted_at: null });
-    expect(update?.filters).toContainEqual(['id', 'n-1']);
+    expect(calls.find(c => c.op === 'update')).toBeUndefined();
+    expect(calls.find(c => c.op === 'rpc')).toMatchObject({
+      table: 'restore_note',
+      payload: { note_id: 'n-1' },
+    });
     expect(restored.body).toBe('Le second tour méritait un ralenti.');
+  });
+
+  it('une restauration qui ne rend RIEN est une erreur, pas une note vide', async () => {
+    // `restore_note` lève plutôt que de rendre zéro ligne ; si jamais elle en
+    // rendait zéro, afficher une note vide serait pire que de le dire.
+    const { client } = fakeClient([]);
+    const repo = createNotesRepository(() => Promise.resolve(client));
+
+    await expect(repo.restore('n-1')).rejects.toThrow(/introuvable/);
   });
 
   it('une mise à jour ne touche QUE les champs fournis', async () => {
