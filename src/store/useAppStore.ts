@@ -7,6 +7,13 @@
  *    un magasin versionné du socle, validé par zod au chargement. Privées par
  *    défaut, elles ne quittent pas l'appareil tant qu'aucun compte n'existe.
  *
+ * LE MAGASIN LOCAL RESTE LA RÉFÉRENCE, MÊME CONNECTÉ. Quand un compte existe,
+ * `usePersonalSync` attache un RELAIS (`attachPersonalRemote`) : chaque bascule
+ * s'écrit ici d'abord, puis part au serveur. Un relais absent — pas de compte,
+ * référentiel de démonstration — ou un envoi en échec ne change rien à ce que
+ * l'écran affiche. L'application reste entière sans compte ; c'est une
+ * propriété du parc, pas une tolérance.
+ *
  * Les sélecteurs restent PLATS : pas de `filter`/`map` dans un sélecteur
  * zustand — chaque rendu produirait un tableau neuf et relancerait le rendu
  * (boucle `useSyncExternalStore`, écran blanc). Les dérivations vivent dans
@@ -43,6 +50,20 @@ const PersonalSchema = z.object({
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
+
+/**
+ * Le relais vers le compte, dans les clés du MAGASIN (numéro d'épisode,
+ * identifiant de participation) — le magasin ne sait rien des uuid du serveur,
+ * et n'a pas à l'apprendre.
+ *
+ * Les deux méthodes ne rendent rien : un envoi en échec ne doit pas défaire un
+ * geste déjà accompli à l'écran. C'est l'appelant (`usePersonalSync`) qui
+ * avale l'erreur et décide s'il faut en dire quelque chose.
+ */
+export interface PersonalRemote {
+  favorite(contestantId: string, on: boolean): void;
+  watched(episodeNumber: number, on: boolean): void;
+}
 
 const personalStore = createVersionedStore<Personal>({
   store: 'koh',
@@ -94,6 +115,22 @@ interface AppState {
   toggleWatched(episodeNumber: number): void;
   toggleFavorite(contestantId: string): void;
   /**
+   * Branche (ou débranche) le compte. `null` = cet appareil, seul — l'état par
+   * défaut, et celui de la déconnexion.
+   */
+  attachPersonalRemote(remote: PersonalRemote | null): void;
+  /**
+   * Remplace le suivi par le résultat de la fusion appareil + compte.
+   *
+   * Écrit dans le magasin local AUSSI : ce qui vient du compte devient le repli
+   * hors ligne de cet appareil. Aucun envoi n'est déclenché — la fusion vient
+   * justement du serveur.
+   */
+  setPersonal(next: {
+    watched: readonly number[];
+    favorites: readonly string[];
+  }): void;
+  /**
    * Suppose un duo, ou dit pourquoi il est refusé.
    *
    * La LIMITE ANTI-SPOILER vient de l'appelant : elle dépend de la date du
@@ -106,6 +143,12 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => {
+  /**
+   * Hors de l'état : le relais n'est pas une donnée d'écran, et le mettre dans
+   * l'état ferait rendre à nouveau tous les abonnés à chaque connexion.
+   */
+  let remote: PersonalRemote | null = null;
+
   const persist = () => {
     const {
       spoiler,
@@ -181,19 +224,33 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     toggleWatched(episodeNumber) {
       const current = get().watched;
+      const on = !current.includes(episodeNumber);
       set({
-        watched: current.includes(episodeNumber)
-          ? current.filter(n => n !== episodeNumber)
-          : [...current, episodeNumber].sort((a, b) => a - b),
+        watched: on
+          ? [...current, episodeNumber].sort((a, b) => a - b)
+          : current.filter(n => n !== episodeNumber),
       });
       persist();
+      remote?.watched(episodeNumber, on);
     },
     toggleFavorite(contestantId) {
       const current = get().favorites;
+      const on = !current.includes(contestantId);
       set({
-        favorites: current.includes(contestantId)
-          ? current.filter(id => id !== contestantId)
-          : [...current, contestantId],
+        favorites: on
+          ? [...current, contestantId]
+          : current.filter(id => id !== contestantId),
+      });
+      persist();
+      remote?.favorite(contestantId, on);
+    },
+    attachPersonalRemote(next) {
+      remote = next;
+    },
+    setPersonal(next) {
+      set({
+        watched: [...next.watched].sort((a, b) => a - b),
+        favorites: [...next.favorites],
       });
       persist();
     },

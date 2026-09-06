@@ -153,6 +153,24 @@ describe('createNotesRepository', () => {
     expect(update?.payload).toHaveProperty('deleted_at');
   });
 
+  it('annuler, c’est retirer la date — et la note revient AVEC son contenu', async () => {
+    // Rien n'avait été effacé : la restauration ne reconstruit pas une note, et
+    // ne peut donc pas la rendre différente. Le serveur autorise cette écriture
+    // parce que la politique de MISE À JOUR ne filtre pas sur `deleted_at`,
+    // contrairement à celle de lecture — c'est ce qui rend l'annulation
+    // possible sans toucher à la base (voir `useUndo`).
+    const { client, calls } = fakeClient([
+      row({ body: 'Le second tour méritait un ralenti.' }),
+    ]);
+    const repo = createNotesRepository(() => Promise.resolve(client));
+    const restored = await repo.restore('n-1');
+
+    const update = calls.find(c => c.op === 'update');
+    expect(update?.payload).toEqual({ deleted_at: null });
+    expect(update?.filters).toContainEqual(['id', 'n-1']);
+    expect(restored.body).toBe('Le second tour méritait un ralenti.');
+  });
+
   it('une mise à jour ne touche QUE les champs fournis', async () => {
     const { client, calls } = fakeClient([row()]);
     const repo = createNotesRepository(() => Promise.resolve(client));

@@ -35,6 +35,8 @@ export interface NotesState {
   create(draft: NoteDraft): Promise<Note>;
   update(id: string, patch: Partial<NoteDraft>): Promise<Note>;
   remove(id: string): Promise<void>;
+  /** Défait une suppression. La note revient à sa place dans la liste. */
+  restore(id: string): Promise<Note>;
   /** Ouvre une note à la lecture par lien, et range le lien obtenu. */
   shareNote(noteId: string): Promise<ShareLink>;
   /** Un lien pour toutes les notes déjà ouvertes. Réutilise celui qui existe. */
@@ -49,6 +51,21 @@ export interface NotesState {
 
 const message = (cause: unknown) =>
   cause instanceof Error ? cause.message : String(cause);
+
+/**
+ * L'ordre du serveur : épinglées d'abord, puis la plus récemment modifiée.
+ *
+ * Une note restaurée ne se remet pas là où elle était : le déclencheur
+ * `personal_notes_touch` a rafraîchi `updated_at` en même temps que
+ * `deleted_at`. La replacer à sa place d'avant ferait mentir la liste jusqu'au
+ * prochain rechargement, qui la déplacerait sous les yeux de l'utilisateur.
+ */
+function ordered(notes: readonly Note[]): Note[] {
+  return [...notes].sort((a, b) => {
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
 
 export function createNotesStore(
   repository: NotesRepository,
@@ -99,6 +116,18 @@ export function createNotesStore(
     async remove(id) {
       await repository.remove(id);
       set({ notes: (get().notes ?? []).filter(n => n.id !== id), error: null });
+    },
+
+    /**
+     * La note rendue par le serveur, pas celle qu'on avait gardée : afficher
+     * une copie locale ferait passer pour restaurée une note que la base a pu
+     * refuser de rendre.
+     */
+    async restore(id) {
+      const note = await repository.restore(id);
+      const others = (get().notes ?? []).filter(n => n.id !== id);
+      set({ notes: ordered([note, ...others]), error: null });
+      return note;
     },
 
     async loadLinks() {

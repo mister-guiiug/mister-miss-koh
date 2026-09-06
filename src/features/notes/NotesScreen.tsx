@@ -27,6 +27,19 @@
  * envoi ou un enregistrement ; c'est le bouton « Partager par un lien » qui
  * publie, derrière une confirmation qui dit combien de notes et ce que ça veut
  * dire.
+ *
+ * SUPPRIMER NE DEMANDE PLUS DE CONFIRMATION — IL S'ANNULE. Une boîte de
+ * dialogue avant chaque geste fatigue sans protéger : on répond « oui » par
+ * réflexe, et l'erreur passe quand même. Huit secondes pour revenir en arrière
+ * protègent vraiment, parce que la suppression est LOGIQUE en base
+ * (`deleted_at`) : l'annulation ne reconstruit rien, elle retire une date.
+ * Voir `useUndo` pour le choix entre l'annulation et une corbeille.
+ *
+ * LA PUBLICATION, ELLE, GARDE SA CONFIRMATION. C'est la seule asymétrie de cet
+ * écran, et elle est voulue : une suppression ne concerne que son auteur et se
+ * défait ; donner une adresse à quelqu'un ne se défait pas — le lien peut être
+ * révoqué, pas rappelé. On confirme ce qui sort, on annule ce qui reste chez
+ * soi.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -55,6 +68,7 @@ import {
 import { useAppStore } from '../../store/useAppStore';
 import { useNotes } from '../../hooks/useNotes';
 import { useNotesStore } from '../../store/useNotesStore';
+import { useUndo } from '../../hooks/useUndo';
 import { NoteEditor, type NoteValues } from '../../components/NoteEditor';
 import { NoteShare } from '../../components/NoteShare';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
@@ -75,11 +89,13 @@ export function NotesScreen() {
   const create = useNotesStore(s => s.create);
   const update = useNotesStore(s => s.update);
   const remove = useNotesStore(s => s.remove);
+  const restore = useNotesStore(s => s.restore);
   const loadLinks = useNotesStore(s => s.loadLinks);
   const setShareable = useNotesStore(s => s.setShareable);
   const shareCollection = useNotesStore(s => s.shareCollection);
   const revokeLink = useNotesStore(s => s.revokeLink);
   const toast = useToast();
+  const askUndo = useUndo();
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState('');
   /** La note en cours de correction. */
@@ -88,8 +104,6 @@ export function NotesScreen() {
   const [sharing, setSharing] = useState<string | null>(null);
   /** Les notes cochées — une préparation, jamais une publication. */
   const [picked, setPicked] = useState<readonly string[]>([]);
-  /** La note dont la suppression attend confirmation. */
-  const [toDelete, setToDelete] = useState<Note | null>(null);
   /** La publication d'une collection attend confirmation. */
   const [toPublish, setToPublish] = useState(false);
   /** Remonte l'éditeur — donc le vide — après chaque note enregistrée. */
@@ -145,6 +159,37 @@ export function NotesScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /**
+   * Supprimer sans demander, et proposer de revenir en arrière.
+   *
+   * L'ORDRE EST DÉLIBÉRÉ : la suppression part d'abord, la notification
+   * n'apparaît qu'une fois le serveur d'accord. Annoncer « supprimée · Annuler »
+   * avant l'accord ferait proposer d'annuler quelque chose qui n'a pas eu lieu.
+   *
+   * La note quitte aussi la SÉLECTION : la garder cochée ferait publier tout à
+   * l'heure une collection qui la nomme encore. L'annulation ne la recoche pas
+   * — recocher est un geste, et on ne le devine pas pour quelqu'un.
+   */
+  const deleteNote = (note: Note, about: string) => {
+    setBusy(true);
+    void remove(note.id)
+      .then(() => {
+        if (editing === note.id) setEditing(null);
+        if (sharing === note.id) setSharing(null);
+        setPicked(current => current.filter(id => id !== note.id));
+        askUndo({
+          key: note.id,
+          message: `Note sur « ${about} » supprimée.`,
+          undone: 'Note rétablie.',
+          undo: () => restore(note.id),
+        });
+      })
+      .catch((cause: unknown) => {
+        toast.error(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => setBusy(false));
   };
 
   const submitNew = (values: NoteValues) => {
@@ -427,8 +472,9 @@ export function NotesScreen() {
                     variant="ghost"
                     size="sm"
                     iconOnly
+                    disabled={busy}
                     aria-label={`Supprimer la note sur ${about}`}
-                    onClick={() => setToDelete(note)}
+                    onClick={() => deleteNote(note, about)}
                   >
                     <Trash2 size={18} aria-hidden />
                   </Button>
@@ -449,31 +495,6 @@ export function NotesScreen() {
         loading={busy}
         onConfirm={() => void publishSelection()}
         onCancel={() => setToPublish(false)}
-      />
-
-      <ConfirmDialog
-        open={toDelete !== null}
-        title="Supprimer cette note ?"
-        message={
-          toDelete
-            ? `La note sur « ${choiceOf(toDelete)?.label ?? 'une cible retirée'} » sera retirée de votre compte.`
-            : undefined
-        }
-        destructive
-        loading={busy}
-        onConfirm={() => {
-          if (toDelete)
-            void run(
-              () => remove(toDelete.id),
-              'Note supprimée.',
-              () => {
-                if (editing === toDelete.id) setEditing(null);
-                if (sharing === toDelete.id) setSharing(null);
-                setToDelete(null);
-              }
-            );
-        }}
-        onCancel={() => setToDelete(null)}
       />
     </div>
   );

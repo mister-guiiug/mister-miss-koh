@@ -36,6 +36,18 @@ function fakeNotes(initial: Note[]): NotesRepository {
     create: () => Promise.reject(new Error('non utilisé')),
     update: () => Promise.reject(new Error('non utilisé')),
     remove: () => Promise.resolve(),
+    /**
+     * Comme la base : la ligne n'a jamais été détruite, seule `deleted_at`
+     * avait été posée — et le déclencheur `personal_notes_touch` a rafraîchi
+     * `updated_at` au passage. La note revient donc AVEC son contenu, et
+     * datée d'aujourd'hui.
+     */
+    restore: (id: string) => {
+      const found = initial.find(n => n.id === id);
+      return found
+        ? Promise.resolve({ ...found, updatedAt: '2026-09-06T12:00:00.000Z' })
+        : Promise.reject(new Error('rien à restaurer'));
+    },
   };
 }
 
@@ -128,6 +140,32 @@ describe('entrer dans la collection, en sortir', () => {
 
     await store.getState().setShareable('n-1', false);
     expect(store.getState().notes?.[0]?.visibility).toBe('private');
+  });
+});
+
+describe('supprimer, puis annuler', () => {
+  it('la note quitte la liste, puis y revient avec son contenu', async () => {
+    const store = await loaded([note('n-1'), note('n-2')]);
+
+    await store.getState().remove('n-1');
+    expect(store.getState().notes?.map(n => n.id)).toEqual(['n-2']);
+
+    await store.getState().restore('n-1');
+
+    // Elle est là, et son texte n'a jamais bougé : rien n'avait été détruit.
+    const back = store.getState().notes?.find(n => n.id === 'n-1');
+    expect(back?.body).toBe('un texte');
+    // Et elle est REMONTÉE, parce que le serveur l'a redatée. La remettre à sa
+    // place d'avant ferait mentir la liste jusqu'au prochain rechargement.
+    expect(store.getState().notes?.map(n => n.id)).toEqual(['n-1', 'n-2']);
+  });
+
+  it('une restauration refusée ne remet rien dans la liste', async () => {
+    const store = await loaded([note('n-1')]);
+    await store.getState().remove('n-1');
+
+    await expect(store.getState().restore('inconnue')).rejects.toThrow();
+    expect(store.getState().notes).toEqual([]);
   });
 });
 

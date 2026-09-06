@@ -17,6 +17,7 @@ import { PageContainer } from '@mister-guiiug/dev-pwa-config/react/page-containe
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
+import { usePersonalSync } from '../hooks/usePersonalSync';
 import { REPO_URL } from '../links';
 
 const NAV = [
@@ -59,6 +60,11 @@ function ThemeButton() {
 export function Layout() {
   const online = useOnline();
   const { pathname } = useLocation();
+
+  // La coque est le seul endroit monté sur TOUS les écrans : le suivi se
+  // synchronise donc une fois par session, quel que soit l'écran d'arrivée —
+  // et notamment celui qu'un lien de connexion ramène.
+  usePersonalSync();
 
   // Un écran qui entre commence en haut : sans cela, son entrée partirait du
   // milieu d'une page que l'écran précédent avait laissée défilée.
