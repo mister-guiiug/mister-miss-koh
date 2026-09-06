@@ -19,7 +19,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Download, Eye, Flame } from 'lucide-react';
+import { Download, Eye, Flame, UserRoundCheck } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { Card } from '@mister-guiiug/dev-pwa-config/react/card';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
@@ -31,6 +31,8 @@ import {
   type ConsumedPhoto,
 } from '../../backend/photoShare';
 import { photoFileName } from '../../domain/sharing';
+import { useAppStore } from '../../store/useAppStore';
+import { usePhotosStore } from '../../store/usePhotosStore';
 
 type State =
   | { step: 'offered' }
@@ -59,6 +61,20 @@ export function SharedPhotoScreen() {
 function SharedPhoto({ token }: { token: string }) {
   const toast = useToast();
   const [state, setState] = useState<State>({ step: 'offered' });
+  const [busy, setBusy] = useState(false);
+  const [pose, setPose] = useState(false);
+  const referential = useAppStore(s => s.referential);
+  const attach = usePhotosStore(s => s.attach);
+
+  // Le candidat que ce portrait montre — s'il est dans le référentiel CHARGÉ.
+  // Un partage créé contre le serveur et ouvert sur la démonstration ne
+  // trouvera personne : on se tait alors, plutôt que de nommer un inconnu.
+  const cible =
+    state.step === 'taken' && state.photo.contestantId
+      ? (referential?.contestants.find(
+          c => c.id === state.photo.contestantId
+        ) ?? null)
+      : null;
 
   // L'URL d'objet retient son blob tant qu'on ne la relâche pas — et cette
   // page n'en aura jamais d'autre.
@@ -98,6 +114,35 @@ function SharedPhoto({ token }: { token: string }) {
     if (!downloadBlob(state.photo.blob, name)) {
       toast.error('L’enregistrement n’a pas pu démarrer.');
     }
+  };
+
+  /**
+   * Poser la photo sur la fiche, sans passer par les fichiers de l'appareil.
+   *
+   * Le partage dit DÉJÀ qui il montre (0022 le range, 0025 le rend) : faire
+   * enregistrer puis redéposer à la main, c'était deux gestes pour une
+   * information que le serveur avait. La photo rejoint le dépôt local — la
+   * même route que le sélecteur d'image de la fiche, donc le même
+   * ré-encodage, la même vignette, le même retrait des métadonnées.
+   */
+  const applique = () => {
+    if (state.step !== 'taken' || !cible) return;
+    const nom = photoFileName(cible.displayName, state.photo.blob.type);
+    setBusy(true);
+    void attach(
+      cible.id,
+      new File([state.photo.blob], nom, {
+        type: state.photo.blob.type,
+      })
+    )
+      .then(() => {
+        setPose(true);
+        toast.success(`Portrait de ${cible.displayName} mis à jour.`);
+      })
+      .catch((cause: unknown) => {
+        toast.error(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -148,13 +193,29 @@ function SharedPhoto({ token }: { token: string }) {
           )}
           <p className="muted">
             Ce lien est éteint. Cette image n’existe plus que dans cette page —
-            et sur votre appareil si vous l’enregistrez.{' '}
+            et sur votre appareil si vous la gardez.{' '}
             {formatBytes(state.photo.blob.size)}.
           </p>
-          <Button variant="outline" onClick={save}>
-            <Download size={16} aria-hidden />
-            Enregistrer l’image
-          </Button>
+          <div className="photo-actions">
+            {/* LA ROUTE COURTE D'ABORD : c'est celle qu'on veut neuf fois sur
+                dix, et elle évite l'aller-retour par les téléchargements. */}
+            {cible && !pose && (
+              <Button disabled={busy} onClick={applique}>
+                <UserRoundCheck size={16} aria-hidden />
+                {`Mettre sur la fiche de ${cible.displayName}`}
+              </Button>
+            )}
+            <Button variant="outline" onClick={save}>
+              <Download size={16} aria-hidden />
+              Enregistrer l’image
+            </Button>
+          </div>
+          {pose && cible && (
+            <p role="status" className="muted">
+              Le portrait de {cible.displayName} est à jour sur cet appareil.{' '}
+              <Link to={`/candidats/${cible.id}`}>Voir sa fiche</Link>
+            </p>
+          )}
         </Card>
       )}
     </div>

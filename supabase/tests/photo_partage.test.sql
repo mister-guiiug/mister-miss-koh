@@ -9,7 +9,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(24);
+select plan(26);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 -- Deux comptes. A partage un portrait ; B en partage un autre et traîne un
@@ -19,13 +19,36 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'a@exemple.test'),
   ('22222222-2222-2222-2222-222222222222', 'b@exemple.test');
 
+-- Un candidat, pour qu'un partage puisse DIRE qui il montre. Sans lui,
+-- « la cible revient » ne se vérifierait que sur `null` — c'est-à-dire pas.
+insert into reference_sources (id, label, base_url)
+values ('src_photo', 'Source fictive', 'https://exemple.test');
+
+insert into seasons (id, slug, name, validation_status)
+values ('d0000000-0000-4000-8000-000000000001',
+        'saison-photo', 'Saison fictive du partage', 'published');
+
+insert into contestants (id, slug, display_name, validation_status)
+values ('d0000000-0000-4000-8000-000000000011',
+        'candidat-photo', 'Candidat Photo', 'published');
+
+insert into season_contestants
+  (id, season_id, contestant_id, display_name, validation_status)
+values ('d0000000-0000-4000-8000-000000000021',
+        'd0000000-0000-4000-8000-000000000001',
+        'd0000000-0000-4000-8000-000000000011', 'Candidat Photo', 'published');
+
 -- `S0hM` en base64, c'est-à-dire trois octets. Assez pour prouver l'aller et
 -- le retour sans encombrer le décor.
-insert into photo_shares (owner_id, token, bytes, mime, label) values
+insert into photo_shares
+  (owner_id, token, bytes, mime, label, season_contestant_id) values
   ('11111111-1111-1111-1111-111111111111', 'jeton-a',
-   decode('S0hM', 'base64'), 'image/webp', 'Portrait de A'),
+   decode('S0hM', 'base64'), 'image/webp', 'Portrait de A',
+   'd0000000-0000-4000-8000-000000000021'),
+  -- Celui de B ne vise personne : un partage peut n'être le portrait de
+  -- personne, et le lecteur doit alors rendre `null` plutôt qu'inventer.
   ('22222222-2222-2222-2222-222222222222', 'jeton-b',
-   decode('S0hM', 'base64'), 'image/webp', 'Portrait de B');
+   decode('S0hM', 'base64'), 'image/webp', 'Portrait de B', null);
 
 -- EN DERNIER, et pour B : le déclencheur efface les partages périmés du
 -- propriétaire à chaque insertion. Posé avant `jeton-b`, celui-ci l'emporterait.
@@ -104,7 +127,9 @@ select redevenir_maitre();
 -- La lecture DÉTRUIT : pour l'examiner sous plusieurs angles, il faut la
 -- retenir. La table est créée ici, mais REMPLIE par l'anonyme — c'est lui, le
 -- destinataire d'un lien.
-create temp table lu (photo_base64 text, photo_mime text, photo_label text);
+create temp table lu (
+  photo_base64 text, photo_mime text, photo_label text, photo_contestant uuid
+);
 grant insert, select on lu to anon;
 
 select devenir_anonyme();
@@ -121,6 +146,14 @@ select is(
 select is(
   (select photo_label from lu), 'Portrait de A',
   'et le libellé, pour que le lecteur sache ce qu''il ouvre');
+
+-- LA CIBLE SORT AVEC LES OCTETS (0025). C'est elle qui épargne au
+-- destinataire l'aller-retour par ses fichiers : enregistrer, puis redéposer
+-- à la main sur la bonne fiche, pour une information que le serveur avait.
+select is(
+  (select photo_contestant from lu),
+  'd0000000-0000-4000-8000-000000000021'::uuid,
+  'et le candidat que le portrait montre : la fiche se retrouve toute seule');
 
 select is(
   (select count(*) from consume_photo_share('jeton-a')), 0::bigint,
@@ -256,6 +289,18 @@ select ok(
 select ok(
   exists (select 1 from photo_shares where token = 'jeton-b'),
   'et ne touche pas à ce qui vit encore');
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 9. Un partage peut ne montrer personne
+-- ════════════════════════════════════════════════════════════════════════════
+-- EN DERNIER, parce que le lire le détruit : `jeton-b` sert au balayage
+-- ci-dessus, et il n'y survivrait pas.
+
+select devenir_anonyme();
+
+select is(
+  (select photo_contestant from consume_photo_share('jeton-b')), null::uuid,
+  'sans cible, la lecture rend `null` — elle n''en invente pas une');
 
 select * from finish();
 rollback;

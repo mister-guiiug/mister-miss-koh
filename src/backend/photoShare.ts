@@ -84,12 +84,22 @@ const ConsumedRow = z.object({
   photo_base64: z.string(),
   photo_mime: z.string(),
   photo_label: z.string().nullable(),
+  photo_contestant: z.string().nullable(),
 });
 
 /** La photo telle qu'un destinataire la reçoit — une fois. */
 export interface ConsumedPhoto {
   readonly blob: Blob;
   readonly label: string | null;
+  /**
+   * Le candidat que ce portrait montre, quand le partage le disait.
+   *
+   * C'est ce qui permet de le poser sur la bonne fiche sans passer par les
+   * fichiers de l'appareil. Une clé du RÉFÉRENTIEL PUBLIC, pas un identifiant
+   * de compte — et `null` reste possible : un partage peut ne viser personne,
+   * et un référentiel de démonstration ne connaîtra pas cet identifiant.
+   */
+  readonly contestantId: string | null;
 }
 
 /**
@@ -214,6 +224,7 @@ export function createPhotoShareRepository(
       return {
         blob: blobFromBase64(row.photo_base64, row.photo_mime),
         label: row.photo_label,
+        contestantId: row.photo_contestant,
       };
     },
   };

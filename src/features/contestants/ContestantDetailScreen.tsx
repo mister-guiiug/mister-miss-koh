@@ -120,17 +120,6 @@ export function ContestantDetailScreen() {
           </div>
         </div>
 
-        {/* LE DÉPÔT D'UNE PHOTO N'EST PAS UNE PROPRIÉTÉ DE L'IDENTITÉ. Rendu
-            dans la colonne de droite, il commençait 88 px plus loin que tout
-            le reste de la carte — titre, partage, binôme, lien source
-            s'alignent à gauche, ce bouton seul était en retrait. Sorti de la
-            colonne, il rejoint le même bord que ce qui le suit. */}
-        <PhotoPicker contestant={contestant} />
-
-        {/* Ne s'affiche qu'une fois un portrait déposé — il n'y a rien à
-            partager avant, et l'annoncer serait promettre du vide. */}
-        <PhotoShare contestant={contestant} />
-
         {/* Le CV : ce que la source dit de la personne AVANT cette saison,
             une ligne par participation, dans l'ordre où la page les cite. */}
         <dl className="stats">
@@ -172,6 +161,24 @@ export function ContestantDetailScreen() {
             </a>
           </p>
         )}
+
+        {/* LES OUTILS PASSENT APRÈS CE QU'ON VIENT LIRE, ET REPLIÉS.
+            Déposer une photo, la remplacer, la retirer, l'enregistrer, en
+            confier une copie pour un jour : cinq boutons et deux paragraphes
+            d'explication, qui occupaient le haut de la fiche et repoussaient
+            plus bas les saisons précédentes, le binôme et la source — c'est-
+            à-dire ce qu'on ouvre une fiche pour lire. Ils se déplient d'un
+            clic quand on les cherche.
+
+            `<details>` natif, pas un état : le clavier, le lecteur d'écran et
+            la recherche du navigateur le connaissent déjà. */}
+        <details className="photo-tools">
+          <summary>Photo et partage</summary>
+          <PhotoPicker contestant={contestant} />
+          {/* Ne s'affiche qu'une fois un portrait déposé — il n'y a rien à
+              partager avant, et l'annoncer serait promettre du vide. */}
+          <PhotoShare contestant={contestant} />
+        </details>
 
         <TargetNotes
           target="season_contestant"

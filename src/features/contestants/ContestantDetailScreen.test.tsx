@@ -29,6 +29,29 @@ describe('ContestantDetailScreen', () => {
     });
   });
 
+  it('mène à ce qu’on vient LIRE, pas aux boutons de la photo', () => {
+    // Cinq boutons et deux paragraphes d'explication occupaient le haut de la
+    // fiche et repoussaient plus bas les saisons précédentes, le binôme et la
+    // source. Ils sont maintenant après, et repliés.
+    const { container } = renderAt('c-ael');
+
+    const outils = container.querySelector('details.photo-tools');
+    expect(outils).not.toBeNull();
+    expect(outils).not.toHaveAttribute('open');
+    expect(screen.getByText('Photo et partage')).toBeInTheDocument();
+
+    // L'ORDRE, pas seulement la présence : le CV vient AVANT les outils.
+    const cv = screen.getByText('Saisons précédentes');
+    expect(
+      cv.compareDocumentPosition(outils!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    // Et le dépôt d'une photo est bien DANS le repli, pas à côté. Ce n'est pas
+    // un bouton mais un `<input type="file">` habillé : le script de captures
+    // et le clavier le trouvent, un bouton simulé les perdrait.
+    expect(outils).toContainElement(screen.getByText('Ajouter une photo'));
+  });
+
   it('le CV liste les saisons précédentes, une par ligne, dans l’ordre de la source', () => {
     renderAt('c-ael');
     const lines = Array.from(
