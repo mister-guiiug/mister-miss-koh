@@ -1176,6 +1176,35 @@ body,
   color: var(--primary-strong);
 }
 
+/* ── Annuler une suppression ─────────────────────────────────────────────
+   Le bouton vit DANS la notification : le `toast` du socle accepte un nœud
+   React comme message. Il reste un vrai `button` — le clavier l'atteint, et le
+   fournisseur suspend le compte à rebours tant que le focus ou le pointeur est
+   dans la pile (WCAG 2.2.1). Les huit secondes ne s'écoulent donc pas pendant
+   qu'on cherche à y arriver. */
+.undo {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.undo-action {
+  min-height: 2.25rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid currentcolor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.undo-action:hover {
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+}
+
 /* ── Les niveaux de mouvement (`data-motion`, posé par useMotionLevel) ───
    `essential` — « Animations » décochée : le décoratif est ramené à 0,01 ms.
    Pas `none` : `animationend` doit continuer de tomber, l'étoile s'en sert

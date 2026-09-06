@@ -11,12 +11,12 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { NotebookPen, Pencil, Star, Trash2 } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
-import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import type { Note, NoteTarget } from '../backend/notes';
 import { useNotes } from '../hooks/useNotes';
 import { useNotesStore } from '../store/useNotesStore';
+import { useUndo } from '../hooks/useUndo';
 import { NoteEditor, type NoteValues } from './NoteEditor';
 
 interface Props {
@@ -53,10 +53,11 @@ export function TargetNotes({
   const create = useNotesStore(s => s.create);
   const update = useNotesStore(s => s.update);
   const remove = useNotesStore(s => s.remove);
+  const restore = useNotesStore(s => s.restore);
   const toast = useToast();
+  const askUndo = useUndo();
   const [writing, setWriting] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [toDelete, setToDelete] = useState<Note | null>(null);
   const [busy, setBusy] = useState(false);
 
   const mine = useMemo(
@@ -107,6 +108,29 @@ export function TargetNotes({
       () => setEditing(null)
     );
 
+  /**
+   * Ici comme sur l'écran Notes : pas de confirmation, une annulation. La
+   * suppression est logique en base, l'annuler retire une date — rien n'est
+   * reconstruit, donc rien ne peut revenir différent.
+   */
+  const deleteNote = (note: Note) => {
+    setBusy(true);
+    void remove(note.id)
+      .then(() => {
+        if (editing === note.id) setEditing(null);
+        askUndo({
+          key: note.id,
+          message: `Note sur ${label} supprimée.`,
+          undone: 'Note rétablie.',
+          undo: () => restore(note.id),
+        });
+      })
+      .catch((cause: unknown) => {
+        toast.error(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => setBusy(false));
+  };
+
   return (
     <section className="target-notes" aria-label={`Vos notes sur ${label}`}>
       {mine.length > 0 && (
@@ -148,8 +172,9 @@ export function TargetNotes({
                 variant="ghost"
                 size="sm"
                 iconOnly
+                disabled={busy}
                 aria-label={`Supprimer cette note sur ${label}`}
-                onClick={() => setToDelete(note)}
+                onClick={() => deleteNote(note)}
               >
                 <Trash2 size={18} aria-hidden />
               </Button>
@@ -171,23 +196,6 @@ export function TargetNotes({
           {mine.length === 0 ? 'Ajouter une note' : 'Ajouter une autre note'}
         </Button>
       )}
-
-      <ConfirmDialog
-        open={toDelete !== null}
-        title="Supprimer cette note ?"
-        message={`La note sur ${label} sera retirée de votre compte.`}
-        destructive
-        loading={busy}
-        onConfirm={() => {
-          if (toDelete)
-            void run(
-              () => remove(toDelete.id),
-              'Note supprimée.',
-              () => setToDelete(null)
-            );
-        }}
-        onCancel={() => setToDelete(null)}
-      />
     </section>
   );
 }

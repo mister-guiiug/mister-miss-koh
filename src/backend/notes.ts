@@ -14,6 +14,16 @@
  * LA SUPPRESSION EST LOGIQUE. `deleted_at` fait cesser la lecture
  * immédiatement, y compris pour une note partagée : attendre une purge
  * laisserait un lien vivant après que son auteur l'a retirée.
+ *
+ * ET ELLE SE DÉFAIT. `restore` remet `deleted_at` à `null`, ce que le serveur
+ * autorise déjà : la politique de lecture porte `deleted_at is null`, celle de
+ * MISE À JOUR non — le propriétaire peut donc écrire dans une ligne qu'il ne
+ * peut plus lire. C'est ce qui rend l'annulation possible SANS toucher à la
+ * base, et c'est aussi pourquoi il n'y a pas de corbeille : lister ses notes
+ * supprimées demanderait une politique de lecture de plus, donc une migration
+ * — et sur ce dépôt, une politique permissive de plus se combine par OU avec
+ * les autres, ce qui est exactement le piège documenté dans
+ * `docs/politiques-rls.md`.
  */
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -135,6 +145,8 @@ export interface NotesRepository {
   update(id: string, patch: Partial<NoteDraft>): Promise<Note>;
   /** Suppression LOGIQUE : la lecture cesse, la ligne reste. */
   remove(id: string): Promise<void>;
+  /** Annule la suppression : la ligne n'avait pas bougé, elle redevient lisible. */
+  restore(id: string): Promise<Note>;
 }
 
 /** Injectable : les tests passent un client de fantaisie. */
@@ -220,6 +232,25 @@ export function createNotesRepository(
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       if (error) fail('suppression', error.message);
+    },
+
+    /**
+     * La note revient AVEC son contenu, parce qu'il n'est jamais parti : rien
+     * n'a été effacé, seule une date avait été posée. C'est le `select` qui le
+     * prouve — la ligne rendue est celle du serveur, pas une copie gardée à
+     * l'écran, et l'appelant ne peut donc pas afficher une restauration qui
+     * n'aurait pas eu lieu.
+     */
+    async restore(id) {
+      const supabase = await getClient();
+      const { data, error } = await supabase
+        .from('personal_notes')
+        .update({ deleted_at: null })
+        .eq('id', id)
+        .select(SELECT)
+        .single();
+      if (error) fail('restauration', error.message);
+      return mapNote(data);
     },
   };
 }
