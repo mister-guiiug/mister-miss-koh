@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { useAppStore } from '../../store/useAppStore';
 import { Provenance } from '../../components/Provenance';
+import { PullToRefresh } from '../../components/PullToRefresh';
 import { AppAnimation } from '../../animations/AppAnimation';
 import { lastAiredEpisode } from '../../domain/stats';
 
@@ -14,6 +15,7 @@ export function HomeScreen() {
 
   return (
     <div className="stack">
+      <PullToRefresh />
       <AppAnimation name="app-start" className="hero-animation" />
       {/* L'avis vient AVANT le contenu : quand ce qui s'affiche n'est pas le
           serveur, il faut le savoir avant de lire, pas après. */}

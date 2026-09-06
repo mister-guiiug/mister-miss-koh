@@ -60,6 +60,17 @@
   --dwc-shadow: var(--shadow);
 }
 
+/* ── Mouvement : deux tempos, une courbe ──────────────────────────────────
+   Le socle ne déclare AUCUNE transition — ses boutons sautent d'un état à
+   l'autre. Ce fichier n'est pas « layered » : il l'emporte sur
+   `components.css` sans `!important`. Tout ce qui bouge ici lit ces trois
+   jetons, et obéit aux niveaux `data-motion` en fin de fichier. */
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 html,
 body {
   margin: 0;
@@ -95,6 +106,21 @@ a {
 [data-dwc='app-header'] {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+/* Le thème bascule en fondu, pas d'un coup : les grandes surfaces seulement,
+   une transition sur `*` ferait bégayer les listes. */
+body,
+[data-dwc='app-header'],
+[data-dwc='bottom-nav'],
+.row,
+.note,
+.spoiler,
+.notice {
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base);
 }
 
 .offline-banner {
@@ -208,9 +234,293 @@ a {
   resize: vertical;
 }
 
-.check input,
-.radio input {
-  margin-top: 0.3rem;
+/* ── Cases et boutons radio : redessinés, jamais remplacés ────────────────
+   L'`<input>` natif reste — clavier, lecteur d'écran, et le script de
+   captures qui cherche `input[type=checkbox]` ; seule sa peinture change.
+   La coche et le point sont faits de BORDURES, pas de fonds : en contraste
+   forcé, un fond est ramené à Canvas et disparaît, une bordure reste. */
+.check input[type='checkbox'],
+.radio input[type='radio'],
+.seen input[type='checkbox'] {
+  appearance: none;
+  margin: 0;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-content: center;
+  border: 2px solid var(--dwc-border-strong);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.radio input[type='radio'],
+.seen input[type='checkbox'] {
+  border-radius: 50%;
+}
+
+.check input[type='checkbox']::before,
+.seen input[type='checkbox']::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.75rem;
+  margin-top: -0.2rem;
+  border: solid var(--primary-contrast);
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0);
+  opacity: 0;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    opacity var(--motion-fast);
+}
+
+.radio input[type='radio']::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border: 0.35rem solid var(--primary);
+  border-radius: 50%;
+  transform: scale(0);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.check input[type='checkbox']:checked,
+.seen input[type='checkbox']:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.radio input[type='radio']:checked {
+  border-color: var(--primary);
+}
+
+.check input[type='checkbox']:checked::before,
+.seen input[type='checkbox']:checked::before {
+  transform: rotate(45deg) scale(1);
+  opacity: 1;
+}
+
+.radio input[type='radio']:checked::before {
+  transform: scale(1);
+}
+
+.check input:active,
+.radio input:active,
+.seen input:active {
+  transform: scale(0.88);
+}
+
+.check input:focus-visible,
+.radio input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.check label,
+.radio label {
+  cursor: pointer;
+}
+
+/* ── « Vu » : une pastille de 2,75 rem, pas une case de 13 px ────────────
+   La cible tactile de la famille, autour de la même case native. */
+.seen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem 0 0.5rem;
+  border: 1px solid var(--dwc-border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.seen:has(input:checked) {
+  background: var(--dwc-primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-strong);
+}
+
+.seen:active {
+  transform: scale(0.96);
+}
+
+.seen input:focus-visible {
+  outline: none;
+}
+
+.seen:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Un épisode vu se lit d'un coup d'œil dans la liste : un filet intérieur,
+   pas une bordure — celle-ci décalerait le contenu de trois pixels. */
+[data-dwc='card'] {
+  transition:
+    box-shadow var(--motion-base),
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base);
+}
+
+[data-dwc='card'][data-seen] {
+  box-shadow:
+    inset 0.25rem 0 0 var(--primary),
+    var(--shadow);
+}
+
+/* ── Une option à choisir, c'est toute la carte qu'on touche ─────────────
+   L'étiquette s'étire sur la carte entière (`::after`) ; son nom accessible
+   reste le sien, l'explication reste une description (`aria-describedby`). */
+.option {
+  position: relative;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+.option label::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--dwc-primary-soft);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.option input:focus-visible {
+  outline: none;
+}
+
+.option:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ── Boutons : un survol qui glisse, un appui qui s'enfonce ─────────────── */
+[data-dwc='button'] {
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    filter var(--motion-fast),
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+/* Le survol n'existe qu'à la souris : sur un écran tactile il COLLE après le
+   tap, et le socle ne fait pas la distinction. */
+@media (hover: none) {
+  [data-dwc='button']:hover:not(:disabled):not([aria-disabled='true']) {
+    filter: none;
+  }
+}
+
+@media (hover: hover) {
+  [data-dwc='button'][data-variant='primary']:hover:not(:disabled):not(
+      [aria-disabled='true']
+    ) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  [data-dwc='button'][data-variant='danger']:hover:not(:disabled):not(
+      [aria-disabled='true']
+    ) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 35%, transparent);
+  }
+}
+
+[data-dwc='button']:active:not(:disabled):not([aria-disabled='true']) {
+  transform: scale(0.96);
+  filter: brightness(0.95);
+  box-shadow: none;
+}
+
+/* ── L'étoile des favoris ────────────────────────────────────────────────── */
+.fav[data-variant='ghost'][aria-pressed='true'] {
+  color: var(--primary);
+}
+
+.fav svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.fav[data-pop] svg {
+  animation: koh-pop 0.4s var(--ease-out);
+}
+
+@keyframes koh-pop {
+  0% {
+    transform: scale(0.6) rotate(-20deg);
+  }
+  55% {
+    transform: scale(1.35) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* ── Contrôle segmenté et barre basse ────────────────────────────────────── */
+[data-dwc='segmented-tab'] {
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    box-shadow var(--motion-fast),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+[data-dwc='segmented-tab']:active {
+  transform: scale(0.96);
+}
+
+[data-dwc='bottom-nav-item'] {
+  transition:
+    color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+[data-dwc='bottom-nav-item']:active {
+  transform: scale(0.94);
+}
+
+[data-dwc='bottom-nav-icon'] {
+  transition: transform var(--motion-base) var(--ease-out);
+}
+
+[data-dwc='bottom-nav-item'][data-current] [data-dwc='bottom-nav-icon'] {
+  transform: translateY(-2px) scale(1.1);
+}
+
+/* Le toast surgit AU-DESSUS de la barre basse, jamais dessous. */
+[data-dwc='toast-viewport'] {
+  bottom: calc(4.5rem + max(env(safe-area-inset-bottom), 0px));
+  padding-bottom: var(--spacing-fluid-sm, 0.75rem);
 }
 
 .spoiler {
@@ -224,28 +534,100 @@ a {
   margin: 0 0 0.5rem;
 }
 
+/* ── L'entrée d'un écran, la révélation d'un contenu ─────────────────────
+   `dwc-rise` est l'image-clé du socle : translation et opacité, sans `to`.
+   `backwards`, jamais `both` ni `forwards` : un `transform` retenu ferait de
+   l'écran le bloc conteneur de la boîte de confirmation, `fixed` et rendue
+   DANS l'écran des notes. Le socle documente ce piège en long. */
+.screen,
+.reveal {
+  animation: dwc-rise var(--motion-base) var(--ease-out) backwards;
+}
+
 .provenance {
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
+/* ── L'attente : une flamme qui vacille, la forme du contenu à venir ───── */
 .loading {
   min-height: 60dvh;
   display: grid;
   place-content: center;
-  gap: 0.75rem;
+  justify-items: center;
+  gap: 1.25rem;
   text-align: center;
+}
+
+.loading [data-dwc='skeleton-group'] {
+  width: min(80vw, 20rem);
+}
+
+.flame {
+  color: var(--primary);
+  transform-origin: 50% 90%;
+  animation: koh-flicker 1.4s ease-in-out infinite;
+}
+
+@keyframes koh-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.06) rotate(-3deg);
+    opacity: 0.85;
+  }
+  60% {
+    transform: scale(0.97) rotate(2deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1.04) rotate(-1deg);
+    opacity: 0.9;
+  }
+}
+
+/* ── Tirer pour actualiser ───────────────────────────────────────────────
+   `--pull` suit le doigt de 0 à 1 ; l'anneau tourne avec lui, puis tourne
+   seul le temps du rechargement (`dwc-spin`, l'image-clé du socle). */
+.pull {
+  --pull: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  opacity: var(--pull);
+  transition:
+    height var(--motion-fast),
+    opacity var(--motion-fast);
+}
+
+.pull[data-active] {
+  height: 2.5rem;
+}
+
+.pull-spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  transform: rotate(calc(var(--pull) * 270deg));
+}
+
+.pull[data-refreshing] .pull-spinner {
+  animation: dwc-spin 0.7s linear infinite;
 }
 
 .hero-animation:empty {
   display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 .notice {
@@ -296,4 +678,68 @@ a {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-muted);
+}
+
+/* ── Les niveaux de mouvement (`data-motion`, posé par useMotionLevel) ───
+   `essential` — « Animations » décochée : le décoratif est ramené à 0,01 ms.
+   Pas `none` : `animationend` doit continuer de tomber, l'étoile s'en sert
+   pour se ranger. Une case qui se coche, un bouton qui s'enfonce répondent
+   encore : c'est un retour d'état, pas un ornement.
+   `none` — « Réduire les mouvements » : tout ce qui bouge, cases et boutons
+   compris. Le réglage système a sa règle propre, juste après : il gagne
+   toujours, même sur `full`. */
+[data-motion='essential'] .screen,
+[data-motion='essential'] .reveal,
+[data-motion='essential'] .fav[data-pop] svg,
+[data-motion='essential'] .flame,
+[data-motion='essential'] [data-dwc='toast'],
+[data-motion='essential'] [data-dwc='sheet-panel'],
+[data-motion='essential'] [data-dwc='confirm-panel'] {
+  animation-duration: 0.01ms;
+  animation-iteration-count: 1;
+}
+
+[data-motion='none'] *,
+[data-motion='none'] *::before,
+[data-motion='none'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* En contraste forcé, les fonds sont ramenés à Canvas : la coche (bordures)
+   et le point (bordure) restent, et l'état coché se dit par `Highlight`. */
+@media (forced-colors: active) {
+  .check input:checked,
+  .seen input:checked,
+  .radio input:checked {
+    border-color: Highlight;
+  }
+
+  .check input::before,
+  .seen input::before {
+    border-color: CanvasText;
+  }
+
+  .radio input::before {
+    border-color: Highlight;
+  }
+
+  .option:has(input:checked),
+  .seen:has(input:checked) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }

@@ -16,7 +16,10 @@ import { Link } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
+import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
+import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -36,6 +39,7 @@ interface Choice {
 export function NotesScreen() {
   const { account, available } = useSession();
   const referential = useAppStore(s => s.referential);
+  const toast = useToast();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +49,11 @@ export function NotesScreen() {
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(
     null
   );
+  /**
+   * La note dont la suppression attend confirmation. La corbeille effaçait
+   * au premier tap ; une suppression, même logique côté serveur, se demande.
+   */
+  const [toDelete, setToDelete] = useState<Note | null>(null);
   /** Incrémentée après chaque écriture : c'est ce qui redemande la liste. */
   const [revision, setRevision] = useState(0);
   const reload = () => setRevision(r => r + 1);
@@ -149,6 +158,7 @@ export function NotesScreen() {
       });
       setBody('');
       reload();
+      toast.success('Note enregistrée.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -164,6 +174,7 @@ export function NotesScreen() {
       await notesRepository.update(editing.id, { body: editing.body.trim() });
       setEditing(null);
       reload();
+      toast.success('Note corrigée.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -178,10 +189,12 @@ export function NotesScreen() {
       await notesRepository.remove(id);
       if (editing?.id === id) setEditing(null);
       reload();
+      toast.info('Note supprimée.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
+      setToDelete(null);
     }
   };
 
@@ -233,9 +246,7 @@ export function NotesScreen() {
       )}
 
       {notes === null ? (
-        <p role="status" className="muted">
-          Chargement des notes…
-        </p>
+        <SkeletonGroup label="Chargement des notes" lines={3} />
       ) : notes.length === 0 ? (
         <EmptyState
           title="Aucune note"
@@ -304,7 +315,7 @@ export function NotesScreen() {
                 size="sm"
                 iconOnly
                 aria-label={`Supprimer la note sur ${labelOf(note)}`}
-                onClick={() => void remove(note.id)}
+                onClick={() => setToDelete(note)}
               >
                 <Trash2 size={18} aria-hidden />
               </Button>
@@ -312,6 +323,22 @@ export function NotesScreen() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        title="Supprimer cette note ?"
+        message={
+          toDelete
+            ? `La note sur « ${labelOf(toDelete)} » sera retirée de votre compte.`
+            : undefined
+        }
+        destructive
+        loading={busy}
+        onConfirm={() => {
+          if (toDelete) void remove(toDelete.id);
+        }}
+        onCancel={() => setToDelete(null)}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
+import { useRefreshReferential } from '../../hooks/useRefreshReferential';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';
 import type { SpoilerMode } from '../../domain/spoiler';
@@ -23,6 +24,22 @@ const SPOILER_OPTIONS: { value: SpoilerMode; label: string; hint: string }[] = [
   },
   { value: 'reveal_all', label: 'Tout voir', hint: 'Aucun masquage.' },
 ];
+
+/* Les deux réglages du mouvement, expliqués : ils pilotent le CSS de
+   l'interface (`data-motion`, voir animations/motion.ts), pas seulement une
+   animation Rive qu'aucun fichier ne porte encore. */
+const MOTION_OPTIONS = [
+  {
+    key: 'animations',
+    label: 'Animations',
+    hint: 'Entrées d’écran, éclat de l’étoile, flamme du chargement, vibration. Décochée, une case ou un bouton répond encore.',
+  },
+  {
+    key: 'reduceMotion',
+    label: 'Réduire les mouvements',
+    hint: 'Plus aucun déplacement, cases et boutons compris. Le réglage système du même nom s’applique de toute façon.',
+  },
+] as const;
 
 const ORIGIN_LABEL: Record<
   Origin,
@@ -46,7 +63,12 @@ export function SettingsScreen() {
   const origin = useAppStore(s => s.origin);
   const notice = useAppStore(s => s.notice);
   const loading = useAppStore(s => s.loading);
-  const reload = useAppStore(s => s.reload);
+  const refresh = useRefreshReferential();
+
+  const motion = {
+    animations: { checked: animations, set: setAnimations },
+    reduceMotion: { checked: reduceMotion, set: setReduceMotion },
+  };
 
   return (
     <div className="stack">
@@ -57,7 +79,9 @@ export function SettingsScreen() {
         <fieldset className="stack">
           <legend className="sr-only">Que faut-il masquer ?</legend>
           {SPOILER_OPTIONS.map(o => (
-            <div key={o.value} className="radio">
+            // Toute la carte se touche (`.option`) ; le nom du contrôle reste
+            // le libellé seul, l'explication une description.
+            <div key={o.value} className="radio option">
               <input
                 id={`spoiler-${o.value}`}
                 type="radio"
@@ -85,35 +109,41 @@ export function SettingsScreen() {
 
       <Card>
         <CardHeader title="Affichage" />
-        {theme && (
-          <label className="field">
-            <span>Thème</span>
-            <select
-              value={theme.theme}
-              onChange={e => theme.setTheme(e.target.value)}
-            >
-              <option value="system">Système</option>
-              <option value="light">Clair</option>
-              <option value="dark">Sombre</option>
-            </select>
-          </label>
-        )}
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={animations}
-            onChange={e => setAnimations(e.target.checked)}
-          />
-          <span>Animations</span>
-        </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={reduceMotion}
-            onChange={e => setReduceMotion(e.target.checked)}
-          />
-          <span>Réduire les mouvements (en plus du réglage système)</span>
-        </label>
+        <div className="stack">
+          {theme && (
+            <label className="field">
+              <span>Thème</span>
+              <select
+                value={theme.theme}
+                onChange={e => theme.setTheme(e.target.value)}
+              >
+                <option value="system">Système</option>
+                <option value="light">Clair</option>
+                <option value="dark">Sombre</option>
+              </select>
+            </label>
+          )}
+          {MOTION_OPTIONS.map(o => (
+            <div key={o.key} className="check">
+              <input
+                id={`motion-${o.key}`}
+                type="checkbox"
+                checked={motion[o.key].checked}
+                onChange={e => motion[o.key].set(e.target.checked)}
+                aria-describedby={`motion-${o.key}-hint`}
+              />
+              <span>
+                <label htmlFor={`motion-${o.key}`}>
+                  <strong>{o.label}</strong>
+                </label>
+                <br />
+                <small id={`motion-${o.key}-hint`} className="muted">
+                  {o.hint}
+                </small>
+              </span>
+            </div>
+          ))}
+        </div>
       </Card>
 
       <Card>
@@ -138,7 +168,7 @@ export function SettingsScreen() {
               variant="outline"
               size="sm"
               loading={loading}
-              onClick={() => void reload()}
+              onClick={() => void refresh()}
             >
               Actualiser les données
             </Button>

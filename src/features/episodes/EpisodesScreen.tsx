@@ -2,6 +2,8 @@ import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
+import { PullToRefresh } from '../../components/PullToRefresh';
+import { useHaptics } from '../../hooks/useHaptics';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { contestantById } from '../../domain/referential';
 
@@ -30,10 +32,12 @@ export function EpisodesScreen() {
   const referential = useAppStore(s => s.referential);
   const watched = useAppStore(s => s.watched);
   const toggleWatched = useAppStore(s => s.toggleWatched);
+  const haptics = useHaptics();
   if (!referential) return null;
 
   return (
     <div className="stack">
+      <PullToRefresh />
       <h2>Épisodes</h2>
       <p className="muted">
         Cochez les épisodes vus : l’anti-spoiler masque ce qui vient après.
@@ -44,7 +48,7 @@ export function EpisodesScreen() {
         );
         const seen = watched.includes(e.number);
         return (
-          <Card key={e.id} as="article">
+          <Card key={e.id} as="article" data-seen={seen ? '' : undefined}>
             <CardHeader
               title={`Épisode ${e.number}`}
               subtitle={
@@ -58,11 +62,16 @@ export function EpisodesScreen() {
               }
               action={
                 e.aired ? (
-                  <label className="check">
+                  // Une pastille autour d'une VRAIE case : le clavier, le
+                  // lecteur d'écran et le script de captures la trouvent.
+                  <label className="seen">
                     <input
                       type="checkbox"
                       checked={seen}
-                      onChange={() => toggleWatched(e.number)}
+                      onChange={() => {
+                        if (!seen) haptics('seen');
+                        toggleWatched(e.number);
+                      }}
                     />
                     <span>Vu</span>
                   </label>

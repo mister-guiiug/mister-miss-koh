@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
   Flame,
@@ -59,6 +60,12 @@ export function Layout() {
   const online = useOnline();
   const { pathname } = useLocation();
 
+  // Un écran qui entre commence en haut : sans cela, son entrée partirait du
+  // milieu d'une page que l'écran précédent avait laissée défilée.
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+  }, [pathname]);
+
   return (
     <div className="app-shell">
       <AppHeader
@@ -77,7 +84,12 @@ export function Layout() {
         )}
       </AppHeader>
       <PageContainer as="main" width="md" reserve="bottom-nav">
-        <Outlet />
+        {/* La clé est le chemin : chaque écran se remonte et fait son entrée
+            (`.screen`, image-clé `dwc-rise` du socle). Le pied de page, lui,
+            reste en place d'un écran à l'autre. */}
+        <div key={pathname} className="screen">
+          <Outlet />
+        </div>
         <AppFooter repoUrl={REPO_URL} version />
       </PageContainer>
       <BottomNav

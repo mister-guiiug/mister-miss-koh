@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Coffee,
   ExternalLink,
+  Flame,
   Monitor,
   Moon,
   Sun,
@@ -15,10 +16,13 @@ import { lucideIconSet } from '@mister-guiiug/dev-pwa-config/react/icons-lucide'
 import { LabelsProvider } from '@mister-guiiug/dev-pwa-config/react/labels';
 import { ErrorBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
+import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
+import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
 import { Layout } from './components/Layout';
 import { AppAnimation } from './animations/AppAnimation';
+import { useMotionLevel } from './animations/motion';
 import { HomeScreen } from './features/home/HomeScreen';
 import { DashboardScreen } from './features/dashboard/DashboardScreen';
 import { ContestantsScreen } from './features/contestants/ContestantsScreen';
@@ -66,6 +70,9 @@ export function App() {
   const init = useAppStore(s => s.init);
   const ready = useAppStore(s => s.ready);
   const error = useAppStore(s => s.error);
+  // `data-motion` sur <html>, avant la première peinture : les deux réglages
+  // pilotent enfin ce qui bouge, écran d'attente compris.
+  useMotionLevel();
 
   useEffect(() => {
     void init();
@@ -80,26 +87,35 @@ export function App() {
     >
       <LabelsProvider locale="fr">
         <IconsProvider icons={ICONS}>
-          <ErrorBoundary
-            fallback={
-              <EmptyState
-                icon={<AppAnimation name="recoverable-error" />}
-                title="Quelque chose s’est mal passé"
-                description="Rechargez la page. Vos données locales sont conservées."
-              />
-            }
-          >
-            {!ready ? (
-              <div className="loading" role="status">
-                <AppAnimation name="referential-loading" />
-                <span>Chargement du référentiel…</span>
-              </div>
-            ) : error ? (
-              <EmptyState title="Référentiel illisible" description={error} />
-            ) : (
-              <RoutedApp />
-            )}
-          </ErrorBoundary>
+          <ToastProvider>
+            <ErrorBoundary
+              fallback={
+                <EmptyState
+                  icon={<AppAnimation name="recoverable-error" />}
+                  title="Quelque chose s’est mal passé"
+                  description="Rechargez la page. Vos données locales sont conservées."
+                />
+              }
+            >
+              {!ready ? (
+                <div className="loading">
+                  {/* La flamme est le REPLI du rôle de chargement : le jour où
+                      un `.riv` le porte, Rive la remplace. En attendant, elle
+                      vacille en CSS, et le squelette esquisse la forme du
+                      contenu à venir — c'est lui qui annonce l'attente. */}
+                  <AppAnimation
+                    name="referential-loading"
+                    fallback={<Flame className="flame" size={44} aria-hidden />}
+                  />
+                  <SkeletonGroup label="Chargement du référentiel" lines={3} />
+                </div>
+              ) : error ? (
+                <EmptyState title="Référentiel illisible" description={error} />
+              ) : (
+                <RoutedApp />
+              )}
+            </ErrorBoundary>
+          </ToastProvider>
         </IconsProvider>
       </LabelsProvider>
     </ThemeProvider>

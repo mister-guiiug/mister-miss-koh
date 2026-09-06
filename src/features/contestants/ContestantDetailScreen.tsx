@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
-import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
+import { FavoriteButton } from '../../components/FavoriteButton';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { contestantById, partnerOf } from '../../domain/referential';
 import {
@@ -80,14 +80,12 @@ export function ContestantDetailScreen() {
             .filter(Boolean)
             .join(' — ')}
           action={
-            <Button
-              variant={favorite ? 'primary' : 'outline'}
-              size="sm"
-              aria-pressed={favorite}
-              onClick={() => toggleFavorite(contestant.id)}
-            >
-              {favorite ? 'Favori' : 'Ajouter aux favoris'}
-            </Button>
+            <FavoriteButton
+              name={contestant.displayName}
+              favorite={favorite}
+              onToggle={() => toggleFavorite(contestant.id)}
+              labelled
+            />
           }
         />
         {partner && (

@@ -1,17 +1,25 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
-import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
+import { SegmentedControl } from '@mister-guiiug/dev-pwa-config/react/segmented-control';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
+import { FavoriteButton } from '../../components/FavoriteButton';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
 import { groupingOf } from '../../domain/rules';
 import { isSpoiler } from '../../domain/spoiler';
 import type { Contestant, Referential } from '../../domain/referential';
 
 type Status = 'tous' | 'en-jeu' | 'sorti';
+
+/* Trois valeurs qui changent la VUE de la liste : un contrôle segmenté, un
+   tap au lieu de deux — le `<select>` demandait d'ouvrir puis de choisir. */
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'tous', label: 'Tous' },
+  { value: 'en-jeu', label: 'En jeu' },
+  { value: 'sorti', label: 'Sorti·e' },
+];
 
 interface Row extends Contestant {
   inGame: boolean;
@@ -124,17 +132,16 @@ export function ContestantsScreen() {
             autoComplete="off"
           />
         </label>
-        <label className="field">
+        <div className="field">
           <span>Statut</span>
-          <select
+          <SegmentedControl
+            ariaLabel="Statut"
             value={status}
-            onChange={e => setStatus(e.target.value as Status)}
-          >
-            <option value="tous">Tous</option>
-            <option value="en-jeu">En jeu</option>
-            <option value="sorti">Sorti·e</option>
-          </select>
-        </label>
+            onChange={value => setStatus(value as Status)}
+            options={STATUS_OPTIONS}
+            fullWidth
+          />
+        </div>
       </div>
       {total === 0 ? (
         <EmptyState
@@ -152,24 +159,11 @@ export function ContestantsScreen() {
                   <Badge tone={c.inGame ? 'success' : 'muted'} size="xs">
                     {c.inGame ? 'en jeu' : 'sorti·e'}
                   </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    iconOnly
-                    aria-label={
-                      c.favorite
-                        ? `Retirer ${c.displayName} des favoris`
-                        : `Ajouter ${c.displayName} aux favoris`
-                    }
-                    aria-pressed={c.favorite}
-                    onClick={() => toggleFavorite(c.id)}
-                  >
-                    <Star
-                      size={18}
-                      aria-hidden
-                      fill={c.favorite ? 'currentColor' : 'none'}
-                    />
-                  </Button>
+                  <FavoriteButton
+                    name={c.displayName}
+                    favorite={c.favorite}
+                    onToggle={() => toggleFavorite(c.id)}
+                  />
                 </li>
               ))}
             </ul>

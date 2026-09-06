@@ -5,7 +5,7 @@
  * ne sait pas qu'il y a quelque chose à découvrir, ni comment. Le garde rend
  * donc un bouton qui nomme l'épisode et propose de le marquer vu.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { isSpoiler } from '../domain/spoiler';
 import { useAppStore } from '../store/useAppStore';
@@ -21,8 +21,26 @@ interface Props {
 export function SpoilerGuard({ episodeNumber, children, label }: Props) {
   const limit = useSpoilerLimit();
   const toggleWatched = useAppStore(s => s.toggleWatched);
+  const spoiler = isSpoiler(episodeNumber, limit);
 
-  if (!isSpoiler(episodeNumber, limit)) return <>{children}</>;
+  // Ce que le garde montrait AU RENDU PRÉCÉDENT. Un contenu qui vient d'être
+  // démasqué entre en mouvement (`.reveal`) ; un contenu visible au montage
+  // reste en place — l'écran, lui, a déjà fait son entrée, et il se remonte à
+  // chaque navigation. Motif de la documentation React (« storing information
+  // from previous renders ») : l'état est corrigé pendant le rendu, sous
+  // condition, et React rejoue le rendu avant de peindre quoi que ce soit.
+  const [previous, setPrevious] = useState({ spoiler, revealed: false });
+  if (previous.spoiler !== spoiler) {
+    setPrevious({ spoiler, revealed: previous.spoiler && !spoiler });
+  }
+
+  if (!spoiler) {
+    return previous.revealed ? (
+      <div className="reveal">{children}</div>
+    ) : (
+      <>{children}</>
+    );
+  }
 
   return (
     <div
