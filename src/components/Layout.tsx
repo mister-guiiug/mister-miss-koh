@@ -90,7 +90,7 @@ export function Layout() {
         <div key={pathname} className="screen">
           <Outlet />
         </div>
-        <AppFooter repoUrl={REPO_URL} version />
+        <AppFooter issues repoUrl={REPO_URL} version />
       </PageContainer>
       <BottomNav
         placement="fixed"
