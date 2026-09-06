@@ -36,6 +36,25 @@ describe('App', () => {
     expect(screen.getByText(/non officielle/i)).toBeInTheDocument();
   });
 
+  it('l’en-tête porte la MARQUE, pas une icône qui lui ressemble', async () => {
+    // L'en-tête affichait une flamme de `lucide` : un contour générique, sans
+    // la vague ni la pastille — trois logos différents selon qu'on regardait
+    // le site, l'onglet ou l'application installée. Ce test tient la source
+    // unique : le fichier servi ici est CELUI dont `npm run icons` tire les
+    // PNG du manifeste.
+    const { container } = render(<App />);
+    await screen.findByText('Saison de démonstration');
+
+    const marque = container.querySelector('.brand-mark');
+    expect(marque).toHaveAttribute(
+      'src',
+      expect.stringContaining('favicon.svg')
+    );
+    // Décorative : le titre la suit et la dit déjà.
+    expect(marque).toHaveAttribute('alt', '');
+    expect(container.querySelector('.lucide-flame')).toBeNull();
+  });
+
   it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {
     // Retirer un pavé d'un écran ne doit pas retirer la traçabilité de
     // l'application : c'est la promesse du README, et elle se vérifie là où

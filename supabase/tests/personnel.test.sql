@@ -267,7 +267,7 @@ select is(
 -- éprouver — sinon la porte ouvrirait à qui la pousse.
 select devenir('22222222-2222-2222-2222-222222222222');
 select is(
-  refus_de('restore_note', 'a0000000-0000-4000-8000-000000000041'), 'P0002',
+  refus_de('restore_note', 'a0000000-0000-4000-8000-000000000041'), 'PT404',
   'B ne peut pas ressusciter la note de A : la fonction ne la lui rend pas'
 );
 
@@ -293,7 +293,7 @@ select is(
 );
 
 select is(
-  refus_de('delete_note', 'a0000000-0000-4000-8000-000000000042'), 'P0002',
+  refus_de('delete_note', 'a0000000-0000-4000-8000-000000000042'), 'PT404',
   'la note de B ne se supprime pas depuis le compte de A'
 );
 select is(

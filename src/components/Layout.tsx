@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
-  Flame,
   Home,
   Moon,
   NotebookPen,
@@ -75,7 +74,20 @@ export function Layout() {
       <AppHeader
         title="Mister & miss Koh"
         leading={
-          <Flame size={22} aria-hidden style={{ color: 'var(--primary)' }} />
+          /* LA MARQUE, PAS UNE ICÔNE QUI LUI RESSEMBLE. L'en-tête portait une
+             flamme de `lucide` : un contour générique, sans la vague et sans
+             la pastille — donc trois logos différents selon qu'on regardait le
+             site, l'onglet ou l'application installée. C'est le MÊME FICHIER
+             qui est servi ici, qui fait le favicon, et dont `npm run icons`
+             tire les PNG du manifeste : aucune copie ne peut plus diverger.
+             `alt=""` parce que le titre le suit et le dit déjà. */
+          <img
+            className="brand-mark"
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            width={28}
+            height={28}
+            alt=""
+          />
         }
         actions={<ThemeButton />}
         linkComponent={Link}
