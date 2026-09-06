@@ -252,12 +252,33 @@ body,
   gap: 0.25rem;
 }
 
-/* ── L'identité en tête de fiche ─────────────────────────────────────────── */
+/* ── L'identité en tête de fiche ───────────────────────────────────────────
+   LE RYTHME DE LA CARTE EST POSÉ ICI, UNE FOIS. Ses blocs — identité, dépôt
+   d'une photo, partage, CV, binôme, lien source — arrivaient chacun avec ses
+   propres marges, ou sans aucune : trois écarts de 0 px se suivaient, et des
+   blocs qui se touchent se lisent comme des blocs qui se chevauchent. Une
+   rythme unique, plutôt qu'une marge par bloc : rien à réajuster quand un bloc
+   s'ajoute ou disparaît (le partage n'existe qu'avec une photo).
+
+   UN `gap`, PAS DES MARGES. Une marge entre voisins perd la course : `.stats`
+   pose `margin: 0` à spécificité égale et plus loin dans la feuille, donc le
+   CV restait collé au bloc précédent. Le `gap` du conteneur ne se dispute avec
+   personne, ne se fait pas absorber par une fusion de marges, et les marges
+   propres des enfants sont remises à zéro pour qu'elles ne s'y ajoutent pas. */
+.identity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.identity-card > * {
+  margin-block: 0;
+}
+
 .identity {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 0.75rem;
 }
 
 .identity-main {

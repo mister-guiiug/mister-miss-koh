@@ -87,7 +87,13 @@ export function ContestantDetailScreen() {
   return (
     <div className="stack">
       <Link to="/candidats">← Candidats</Link>
-      <Card>
+      {/* `identity-card` porte le RYTHME VERTICAL de la fiche : ses blocs se
+          suivaient sans respirer — trois écarts de 0 px d'affilée entre le
+          dépôt d'une photo, le CV, le binôme et le lien source. Des blocs qui
+          se touchent se lisent comme des blocs qui se chevauchent, et c'est
+          bien ce qu'on voyait. Un rythme posé une fois vaut mieux qu'une
+          marge ajoutée bloc par bloc. */}
+      <Card className="identity-card">
         <CardHeader
           as="h2"
           title={contestant.displayName}

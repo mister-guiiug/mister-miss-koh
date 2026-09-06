@@ -77,4 +77,17 @@ describe('ContestantDetailScreen', () => {
     expect(colonne?.querySelector('.photo-picker')).toBeNull();
     expect(container.querySelector('.photo-picker')).not.toBeNull();
   });
+
+  it('la carte d’identité porte le rythme vertical de ses blocs', () => {
+    // Sans cette classe, ses blocs se touchent : `.stats` pose `margin: 0` à
+    // spécificité égale et plus loin dans la feuille, donc aucune marge posée
+    // ici ne les sépare — c'est un `gap` de conteneur qui le fait, et il ne
+    // s'applique qu'à cette carte-là.
+    const { container } = renderAt('c-ael');
+
+    const carte = container.querySelector('.identity-card');
+    expect(carte).not.toBeNull();
+    expect(carte?.querySelector('.photo-picker')).not.toBeNull();
+    expect(carte?.querySelector('.stats')).not.toBeNull();
+  });
 });
