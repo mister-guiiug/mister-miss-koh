@@ -56,15 +56,39 @@ export function photoFileName(displayName: string, mimeType: string): string {
 }
 
 /**
- * Le lien public d'une fiche, à partir de l'URL canonique de l'application.
+ * Une route de l'application, en URL absolue.
  *
  * L'application est en `HashRouter` : la route vit dans le fragment, et c'est
  * lui qu'il faut poser après la base. `currentAppUrl()` du socle rend la base
- * du déploiement — donc le lien partagé depuis un serveur de développement
+ * du déploiement — donc un lien partagé depuis un serveur de développement
  * pointe le serveur de développement, ce qui est exactement ce qu'on veut
  * vérifier.
  */
-export function contestantUrl(appUrl: string, contestantId: string): string {
+function appRoute(appUrl: string, path: string): string {
   const base = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
-  return `${base}#/candidats/${encodeURIComponent(contestantId)}`;
+  return `${base}#${path}`;
+}
+
+/** Le lien public d'une fiche de candidat. */
+export function contestantUrl(appUrl: string, contestantId: string): string {
+  return appRoute(appUrl, `/candidats/${encodeURIComponent(contestantId)}`);
+}
+
+/** Une note, ou toute une collection. */
+export type SharedKind = 'note' | 'notes';
+
+/**
+ * L'adresse d'un partage.
+ *
+ * LA PORTÉE EST DANS L'URL, pas devinée du jeton. Le serveur a deux lecteurs —
+ * un par portée — et un jeton ne dit pas lequel l'ouvre ; c'est l'application
+ * qui crée le lien, elle sait donc ce qu'elle a créé. L'inscrire épargne un
+ * aller-retour perdu à chaque ouverture, et rend l'adresse lisible.
+ */
+export function sharedUrl(
+  appUrl: string,
+  kind: SharedKind,
+  token: string
+): string {
+  return appRoute(appUrl, `/partage/${kind}/${encodeURIComponent(token)}`);
 }

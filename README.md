@@ -39,6 +39,15 @@ Le QR code, lui, porte le **lien de la fiche**, jamais l'image — un QR code
 contient au plus 2,9 ko, et l'écran affiche les deux tailles côte à côte
 plutôt que de le laisser croire.
 
+**Vos notes, elles, peuvent être données OU publiées — et l'écran ne confond
+pas les deux.** Les envoyer en texte ou les enregistrer en Markdown ne publie
+rien. Un **lien de lecture**, lui, les ouvre à qui obtient l'adresse, sans
+compte : le bouton le dit avant, « Révoquer » est à côté du lien, et un lien
+révoqué referme la note dans la foulée. Le **lien de collection** montre les
+notes que vous avez marquées « partagée » — telles qu'elles sont à l'instant
+où on l'ouvre : en retirer une la fait disparaître aussitôt, sans révoquer le
+lien ni en refaire un.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
@@ -65,11 +74,11 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 114 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 186 tests verts                    |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
-| `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes               |
+| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes               |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 261,1 kB gzip                      |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 275,3 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -114,10 +123,13 @@ src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
                  statistiques (zéro ≠ inconnu), règles de saison, duos
                  supposés (`pairing.ts` — la source prime toujours), partage
-                 (`sharing.ts` — nom de fichier, lien de fiche, capacité d'un QR)
+                 (`sharing.ts` — nom de fichier, adresses, capacité d'un QR),
+                 notes en document (`notesExport.ts` — Markdown et texte brut),
+                 cibles d'une note (`noteTargets.ts` — nommer, ou le dire)
   backend/       sélection du backend, port du référentiel, démonstration,
                  portraits (IndexedDB, sur l'appareil — `photos.ts`), envoi
-                 d'une image par la feuille du système (`sharePhoto.ts`)
+                 d'une image par la feuille du système (`sharePhoto.ts`), liens
+                 de partage des notes (`sharing.ts` — créer, révoquer, lire)
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
                  notes du compte (useNotesStore), portraits (usePhotosStore :
@@ -131,17 +143,22 @@ src/
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
                  PairBlock (le binôme : celui de la source, ou le vôtre),
                  Avatar + ContestantTraits + PhotoPicker (portrait, sexe, âge),
-                 PhotoShare (envoyer l'image, l'enregistrer, ou le QR du lien),
+                 PhotoShare et NoteShare, tous deux sur ShareLinkPanel (le QR,
+                 l'adresse en clair, et le partage natif d'un lien),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
-                 réglages, hors-ligne
+                 réglages, hors-ligne, et `share/` — ce qu'un lien ouvre, pour
+                 n'importe qui, sans session
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
                  0009 correctifs · 0010 tribus et épreuves · 0011 version
                  d'extraction · 0012 format d'épreuve · 0013 colliers ·
                  0014 colonnes mortes · 0015-0018 duos révélés, ordre des
-                 publications, photo des remplacements, cause extraite
+                 publications, photo des remplacements, cause extraite ·
+                 0019 lieu de tournage · 0020 révision publiée ·
+                 0021 partage des notes (lecteur de collection, et la
+                 jointure de profil rendue EXTERNE)
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS et publication (pgTAP)
 ```
@@ -170,13 +187,19 @@ Six choix qui structurent le code :
   est dite confirmée ou contredite plutôt qu'effacée en silence. Un duo révélé
   mais **masqué** ne compte pour rien, pas même pour retirer un nom de la liste
   des binômes possibles : cette absence-là divulguerait ce que l'écran cache ;
-- **partager, c'est donner — pas publier.** Aucune route de partage ne dépose
-  une image sur un serveur. Le fichier est relu depuis IndexedDB **avant** que
-  le bouton n'apparaisse (Safari veut que `navigator.share` parte du geste), et
-  la charge examinée par `canShare` est exactement celle qui sera envoyée —
-  vérifier `{ files }` puis envoyer `{ files, url }` fait dire oui au bouton et
-  non au clic. Ce qui ne peut pas passer est dit avec le chiffre : le QR code
-  porte le lien parce qu'un QR contient au plus 2,9 ko.
+- **donner et publier ne sont pas le même geste, et l'écran ne les confond
+  pas.** Aucune route ne dépose une image sur un serveur ; un texte ou un
+  fichier de notes non plus. Ce qui publie — un lien de lecture — le dit avant,
+  et se révoque. Les détails qui font que ça tient : le fichier est relu depuis
+  IndexedDB **avant** que le bouton n'apparaisse (Safari veut que
+  `navigator.share` parte du geste) ; la charge examinée par `canShare` est
+  exactement celle qui sera envoyée — vérifier `{ files }` puis envoyer
+  `{ files, url }` fait dire oui au bouton et non au clic ; la **visibilité**
+  d'une note s'ouvre avant que son lien n'existe, sinon l'adresse promettrait
+  ce que le serveur refuse ; et un lien de collection nomme une **règle**, pas
+  une liste figée, ce qui rend le retrait immédiat. Ce qui ne peut pas passer
+  est dit avec le chiffre : le QR code porte le lien parce qu'un QR contient au
+  plus 2,9 ko.
 
 ## Documentation
 
@@ -317,9 +340,10 @@ Dans l'ordre :
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
-3. le **partage d'une note** (lien révocable) et le **profil** (pseudonyme,
-   visibilité) : les tables, la fonction à jeton et les politiques sont prêtes
-   et testées, les écrans non. La connexion et les notes, elles, sont livrées ;
+3. le **profil** (pseudonyme, visibilité) : la table et ses politiques sont
+   prêtes, l'écran non — et rien ne crée jamais de ligne dans `profiles`, ce
+   qui rend tout partage anonyme (« quelqu'un qui n'a pas choisi de
+   pseudonyme ») ;
 4. la **suppression de compte** : la cascade existe en base, mais l'effacer
    demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
    l'avoir ;

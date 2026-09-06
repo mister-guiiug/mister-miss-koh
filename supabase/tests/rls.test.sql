@@ -12,7 +12,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(24);
+select plan(33);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 -- Deux comptes, une note privée chacun, et une saison à moitié publiée.
@@ -25,7 +25,12 @@ select plan(24);
 -- ce que les tests vérifient (la cascade de suppression de compte).
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'a@exemple.test'),
-  ('22222222-2222-2222-2222-222222222222', 'b@exemple.test');
+  ('22222222-2222-2222-2222-222222222222', 'b@exemple.test'),
+  -- C N'A PAS DE PROFIL, et c'est le cas de TOUT compte réel : rien ne crée de
+  -- ligne dans `profiles` — ni déclencheur, ni application —, et `pseudonym`
+  -- est `not null` sans défaut. Le décor d'origine donnait un profil à ses deux
+  -- comptes, ce qui masquait exactement le défaut que 0021 corrige.
+  ('99999999-9999-9999-9999-999999999999', 'c@exemple.test');
 
 insert into profiles (id, pseudonym, visibility) values
   ('11111111-1111-1111-1111-111111111111', 'Alpha', 'private'),
@@ -53,13 +58,28 @@ values
   ('88888888-8888-8888-8888-888888888888',
    '22222222-2222-2222-2222-222222222222',
    '33333333-3333-3333-3333-333333333333',
-   'Note publique de B', 'contenu publié', 'public');
+   'Note publique de B', 'contenu publié', 'public'),
+  -- « link » et non « public » : une note publique de C entrerait dans le
+  -- compte de la section 2 bis, qui vérifie autre chose.
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   '99999999-9999-9999-9999-999999999999',
+   '33333333-3333-3333-3333-333333333333',
+   'Note de C, sans profil', 'lisible quand même', 'link');
 
 insert into share_links (id, owner_id, token, scope, note_id) values
   ('77777777-7777-7777-7777-777777777777',
    '11111111-1111-1111-1111-111111111111',
    'jeton-de-demonstration', 'note',
-   '66666666-6666-6666-6666-666666666666');
+   '66666666-6666-6666-6666-666666666666'),
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+   '99999999-9999-9999-9999-999999999999',
+   'jeton-sans-profil', 'note',
+   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  -- Une collection ne désigne AUCUNE note : elle nomme une règle, appliquée à
+  -- la lecture (contrainte `share_links_scope_target`).
+  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+   '11111111-1111-1111-1111-111111111111',
+   'jeton-collection', 'note_collection', null);
 
 -- Se faire passer pour un utilisateur : rôle + revendication `sub` du jeton,
 -- exactement ce que PostgREST met en place à chaque requête.
@@ -208,13 +228,15 @@ select throws_ok(
 );
 
 -- Le contenu rendu est CHOISI : ni propriétaire, ni identifiant de lien.
+--
+-- Cette assertion lisait `routine_definition`, qui est NULL pour qui n'est pas
+-- propriétaire de la fonction : le `not exists` était alors vrai sans rien
+-- prouver, et le test ne POUVAIT pas échouer. Ce sont les colonnes rendues
+-- qu'il faut interroger.
 select ok(
-  not exists (
-    select 1 from information_schema.routines r
-    where r.routine_name = 'get_shared_note'
-      and r.routine_definition ilike '%n.user_id%'
-  ),
-  'get_shared_note ne renvoie jamais user_id'
+  pg_get_function_result('get_shared_note(text)'::regprocedure)
+    !~* '(user|owner)_id',
+  'get_shared_note ne rend ni user_id ni owner_id'
 );
 
 -- ── Révocation : effective à la requête suivante ───────────────────────────
@@ -240,6 +262,85 @@ select throws_ok(
   $$ select * from get_shared_note('jeton-de-demonstration') $$,
   'P0002', NULL,
   'un lien expiré n''ouvre plus rien'
+);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 3 bis. Partager une note sans profil, et partager la collection
+-- ════════════════════════════════════════════════════════════════════════════
+
+select devenir_anonyme();
+
+-- LE DÉFAUT QUE 0021 CORRIGE. `get_shared_note` joignait `profiles` en
+-- jointure INTERNE ; comme rien ne crée jamais de profil, tout lien valide
+-- d'un compte réel ouvrait une page vide, sans erreur.
+select is(
+  (select count(*)::int from get_shared_note('jeton-sans-profil')), 1,
+  'une note dont l''auteur n''a pas de profil se lit quand même'
+);
+select is(
+  (select author_pseudonym from get_shared_note('jeton-sans-profil')), NULL,
+  'et son auteur est simplement anonyme, pas absent'
+);
+select is(
+  (select target from get_shared_note('jeton-sans-profil')), 'season',
+  'la note partagée dit sur QUOI elle porte'
+);
+
+-- ── La collection : une règle, pas un instantané ───────────────────────────
+select is(
+  (select count(*)::int from get_shared_notes('jeton-collection')), 1,
+  'la collection de A ne montre que sa note « link », pas la privée'
+);
+
+select devenir('11111111-1111-1111-1111-111111111111');
+update personal_notes set visibility = 'link'
+ where id = '55555555-5555-5555-5555-555555555555';
+select devenir_anonyme();
+select is(
+  (select count(*)::int from get_shared_notes('jeton-collection')), 2,
+  'rendre une note partageable l''ajoute au lien, sans en refaire un'
+);
+
+select devenir('11111111-1111-1111-1111-111111111111');
+update personal_notes set visibility = 'private'
+ where id = '55555555-5555-5555-5555-555555555555';
+select devenir_anonyme();
+select is(
+  (select count(*)::int from get_shared_notes('jeton-collection')), 1,
+  'et la rendre privée l''en retire à la requête suivante'
+);
+
+-- ── Les portées ne se croisent pas ─────────────────────────────────────────
+-- Le jeton de la section 3 a été expiré : on le remet en état, sans quoi ce
+-- test passerait pour la mauvaise raison.
+select devenir('11111111-1111-1111-1111-111111111111');
+update share_links set revoked_at = null, expires_at = null
+ where id = '77777777-7777-7777-7777-777777777777';
+select devenir_anonyme();
+select throws_ok(
+  $$ select * from get_shared_notes('jeton-de-demonstration') $$,
+  'P0002', NULL,
+  'un jeton de note VIVANT n''ouvre pas la collection'
+);
+
+select devenir('11111111-1111-1111-1111-111111111111');
+update share_links set revoked_at = now()
+ where id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+select devenir_anonyme();
+select throws_ok(
+  $$ select * from get_shared_notes('jeton-collection') $$,
+  'P0002', NULL,
+  'révoquer le lien de collection ferme tout, aussitôt'
+);
+
+-- LE CONTRAT, PAS LE TEXTE DE LA FONCTION. `get_shared_notes` filtre bien sur
+-- `n.user_id` — c'est ainsi qu'elle sait de qui sont les notes ; chercher cette
+-- chaîne dans son corps confondrait « s'en servir » et « le rendre ». Ce sont
+-- les colonnes RENDUES qu'il faut regarder.
+select ok(
+  pg_get_function_result('get_shared_notes(text)'::regprocedure)
+    !~* '(user|owner)_id',
+  'get_shared_notes ne rend ni user_id ni owner_id'
 );
 
 -- ════════════════════════════════════════════════════════════════════════════

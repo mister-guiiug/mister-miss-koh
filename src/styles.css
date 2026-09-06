@@ -876,19 +876,63 @@ body,
 
 /* Une note : le texte à gauche, l'action destructrice à droite et à l'écart,
    pour qu'un pouce visant le corps de la note ne l'efface pas. */
+/* Une note est désormais une COLONNE : sa ligne, puis le panneau de partage
+   qui se déplie dessous sur toute la largeur. */
 .note {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.7rem 0.8rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
 
-.note > div {
+.note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.note-row > div {
   flex: 1;
   min-width: 0;
+}
+
+/* La coche s'aligne sur la première ligne de texte, pas sur le haut du bloc. */
+.note-pick {
+  margin-top: 0.35rem;
+}
+
+.note-share {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Ce que la sélection permet — visible seulement quand elle existe, pour ne
+   pas occuper la place d'une barre vide le reste du temps. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.bulk-bar > strong {
+  margin-right: auto;
+  font-size: 0.9rem;
+}
+
+/* Le corps d'une note partagée garde ses retours à la ligne : c'est du texte
+   écrit à la main, pas un paragraphe reflué. */
+.shared-body {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .note p {

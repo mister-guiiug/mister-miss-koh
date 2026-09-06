@@ -30,6 +30,7 @@ import { ContestantsScreen } from './features/contestants/ContestantsScreen';
 import { ContestantDetailScreen } from './features/contestants/ContestantDetailScreen';
 import { EpisodesScreen } from './features/episodes/EpisodesScreen';
 import { NotesScreen } from './features/notes/NotesScreen';
+import { SharedNotesScreen } from './features/share/SharedNotesScreen';
 import { AccountScreen } from './features/account/AccountScreen';
 import { SettingsScreen } from './features/settings/SettingsScreen';
 import { OfflineScreen } from './features/offline/OfflineScreen';
@@ -57,6 +58,10 @@ function RoutedApp() {
           <Route path="/candidats/:id" element={<ContestantDetailScreen />} />
           <Route path="/episodes" element={<EpisodesScreen />} />
           <Route path="/notes" element={<NotesScreen />} />
+          {/* Ouvert à tous, sans session : c'est le serveur qui décide, à
+              partir du jeton seul. La portée est dans l'adresse parce qu'un
+              jeton ne dit pas laquelle des deux fonctions l'ouvre. */}
+          <Route path="/partage/:kind/:token" element={<SharedNotesScreen />} />
           <Route path="/compte" element={<AccountScreen />} />
           <Route path="/reglages" element={<SettingsScreen />} />
           <Route path="/hors-connexion" element={<OfflineScreen />} />
