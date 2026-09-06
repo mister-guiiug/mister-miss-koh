@@ -107,7 +107,7 @@ export function ContestantDetailScreen() {
           }
         />
         <div className="identity">
-          <Avatar contestant={contestant} size="lg" />
+          <Avatar contestant={contestant} size="lg" zoomable />
           <div className="identity-main">
             <ContestantTraits contestant={contestant} size="md" />
             <p className="chips-row">

@@ -82,6 +82,24 @@ describe('App', () => {
     expect(pied!.textContent).toContain('Code source');
   });
 
+  it('la carte de version dit QUEL build tourne, et de quoi il est fait', async () => {
+    // Un numéro de version ne distingue pas deux déploiements du même jour.
+    // Et « ^4.5.0 » dans un package.json ne dit pas sur quelle 4.x on tourne :
+    // ce sont les versions DU DISQUE qui répondent, injectées au build.
+    window.location.hash = '#/reglages';
+    const { container } = render(<App />);
+    await screen.findByText('Version installée');
+
+    expect(screen.getByText('Application')).toBeInTheDocument();
+    expect(screen.getByText('Build')).toBeInTheDocument();
+
+    const details = container.querySelector('details.version-details');
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+    expect(details!.textContent).toContain('@mister-guiiug/dev-pwa-config');
+    expect(details!.textContent).toContain('4.5.0');
+  });
+
   it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {
     // Retirer un pavé d'un écran ne doit pas retirer la traçabilité de
     // l'application : c'est la promesse du README, et elle se vérifie là où
