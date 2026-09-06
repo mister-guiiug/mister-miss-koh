@@ -18,6 +18,7 @@ jobs:
   ci:
     uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-ci.yml@v4
     with:
+      run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
       run-e2e: false
 
   # Les Edge Functions sont du Deno : hors du périmètre de `pwa-ci`, qui ne
