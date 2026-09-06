@@ -69,7 +69,16 @@ sans passer par ses fichiers.
 **Et la fiche mène à ce qu'on vient y lire.** Déposer une photo, la remplacer,
 la retirer, l'enregistrer, en confier une copie : cinq boutons qui occupaient
 le haut de la fiche et repoussaient plus bas les saisons précédentes, le
-binôme et la source. Ils se déplient d'un clic sous « Photo et partage ».
+binôme et la source. Ils se déplient d'un clic sous « Photo et partage ». La
+vignette, elle, **s'ouvre en grand d'un clic** — sur la fiche seulement : dans
+une liste, elle jouxte déjà un lien vers cette fiche.
+
+**Les Réglages disent quel build tourne, et de quoi il est fait.** Un numéro de
+version ne distingue pas deux déploiements du même jour : la carte « Version
+installée » porte aussi le commit et l'heure de compilation, et un repli donne
+les versions **réellement installées** des bibliothèques — `^4.5.0` ne dit pas
+si l'on tourne sur la 4.5.0 ou la 4.9.2, et c'est précisément la question qu'on
+se pose quand un build se comporte autrement qu'un autre.
 
 **Un pseudonyme se choisit, il ne s'invente pas.** Aucun profil n'est créé
 automatiquement : `pseudonym` est obligatoire, et le fabriquer depuis une
@@ -130,13 +139,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 330 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 335 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
 | `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 26 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 286,5 kB gzip, index 93 kB |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 287,1 kB gzip, index 90 kB |
 | `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,

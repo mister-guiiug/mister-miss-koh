@@ -13,6 +13,41 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
   version: string;
 };
 
+/**
+ * La version RÉELLEMENT INSTALLÉE d'une dépendance — celle du disque, pas la
+ * portée souhaitée du `package.json`. C'est la différence qui compte quand on
+ * cherche pourquoi un build se comporte autrement qu'un autre : `^4.5.0` ne
+ * dit pas si l'on tourne sur la 4.5.0 ou la 4.9.2.
+ *
+ * Lecture DIRECTE du fichier plutôt que `require.resolve` : beaucoup de
+ * paquets n'exposent pas `./package.json` dans leur carte d'`exports`, et la
+ * résolution échouerait sur eux seuls. Une dépendance introuvable rend une
+ * chaîne vide et disparaît de la liste — on ne fabrique pas un numéro.
+ */
+function installedVersion(name: string): string {
+  try {
+    const raw = readFileSync(`./node_modules/${name}/package.json`, 'utf-8');
+    return (JSON.parse(raw) as { version?: string }).version ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** Ce dont l'application est faite, dans l'ordre où on le cherche. */
+const DEPENDENCIES = [
+  '@mister-guiiug/dev-pwa-config',
+  'react',
+  'react-router-dom',
+  '@supabase/supabase-js',
+  'zustand',
+  'zod',
+  'vite',
+] as const;
+
+const deps = DEPENDENCIES.map(name => [name, installedVersion(name)] as const)
+  .filter(([, v]) => v !== '')
+  .map(([name, v]) => ({ name, version: v }));
+
 // Dépôt GitHub Pages : https://mister-guiiug.github.io/mister-miss-koh/
 export default defineConfig(({ command }) => {
   const buildId =
@@ -35,6 +70,14 @@ export default defineConfig(({ command }) => {
     define: {
       __APP_VERSION__: JSON.stringify(version),
       __APP_BUILD_ID__: JSON.stringify(buildId),
+      // Le commit et l'heure du build, pour que « Version installée » dise
+      // QUEL build tourne — un numéro de version seul ne distingue pas deux
+      // déploiements du même jour.
+      __APP_COMMIT__: JSON.stringify(process.env.GITHUB_SHA ?? ''),
+      __APP_BUILT_AT__: JSON.stringify(
+        command === 'build' ? new Date().toISOString() : ''
+      ),
+      __APP_DEPS__: JSON.stringify(deps),
     },
     build: {
       sourcemap: true,

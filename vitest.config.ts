@@ -14,6 +14,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __APP_BUILD_ID__: JSON.stringify('test'),
+    __APP_COMMIT__: JSON.stringify(''),
+    __APP_BUILT_AT__: JSON.stringify(''),
+    // Deux dépendances suffisent à éprouver l'affichage ; la liste réelle est
+    // lue du disque par `vite.config.ts` et n'a pas à être rejouée ici.
+    __APP_DEPS__: JSON.stringify([
+      { name: '@mister-guiiug/dev-pwa-config', version: '4.5.0' },
+      { name: 'react', version: '19.2.0' },
+    ]),
   },
   test: {
     ...baseTestOptions,

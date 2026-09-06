@@ -410,6 +410,82 @@ body,
   gap: 0.5rem;
 }
 
+/* Le repli des versions : même grammaire que celui de la photo sur la fiche
+   (`.photo-tools`), pour qu'un chevron veuille dire la même chose partout. */
+.version-details > summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.version-details > summary::-webkit-details-marker,
+.version-details > summary::marker {
+  display: none;
+  content: '';
+}
+
+.version-details > summary::after {
+  content: '';
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-inline-start: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-base);
+}
+
+.version-details[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.version-details[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+/* Les noms de paquets sont longs : sur une colonne étroite, ils passent
+   au-dessus de leur numéro plutôt que de l'écraser. */
+.version-details .stats {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  font-size: 0.85rem;
+}
+
+.version-details .stats dt {
+  overflow-wrap: anywhere;
+}
+
+/* La vignette agrandissable reste une vignette : le bouton ne doit rien
+   ajouter autour d'elle, seulement rendre le geste possible. */
+.avatar-zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+/* La photo en grand tient dans la feuille sans la déborder ni s'étirer :
+   c'est une vignette de 512 px, l'agrandir au-delà ne montrerait rien de
+   plus. Le fond évite le blanc le temps du décodage. */
+.photo-zoom {
+  display: block;
+  /* `width: 100%` ET un plafond : sans la largeur, une image plus petite que
+     la feuille resterait à sa taille — « en grand » ne montrerait rien de
+     plus. Les portraits déposés font 512 px au plus, donc le plafond de 32rem
+     ne les agrandit jamais ; il ne sert qu'aux cas dégénérés. */
+  width: 100%;
+  max-width: min(100%, 32rem);
+  max-height: 70vh;
+  object-fit: contain;
+  margin-inline: auto;
+  border-radius: var(--radius);
+  background-color: var(--surface);
+}
+
 /* ── Réglages : un rythme, pas des marges ──────────────────────────────── */
 /*
    Chaque carte devient une COLONNE avec son propre écart. Les enfants
