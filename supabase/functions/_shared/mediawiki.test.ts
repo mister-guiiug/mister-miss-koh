@@ -9,6 +9,7 @@
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@^1";
 import {
   extractHash,
+  fetchCoordinates,
   fetchRevision,
   fetchSectionHtml,
   findSection,
@@ -100,6 +101,37 @@ Deno.test("un HTTP 429 remonte avec son statut", async () => {
     WikiError,
   );
   assertEquals((error as WikiError).status, 429);
+});
+
+Deno.test("les coordonnées d'une page de lieu, ou rien", async () => {
+  const { impl, calls } = stubFetch({
+    query: {
+      pages: [{
+        pageid: 4637074,
+        title: "Archipel des Perles",
+        coordinates: [{
+          lat: 8.33333333,
+          lon: -79.11666667,
+          primary: true,
+          globe: "earth",
+        }],
+      }],
+    },
+  });
+  assertEquals(await fetchCoordinates(config(impl), "Archipel des Perles"), {
+    lat: 8.33333333,
+    lon: -79.11666667,
+  });
+  const url = new URL(calls[0].url);
+  assertEquals(url.searchParams.get("prop"), "coordinates");
+  assertEquals(url.searchParams.get("titles"), "Archipel des Perles");
+
+  // Une page sans coordonnées, une page absente : rien, sans erreur — un lieu
+  // sans point reste un lieu.
+  const none = stubFetch({ query: { pages: [{ pageid: 1, title: "Sans lieu" }] } });
+  assertEquals(await fetchCoordinates(config(none.impl), "Sans lieu"), null);
+  const missing = stubFetch({ query: { pages: [{ title: "X", missing: true }] } });
+  assertEquals(await fetchCoordinates(config(missing.impl), "X"), null);
 });
 
 Deno.test("une section se cherche par son TITRE, jamais par son rang", () => {

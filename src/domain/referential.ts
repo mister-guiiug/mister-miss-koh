@@ -22,6 +22,15 @@ export const SeasonRuleSchema = z.object({
   toEpisode: z.number().int().positive().nullable(),
 });
 
+export const SeasonLocationSchema = z.object({
+  /** « Archipel des Perles (Panama) » */
+  name: z.string(),
+  /** La page géolocalisée — l'archipel, pas le pays. */
+  pageTitle: z.string().nullable(),
+  lat: z.number().min(-90).max(90).nullable(),
+  lon: z.number().min(-180).max(180).nullable(),
+});
+
 export const SeasonSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -36,6 +45,13 @@ export const SeasonSchema = z.object({
    */
   status: z.enum(['announced', 'airing', 'completed', 'unknown']),
   rules: z.array(SeasonRuleSchema),
+  /**
+   * Le lieu de tournage, tel que la source l'écrit, et le point de la page de
+   * lieu qu'elle cite (API MediaWiki). `null` tant que rien n'est publié — et
+   * par défaut, pour qu'un référentiel mis en cache avant cette colonne passe
+   * encore la frontière.
+   */
+  location: SeasonLocationSchema.nullable().default(null),
 });
 
 export const ContestantSchema = z.object({
@@ -46,6 +62,8 @@ export const ContestantSchema = z.object({
   previousSeasons: z.array(z.string()),
   teamId: z.string().nullable(),
   pairId: z.string().nullable(),
+  /** Membre du jury final, quand la source le dit ; `null` = pas encore. */
+  finalJury: z.boolean().nullable().default(null),
 });
 
 export const TeamSchema = z.object({
@@ -160,6 +178,8 @@ export const AdvantageSchema = z.object({
 export const ProvenanceSchema = z.object({
   kind: z.enum(['demo', 'wikipedia']),
   label: z.string(),
+  /** Titre de la page source (« Koh-Lanta All Stars »), quand la source en a un. */
+  title: z.string().nullable().default(null),
   url: z.string().nullable(),
   revision: z.string().nullable(),
   fetchedAt: z.string().nullable(),

@@ -1,19 +1,24 @@
 /**
- * Les notes personnelles.
+ * Les notes personnelles, toutes ensemble.
  *
  * ELLES VIVENT SUR LE SERVEUR, ET NULLE PART AILLEURS. Les favoris et les
  * épisodes vus restent sur l'appareil parce qu'ils n'ont aucune valeur hors
  * de lui ; une note a un texte, on la relit d'un autre appareil, et on ne veut
  * pas la perdre en vidant un cache. Elle demande donc un compte.
  *
+ * DEPUIS LE MAGASIN PARTAGÉ (`useNotesStore`) : une note écrite sur la fiche
+ * d'un candidat ou sous un épisode apparaît ici aussitôt, et l'inverse.
+ * L'éditeur est le même partout (`NoteEditor`) ; cet écran ajoute seulement
+ * le choix de la cible, groupé par nature, et le lien vers chaque cible.
+ *
  * CE QUE CET ÉCRAN NE FAIT PAS, ET LE DIT : il ne partage rien. Le schéma
  * porte déjà `share_links`, sa fonction de jeton et ses politiques ; le
  * parcours de partage viendra à part, parce qu'un lien révocable mérite son
  * propre écran et ses propres tests.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Star, Trash2 } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
@@ -22,50 +27,38 @@ import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../../store/useAppStore';
-import { useSession } from '../../hooks/useSession';
-import {
-  type Note,
-  type NoteTarget,
-  notesRepository,
-} from '../../backend/notes';
+import { useNotes } from '../../hooks/useNotes';
+import { useNotesStore } from '../../store/useNotesStore';
+import { NoteEditor, type NoteValues } from '../../components/NoteEditor';
+import type { Note, NoteTarget } from '../../backend/notes';
 
-/** Les cibles que cet écran sait proposer, avec de quoi les nommer. */
+const GROUPS = ['Saison', 'Candidats', 'Épisodes'] as const;
+type Group = (typeof GROUPS)[number];
+
+/** Les cibles que cet écran sait proposer, avec de quoi les nommer et y aller. */
 interface Choice {
   target: NoteTarget;
   id: string;
   label: string;
+  group: Group;
+  href: string;
 }
 
 export function NotesScreen() {
-  const { account, available } = useSession();
+  const { account, available, notes, loading, error } = useNotes();
   const referential = useAppStore(s => s.referential);
+  const create = useNotesStore(s => s.create);
+  const update = useNotesStore(s => s.update);
+  const remove = useNotesStore(s => s.remove);
   const toast = useToast();
-  const [notes, setNotes] = useState<Note[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState('');
-  const [body, setBody] = useState('');
-  /** La note en cours de correction, et son texte de travail. */
-  const [editing, setEditing] = useState<{ id: string; body: string } | null>(
-    null
-  );
-  /**
-   * La note dont la suppression attend confirmation. La corbeille effaçait
-   * au premier tap ; une suppression, même logique côté serveur, se demande.
-   */
+  /** La note en cours de correction. */
+  const [editing, setEditing] = useState<string | null>(null);
+  /** La note dont la suppression attend confirmation. */
   const [toDelete, setToDelete] = useState<Note | null>(null);
-  /** Incrémentée après chaque écriture : c'est ce qui redemande la liste. */
-  const [revision, setRevision] = useState(0);
-  const reload = () => setRevision(r => r + 1);
-
-  /**
-   * Le bouton « Modifier » disparaît en s'activant : sans ce déplacement, le
-   * focus retomberait sur le document et un utilisateur au clavier perdrait sa
-   * place. La référence est STABLE, sinon React la rejouerait à chaque frappe.
-   */
-  const focusOnMount = useCallback((el: HTMLTextAreaElement | null) => {
-    el?.focus();
-  }, []);
+  /** Remonte l'éditeur — donc le vide — après chaque note enregistrée. */
+  const [formKey, setFormKey] = useState(0);
 
   const choices = useMemo<Choice[]>(() => {
     if (!referential) return [];
@@ -73,50 +66,30 @@ export function NotesScreen() {
       {
         target: 'season' as const,
         id: referential.season.id,
-        label: `Saison — ${referential.season.name}`,
+        label: referential.season.name,
+        group: 'Saison' as const,
+        href: '/',
       },
       ...referential.contestants.map(c => ({
         target: 'season_contestant' as const,
         id: c.id,
-        label: `Candidat — ${c.displayName}`,
+        label: c.displayName,
+        group: 'Candidats' as const,
+        href: `/candidats/${c.id}`,
       })),
       ...referential.episodes.map(e => ({
         target: 'episode' as const,
         id: e.id,
         label: `Épisode ${e.number}`,
+        group: 'Épisodes' as const,
+        href: '/episodes',
       })),
     ];
   }, [referential]);
 
-  /**
-   * La liste se recharge quand le compte change, et quand on la fait changer.
-   *
-   * `alive` n'est pas une précaution de principe : sans lui, une réponse partie
-   * avant une déconnexion reviendrait peupler l'écran d'une liste que le compte
-   * suivant n'a pas le droit de voir.
-   */
-  useEffect(() => {
-    if (!account) return;
-    let alive = true;
-    notesRepository
-      .list()
-      .then(rows => {
-        if (!alive) return;
-        setNotes(rows);
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (alive)
-          setError(cause instanceof Error ? cause.message : String(cause));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [account, revision]);
-
-  const labelOf = (note: Note) =>
-    choices.find(c => c.target === note.target && c.id === note.targetId)
-      ?.label ?? 'Cible retirée du référentiel';
+  const choiceOf = (note: Note) =>
+    choices.find(c => c.target === note.target && c.id === note.targetId) ??
+    null;
 
   if (!available || account === null) {
     return (
@@ -142,101 +115,70 @@ export function NotesScreen() {
     );
   }
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const run = async (
+    action: () => Promise<unknown>,
+    done: string,
+    after: () => void
+  ) => {
+    setBusy(true);
+    try {
+      await action();
+      after();
+      toast.success(done);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitNew = (values: NoteValues) => {
     const target = choices.find(c => `${c.target}:${c.id}` === choice);
-    if (!target || !body.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await notesRepository.create({
-        target: target.target,
-        targetId: target.id,
-        title: null,
-        body: body.trim(),
-        rating: null,
-      });
-      setBody('');
-      reload();
-      toast.success('Note enregistrée.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const save = async () => {
-    if (!editing || !editing.body.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await notesRepository.update(editing.id, { body: editing.body.trim() });
-      setEditing(null);
-      reload();
-      toast.success('Note corrigée.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async (id: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await notesRepository.remove(id);
-      if (editing?.id === id) setEditing(null);
-      reload();
-      toast.info('Note supprimée.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-      setToDelete(null);
-    }
+    if (!target) return;
+    return run(
+      () => create({ target: target.target, targetId: target.id, ...values }),
+      'Note enregistrée.',
+      () => setFormKey(k => k + 1)
+    );
   };
 
   return (
     <div className="stack">
       <h2>Notes</h2>
+      <p className="muted">
+        Une note se prend aussi sur la fiche d’un candidat ou sous un épisode,
+        là où la chose est sous vos yeux.
+      </p>
 
       <Card>
         <CardHeader title="Écrire une note" />
-        <form className="stack" onSubmit={e => void submit(e)}>
+        <NoteEditor
+          key={formKey}
+          onSubmit={submitNew}
+          busy={busy}
+          canSubmit={choice !== ''}
+        >
           <label className="field">
             <span>À propos de</span>
             <select value={choice} onChange={e => setChoice(e.target.value)}>
               <option value="">Choisir…</option>
-              {choices.map(c => (
-                <option
-                  key={`${c.target}:${c.id}`}
-                  value={`${c.target}:${c.id}`}
-                >
-                  {c.label}
-                </option>
+              {GROUPS.map(group => (
+                <optgroup key={group} label={group}>
+                  {choices
+                    .filter(c => c.group === group)
+                    .map(c => (
+                      <option
+                        key={`${c.target}:${c.id}`}
+                        value={`${c.target}:${c.id}`}
+                      >
+                        {c.label}
+                      </option>
+                    ))}
+                </optgroup>
               ))}
             </select>
           </label>
-          <label className="field">
-            <span>Note</span>
-            <textarea
-              rows={4}
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Ce que vous voulez retenir…"
-              maxLength={20000}
-            />
-          </label>
-          <Button
-            type="submit"
-            loading={busy}
-            disabled={!choice || !body.trim()}
-          >
-            Enregistrer
-          </Button>
-        </form>
+        </NoteEditor>
       </Card>
 
       {error && (
@@ -246,7 +188,9 @@ export function NotesScreen() {
       )}
 
       {notes === null ? (
-        <SkeletonGroup label="Chargement des notes" lines={3} />
+        loading || !error ? (
+          <SkeletonGroup label="Chargement des notes" lines={3} />
+        ) : null
       ) : notes.length === 0 ? (
         <EmptyState
           title="Aucune note"
@@ -254,73 +198,84 @@ export function NotesScreen() {
         />
       ) : (
         <ul className="list">
-          {notes.map(note => (
-            <li key={note.id} className="note">
-              <div>
-                <strong>{labelOf(note)}</strong>
-                {editing?.id === note.id ? (
-                  <div className="stack">
-                    <label className="field">
-                      <span className="sr-only">Corriger la note</span>
-                      <textarea
-                        rows={4}
-                        ref={focusOnMount}
-                        value={editing.body}
-                        onChange={e =>
-                          setEditing({ id: note.id, body: e.target.value })
-                        }
-                        maxLength={20000}
-                      />
-                    </label>
-                    <div className="filters">
-                      <Button
-                        size="sm"
-                        loading={busy}
-                        disabled={!editing.body.trim()}
-                        onClick={() => void save()}
-                      >
-                        Enregistrer
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditing(null)}
-                      >
-                        Annuler
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p>{note.body}</p>
-                    <small className="muted">
-                      modifiée le {formatDate(note.updatedAt)}
-                    </small>
-                  </>
+          {notes.map(note => {
+            const target = choiceOf(note);
+            return (
+              <li key={note.id} className="note">
+                <div>
+                  <strong>
+                    {target ? (
+                      <Link to={target.href}>{target.label}</Link>
+                    ) : (
+                      'Cible retirée du référentiel'
+                    )}
+                  </strong>
+                  {editing === note.id ? (
+                    <NoteEditor
+                      initial={note}
+                      onSubmit={values =>
+                        run(
+                          () => update(note.id, values),
+                          'Note corrigée.',
+                          () => setEditing(null)
+                        )
+                      }
+                      onCancel={() => setEditing(null)}
+                      busy={busy}
+                      focusOnMount
+                    />
+                  ) : (
+                    <>
+                      {note.title && <p className="note-title">{note.title}</p>}
+                      {note.rating !== null && (
+                        <span
+                          className="rating"
+                          aria-label={`${note.rating} sur 5`}
+                        >
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star
+                              key={n}
+                              size={14}
+                              aria-hidden
+                              fill={
+                                n <= (note.rating ?? 0)
+                                  ? 'currentColor'
+                                  : 'none'
+                              }
+                            />
+                          ))}
+                        </span>
+                      )}
+                      <p>{note.body}</p>
+                      <small className="muted">
+                        modifiée le {formatDate(note.updatedAt)}
+                      </small>
+                    </>
+                  )}
+                </div>
+                {editing !== note.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Modifier la note sur ${target?.label ?? 'une cible retirée'}`}
+                    onClick={() => setEditing(note.id)}
+                  >
+                    <Pencil size={18} aria-hidden />
+                  </Button>
                 )}
-              </div>
-              {editing?.id !== note.id && (
                 <Button
                   variant="ghost"
                   size="sm"
                   iconOnly
-                  aria-label={`Modifier la note sur ${labelOf(note)}`}
-                  onClick={() => setEditing({ id: note.id, body: note.body })}
+                  aria-label={`Supprimer la note sur ${target?.label ?? 'une cible retirée'}`}
+                  onClick={() => setToDelete(note)}
                 >
-                  <Pencil size={18} aria-hidden />
+                  <Trash2 size={18} aria-hidden />
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                iconOnly
-                aria-label={`Supprimer la note sur ${labelOf(note)}`}
-                onClick={() => setToDelete(note)}
-              >
-                <Trash2 size={18} aria-hidden />
-              </Button>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -329,13 +284,21 @@ export function NotesScreen() {
         title="Supprimer cette note ?"
         message={
           toDelete
-            ? `La note sur « ${labelOf(toDelete)} » sera retirée de votre compte.`
+            ? `La note sur « ${choiceOf(toDelete)?.label ?? 'une cible retirée'} » sera retirée de votre compte.`
             : undefined
         }
         destructive
         loading={busy}
         onConfirm={() => {
-          if (toDelete) void remove(toDelete.id);
+          if (toDelete)
+            void run(
+              () => remove(toDelete.id),
+              'Note supprimée.',
+              () => {
+                if (editing === toDelete.id) setEditing(null);
+                setToDelete(null);
+              }
+            );
         }}
         onCancel={() => setToDelete(null)}
       />

@@ -30,6 +30,7 @@ const read = (name: string) =>
 const CANDIDATS = await read("candidats");
 const DEROULEMENT = await read("deroulement");
 const VOTES = await read("votes");
+const INTRODUCTION = await read("introduction");
 
 /** Port de fantaisie : garde trace de tout, n'écrit nulle part. */
 function fakePort(overrides: Partial<ImportPort> & {
@@ -105,7 +106,8 @@ function fakeFetch(options: {
     { index: "5", line: "Déroulement" },
     { index: "7", line: "Détails des votes" },
   ];
-  const html = options.html ?? { "4": CANDIDATS, "5": DEROULEMENT, "7": VOTES };
+  const html = options.html ??
+    { "0": INTRODUCTION, "4": CANDIDATS, "5": DEROULEMENT, "7": VOTES };
 
   return (input) => {
     const url = new URL(String(input));
@@ -113,7 +115,23 @@ function fakeFetch(options: {
     const prop = url.searchParams.get("prop");
     let body: unknown;
 
-    if (action === "query") {
+    if (action === "query" && prop === "coordinates") {
+      // La page du lieu, telle que l'API la géolocalise (relevé du 06/09/2026).
+      body = {
+        query: {
+          pages: [{
+            pageid: 4637074,
+            title: url.searchParams.get("titles"),
+            coordinates: [{
+              lat: 8.33333333,
+              lon: -79.11666667,
+              primary: true,
+              globe: "earth",
+            }],
+          }],
+        },
+      };
+    } else if (action === "query") {
       body = {
         query: {
           pages: [{
@@ -393,4 +411,71 @@ Deno.test("même révision ET même version d'extraction : on s'arrête", async 
 
   assertEquals(outcome.status, "unchanged");
   assertEquals(calls.records.length, 0, "rien n'est lu au-delà de la révision");
+});
+
+Deno.test("le lieu de tournage entre dans le modèle, avec ses coordonnées", async () => {
+  const { port, calls } = fakePort();
+  await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
+
+  const season = calls.records.filter((r) => r.entity === "season");
+  assertEquals(season.length, 1, "une saison, une ligne");
+  assertEquals(season[0].naturalKey, DOC.seasonSlug);
+  assertEquals(season[0].payload, {
+    locationName: "Archipel des Perles (Panama)",
+    locationPageTitle: "Archipel des Perles",
+    locationLat: 8.33333333,
+    locationLon: -79.11666667,
+  });
+  assert(
+    calls.differences.some((d) => d.entity === "season" && d.operation === "insert"),
+    "et il est PROPOSÉ, comme le reste — jamais écrit en douce",
+  );
+});
+
+Deno.test("une page sans infobox : la saison reste, sans lieu, et l'anomalie le dit", async () => {
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      html: {
+        "0": "<p>Pas d'infobox ici.</p>",
+        "4": CANDIDATS,
+        "5": DEROULEMENT,
+        "7": VOTES,
+      },
+    }),
+  });
+
+  assertEquals(outcome.status, "diffed", "un lieu absent n'arrête rien");
+  const season = calls.records.find((r) => r.entity === "season");
+  assertEquals(season?.payload, {
+    locationName: null,
+    locationPageTitle: null,
+    locationLat: null,
+    locationLon: null,
+  });
+  assertEquals(season?.anomalies, ["lieu_absent"]);
+  assert(outcome.anomalies?.some((a) => a.code === "lieu_absent"));
+});
+
+Deno.test("une page de lieu sans coordonnées : le nom reste, le point manque, et c'est dit", async () => {
+  const { port, calls } = fakePort();
+  const withoutPoint: typeof fetch = (input, init) => {
+    const url = new URL(String(input));
+    if (url.searchParams.get("prop") === "coordinates") {
+      return Promise.resolve(
+        new Response(JSON.stringify({ query: { pages: [{ pageid: 1, title: "X" }] } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    }
+    return fakeFetch()(input, init);
+  };
+  await runImport(port, { ...baseOptions, fetchImpl: withoutPoint });
+
+  const season = calls.records.find((r) => r.entity === "season");
+  assertEquals(season?.payload.locationName, "Archipel des Perles (Panama)");
+  assertEquals(season?.payload.locationLat, null);
+  assertEquals(season?.anomalies, ["lieu_sans_coordonnees"]);
 });

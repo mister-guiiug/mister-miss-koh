@@ -24,7 +24,9 @@
  * file de relecture.
  */
 import {
+  type Coordinates,
   extractHash,
+  fetchCoordinates,
   fetchRevision,
   fetchSectionHtml,
   fetchSections,
@@ -35,6 +37,7 @@ import { parseTables } from "./html-table.ts";
 import { extractVotes } from "./extract-votes.ts";
 import { extractContestants, extractProgress } from "./extract-season.ts";
 import { extractAdvantages } from "./extract-advantages.ts";
+import { extractLocation, findInfobox, type SeasonLocation } from "./extract-location.ts";
 import { crossCheck } from "./cross-check.ts";
 import {
   autoValidatable,
@@ -66,8 +69,9 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *      d'épreuve recoupés
  *  3 — + colliers d'immunité (détenteurs datés, statut, voix annulées)
  *  4 — + la cause d'un départ lié (`causedBy`), qui nomme le duo
+ *  5 — + le lieu de tournage (infobox de l'introduction) et ses coordonnées
  */
-export const EXTRACTOR_VERSION = "4";
+export const EXTRACTOR_VERSION = "5";
 
 export interface SourceDocument {
   readonly id: string;
@@ -139,6 +143,7 @@ export interface RunOutcome {
 }
 
 const ENTITIES = [
+  "season",
   "season_contestant",
   "episode",
   "council_round",
@@ -232,11 +237,14 @@ export async function runImport(
     }
 
     // ── 3. Extraction ─────────────────────────────────────────────────────
-    const [contestantsHtml, progressHtml, votesHtml] = await Promise.all([
-      fetchSectionHtml(wiki, document.title, wanted.contestants),
-      fetchSectionHtml(wiki, document.title, wanted.progress),
-      fetchSectionHtml(wiki, document.title, wanted.votes),
-    ]);
+    const [contestantsHtml, progressHtml, votesHtml, introductionHtml] = await Promise
+      .all([
+        fetchSectionHtml(wiki, document.title, wanted.contestants),
+        fetchSectionHtml(wiki, document.title, wanted.progress),
+        fetchSectionHtml(wiki, document.title, wanted.votes),
+        // La section 0 est l'introduction : elle porte l'infobox, donc le lieu.
+        fetchSectionHtml(wiki, document.title, "0"),
+      ]);
 
     const contestantsTable = parseTables(contestantsHtml)[0];
     const progressTable = parseTables(progressHtml)[0];
@@ -318,6 +326,44 @@ export async function runImport(
       return { runId, status: "failed", revision: revision.revId, message, anomalies };
     }
 
+    // ── 4 bis. Le lieu de tournage, et ses coordonnées ────────────────────
+    //
+    // Facultatif de bout en bout : une infobox sans lieu, un lieu sans page,
+    // une page sans coordonnées ou une API qui ne répond pas laissent la
+    // saison sans lieu — et le disent par une anomalie, sans arrêter le lot.
+    const infobox = findInfobox(parseTables(introductionHtml));
+    const located = infobox ? extractLocation(infobox.grid) : {
+      location: null,
+      anomalies: [{
+        code: "lieu_absent",
+        message: "aucune infobox dans l'introduction de la page",
+      }],
+    };
+    const seasonCodes = located.anomalies.map((a) => a.code);
+    anomalies.push(...located.anomalies);
+
+    let coordinates: Coordinates | null = null;
+    const placeTitle = located.location?.pageTitle ?? null;
+    if (placeTitle !== null) {
+      try {
+        coordinates = await fetchCoordinates(wiki, placeTitle);
+        if (coordinates === null) {
+          seasonCodes.push("lieu_sans_coordonnees");
+          anomalies.push({
+            code: "lieu_sans_coordonnees",
+            message: `la page « ${placeTitle} » ne déclare aucune coordonnée`,
+          });
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        seasonCodes.push("lieu_sans_coordonnees");
+        anomalies.push({
+          code: "lieu_sans_coordonnees",
+          message: `coordonnées de « ${placeTitle} » injoignables : ${reason}`,
+        });
+      }
+    }
+
     // ── 5. Modèle intermédiaire, et son empreinte ─────────────────────────
     const { records, anomaliesByKey } = buildRecords(
       contestants,
@@ -325,6 +371,12 @@ export async function runImport(
       votes,
       advantages,
       anomalies,
+      {
+        slug: document.seasonSlug,
+        location: located.location,
+        coordinates,
+        anomalyCodes: seasonCodes,
+      },
     );
     const hash = await extractHash(records);
     const previousHash = await port.lastExtractHash(document.id);
@@ -404,12 +456,22 @@ export async function runImport(
  * une liste globale oblige le relecteur à chercher lequel ; rattachée à la
  * clé, elle rend la différence correspondante `ambiguous` toute seule.
  */
+/** Ce que l'introduction dit de la saison elle-même. */
+export interface SeasonFacts {
+  readonly slug: string;
+  readonly location: SeasonLocation | null;
+  readonly coordinates: Coordinates | null;
+  /** Codes d'anomalie à rattacher à la différence `season`. */
+  readonly anomalyCodes: readonly string[];
+}
+
 export function buildRecords(
   contestants: ReturnType<typeof extractContestants>,
   progress: ReturnType<typeof extractProgress>,
   votes: ReturnType<typeof extractVotes>,
   advantages: ReturnType<typeof extractAdvantages>,
   anomalies: readonly Anomaly[],
+  season: SeasonFacts,
 ): {
   records: IncomingRecord[];
   anomaliesByKey: Record<string, string[]>;
@@ -434,6 +496,16 @@ export function buildRecords(
     records.push({ entity, naturalKey, payload, anomalies: codes });
     if (codes.length > 0) anomaliesByKey[`${entity}:${naturalKey}`] = codes;
   };
+
+  // La saison elle-même : une seule ligne, dont le lieu de tournage. Un lieu
+  // absent s'écrit `null` — une valeur, pas un oubli — pour que le diff voie
+  // sa disparition si la page l'efface un jour.
+  push("season", season.slug, {
+    locationName: season.location?.name ?? null,
+    locationPageTitle: season.location?.pageTitle ?? null,
+    locationLat: season.coordinates?.lat ?? null,
+    locationLon: season.coordinates?.lon ?? null,
+  }, [...season.anomalyCodes]);
 
   for (const c of contestants.contestants) {
     push("season_contestant", c.naturalKey, {

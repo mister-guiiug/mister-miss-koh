@@ -1,16 +1,19 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { FavoriteButton } from '../../components/FavoriteButton';
+import { TargetNotes } from '../../components/TargetNotes';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { contestantById, partnerOf } from '../../domain/referential';
 import {
   challengeWins,
   councilsAttended,
+  inGame,
   lastAiredEpisode,
   votesCast,
   votesReceived,
@@ -21,6 +24,13 @@ import {
 function counted(c: Counted): string {
   return c.complete ? String(c.value) : `≥ ${c.value}`;
 }
+
+/**
+ * L'ancre de la section des candidats sur la page source. MediaWiki nomme
+ * une section par son titre ; « Candidats » est l'un des trois que le
+ * pipeline exige, il existe donc sur toute page importée.
+ */
+const CANDIDATES_ANCHOR = '#Candidats';
 
 export function ContestantDetailScreen() {
   const { id } = useParams();
@@ -46,6 +56,9 @@ export function ContestantDetailScreen() {
       cast: votesCast(referential, id, upTo),
       councils: councilsAttended(referential, id, upTo),
       wins: challengeWins(referential, id, upTo),
+      // « En jeu » se dit à la limite anti-spoiler, comme sur la liste : la
+      // fiche ne révèle pas plus que ce que l'utilisateur accepte de voir.
+      stillIn: inGame(referential, upTo).includes(id),
       upTo,
     };
   }, [referential, id, limit]);
@@ -63,6 +76,8 @@ export function ContestantDetailScreen() {
   const { contestant, partner, pair, departure, advantages } = view;
   const favorite = favorites.includes(contestant.id);
   const cause = contestantById(referential, departure?.causedById ?? null);
+  const team = referential.teams.find(t => t.id === contestant.teamId) ?? null;
+  const source = referential.provenance;
 
   return (
     <div className="stack">
@@ -71,14 +86,7 @@ export function ContestantDetailScreen() {
         <CardHeader
           as="h2"
           title={contestant.displayName}
-          subtitle={[
-            contestant.age ? `${contestant.age} ans` : null,
-            contestant.previousSeasons.length
-              ? contestant.previousSeasons.join(' · ')
-              : null,
-          ]
-            .filter(Boolean)
-            .join(' — ')}
+          subtitle={contestant.age ? `${contestant.age} ans` : undefined}
           action={
             <FavoriteButton
               name={contestant.displayName}
@@ -88,6 +96,33 @@ export function ContestantDetailScreen() {
             />
           }
         />
+        <p className="chips-row">
+          <Badge tone={view.stillIn ? 'success' : 'muted'}>
+            {view.stillIn ? 'en jeu' : 'sorti·e'}
+          </Badge>
+          {team && <Badge tone="info">{team.name}</Badge>}
+          {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
+        </p>
+
+        {/* Le CV : ce que la source dit de la personne AVANT cette saison,
+            une ligne par participation, dans l'ordre où la page les cite. */}
+        <dl className="stats">
+          <dt>Saisons précédentes</dt>
+          <dd>
+            {contestant.previousSeasons.length === 0 ? (
+              <span className="muted">
+                aucune citée par la source : première participation
+              </span>
+            ) : (
+              <ol className="cv-seasons">
+                {contestant.previousSeasons.map((season, index) => (
+                  <li key={index}>{season}</li>
+                ))}
+              </ol>
+            )}
+          </dd>
+        </dl>
+
         {partner && (
           // La source ne liste pas les duos : celui-ci n'est connu que parce
           // qu'un départ l'a nommé. Le montrer plus tôt divulgâcherait ce
@@ -102,6 +137,32 @@ export function ContestantDetailScreen() {
             </p>
           </SpoilerGuard>
         )}
+
+        {source.kind === 'wikipedia' && source.url && (
+          // Le lien va DIRECTEMENT à la section des candidats de la page
+          // source : c'est là que chaque ligne de cette fiche a été lue. La
+          // page ne lie pas les prénoms à des articles propres, il n'y a
+          // donc rien de plus précis à offrir.
+          <p>
+            <a
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              href={`${source.url}${CANDIDATES_ANCHOR}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Voir sur Wikipédia <ExternalLink size={16} aria-hidden />
+            </a>
+          </p>
+        )}
+
+        <TargetNotes
+          target="season_contestant"
+          targetId={contestant.id}
+          label={contestant.displayName}
+          invite
+        />
       </Card>
 
       <Card>
@@ -119,13 +180,6 @@ export function ContestantDetailScreen() {
           <dt>Épreuves gagnées</dt>
           <dd>
             {view.wins.comfort} confort · {view.wins.immunity} immunité
-          </dd>
-          <dt>Tribu</dt>
-          <dd>
-            {/* La plus récente. Une tribu inconnue reste « — » : la source ne
-                remplit pas toujours cette colonne. */}
-            {referential.teams.find(t => t.id === contestant.teamId)?.name ??
-              '—'}
           </dd>
         </dl>
         {!view.received.complete && (

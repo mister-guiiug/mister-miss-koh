@@ -54,6 +54,12 @@ const SeasonRow = z.object({
   status: z.enum(['announced', 'airing', 'completed', 'unknown']),
   source_document_id: z.string().nullable(),
   season_rules: z.array(RuleRow).default([]),
+  // Le lieu de tournage (migration 0019) ; par défaut `null`, pour les lignes
+  // lues avant la colonne.
+  location_name: z.string().nullable().default(null),
+  location_page_title: z.string().nullable().default(null),
+  location_lat: z.number().nullable().default(null),
+  location_lon: z.number().nullable().default(null),
 });
 
 const ContestantRow = z.object({
@@ -158,6 +164,7 @@ const AdvantageRow = z.object({
 
 const ProvenanceRow = z.object({
   url: z.string(),
+  title: z.string().nullable().default(null),
   last_seen_revision: z.string().nullable(),
   last_seen_at: z.string().nullable(),
   reference_sources: z.object({ label: z.string() }).nullable(),
@@ -390,6 +397,15 @@ export function mapReferential(input: unknown, today: string): Referential {
           fromEpisode: r.from_episode_number,
           toEpisode: r.to_episode_number,
         })),
+      // Un lieu sans nom n'existe pas ; un lieu sans point, si.
+      location: rows.season.location_name
+        ? {
+            name: rows.season.location_name,
+            pageTitle: rows.season.location_page_title,
+            lat: rows.season.location_lat,
+            lon: rows.season.location_lon,
+          }
+        : null,
     },
     contestants: rows.contestants.map(c => {
       // L'appartenance la plus récente : la tribu est un intervalle, pas
@@ -415,6 +431,7 @@ export function mapReferential(input: unknown, today: string): Referential {
           .map(s => s.label),
         teamId: membership?.team_id ?? null,
         pairId: pairOf.get(c.id) ?? null,
+        finalJury: c.final_jury,
       };
     }),
     teams: rows.teams.map(t => ({ id: t.id, name: t.name, colour: t.colour })),
@@ -467,6 +484,7 @@ export function mapReferential(input: unknown, today: string): Referential {
     provenance: {
       kind: 'wikipedia',
       label: rows.provenance?.reference_sources?.label ?? 'Source externe',
+      title: rows.provenance?.title ?? null,
       url: rows.provenance?.url ?? null,
       revision: rows.provenance?.last_seen_revision ?? null,
       fetchedAt: rows.provenance?.last_seen_at ?? null,
@@ -493,7 +511,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
   const { data: season, error: seasonError } = await client
     .from('seasons')
     .select(
-      'id, slug, name, edition_label, status, source_document_id, season_rules(kind, label, from_episode_number, to_episode_number)'
+      'id, slug, name, edition_label, status, source_document_id, location_name, location_page_title, location_lat, location_lon, season_rules(kind, label, from_episode_number, to_episode_number)'
     )
     .order('first_air_date', { ascending: false, nullsFirst: false })
     .limit(1)
@@ -541,7 +559,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
         ? client
             .from('source_documents')
             .select(
-              'url, last_seen_revision, last_seen_at, reference_sources(label)'
+              'url, title, last_seen_revision, last_seen_at, reference_sources(label)'
             )
             .eq('id', season.source_document_id)
             .maybeSingle()

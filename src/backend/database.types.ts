@@ -1294,6 +1294,7 @@ export type Database = {
           notes: string | null;
           published_at: string;
           published_by: string | null;
+          rang: number;
           revert_reason: string | null;
           reverted_at: string | null;
           reverted_by: string | null;
@@ -1306,6 +1307,7 @@ export type Database = {
           notes?: string | null;
           published_at?: string;
           published_by?: string | null;
+          rang?: number;
           revert_reason?: string | null;
           reverted_at?: string | null;
           reverted_by?: string | null;
@@ -1318,6 +1320,7 @@ export type Database = {
           notes?: string | null;
           published_at?: string;
           published_by?: string | null;
+          rang?: number;
           revert_reason?: string | null;
           reverted_at?: string | null;
           reverted_by?: string | null;
@@ -1614,6 +1617,10 @@ export type Database = {
           first_air_date: string | null;
           id: string;
           last_air_date: string | null;
+          location_lat: number | null;
+          location_lon: number | null;
+          location_name: string | null;
+          location_page_title: string | null;
           name: string;
           published_at: string | null;
           slug: string;
@@ -1629,6 +1636,10 @@ export type Database = {
           first_air_date?: string | null;
           id?: string;
           last_air_date?: string | null;
+          location_lat?: number | null;
+          location_lon?: number | null;
+          location_name?: string | null;
+          location_page_title?: string | null;
           name: string;
           published_at?: string | null;
           slug: string;
@@ -1644,6 +1655,10 @@ export type Database = {
           first_air_date?: string | null;
           id?: string;
           last_air_date?: string | null;
+          location_lat?: number | null;
+          location_lon?: number | null;
+          location_name?: string | null;
+          location_page_title?: string | null;
           name?: string;
           published_at?: string | null;
           slug?: string;

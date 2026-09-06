@@ -236,6 +236,46 @@ export async function fetchSectionHtml(
   return html;
 }
 
+export interface Coordinates {
+  readonly lat: number;
+  readonly lon: number;
+}
+
+/**
+ * Coordonnées PRIMAIRES d'une page (extension GeoData), ou `null` si elle
+ * n'en déclare pas.
+ *
+ * C'est ainsi que le lieu de tournage se place sur une carte : la page de la
+ * saison ne porte pas de coordonnées, mais elle LIE la page du lieu, et
+ * celle-ci en porte. On demande donc à l'API, pour ce titre, le point qu'elle
+ * considère comme principal — jamais une estimation faite ici.
+ */
+export async function fetchCoordinates(
+  config: WikiConfig,
+  title: string,
+): Promise<Coordinates | null> {
+  const body = await callApi(config, {
+    action: "query",
+    titles: title,
+    prop: "coordinates",
+    coprimary: "primary",
+  }) as {
+    query?: {
+      pages?: Array<{
+        missing?: boolean;
+        coordinates?: Array<{ lat?: number; lon?: number; globe?: string }>;
+      }>;
+    };
+  };
+
+  const page = body.query?.pages?.[0];
+  const point = page?.coordinates?.find((c) => (c.globe ?? "earth") === "earth");
+  if (!point || typeof point.lat !== "number" || typeof point.lon !== "number") {
+    return null;
+  }
+  return { lat: point.lat, lon: point.lon };
+}
+
 /** Retrouve une section par son titre, insensible à la casse et aux accents. */
 export function findSection(
   sections: readonly SectionInfo[],

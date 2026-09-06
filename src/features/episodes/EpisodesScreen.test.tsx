@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { EpisodesScreen } from './EpisodesScreen';
 import { useAppStore } from '../../store/useAppStore';
@@ -9,7 +10,9 @@ import { DEMO_REFERENTIAL } from '../../backend/demo';
 function renderScreen() {
   return render(
     <ToastProvider>
-      <EpisodesScreen />
+      <MemoryRouter>
+        <EpisodesScreen />
+      </MemoryRouter>
     </ToastProvider>
   );
 }
@@ -46,6 +49,13 @@ describe('EpisodesScreen', () => {
     // L'épisode 1 entre en mouvement ; l'épisode 2 reste masqué.
     expect(document.querySelectorAll('.reveal')).toHaveLength(1);
     expect(screen.getAllByText(/^Masqué/)).toHaveLength(1);
+    // Les prénoms révélés mènent à la fiche du candidat.
+    const links = Array.from(
+      document.querySelectorAll('.reveal a'),
+      a => a.getAttribute('href') ?? ''
+    );
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.every(href => href.startsWith('/candidats/'))).toBe(true);
     // Et sa carte se marque « vue », lisible d'un coup d'œil dans la liste.
     expect(first.closest('[data-dwc="card"]')).toHaveAttribute('data-seen');
     expect(second.closest('[data-dwc="card"]')).not.toHaveAttribute(
