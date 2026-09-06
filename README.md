@@ -51,11 +51,11 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 72 tests verts                     |
-| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 129 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 100 tests verts                    |
+| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes               |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 255,1 kB gzip                      |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 258,2 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -95,7 +95,8 @@ workflows CI, déploiement, Lighthouse et nettoyage, `pwa-icons`,
 ```
 src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
-                 statistiques (zéro ≠ inconnu), règles de saison
+                 statistiques (zéro ≠ inconnu), règles de saison, duos
+                 supposés (`pairing.ts` — la source prime toujours)
   backend/       sélection du backend, port du référentiel, démonstration
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
@@ -107,6 +108,7 @@ src/
                  (recharger et le dire — l'échec aussi)
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
+                 PairBlock (le binôme : celui de la source, ou le vôtre),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne
@@ -121,7 +123,7 @@ supabase/
   tests/         isolation RLS et publication (pgTAP)
 ```
 
-Quatre choix qui structurent le code :
+Cinq choix qui structurent le code :
 
 - **la statistique respecte l'anti-spoiler.** Chaque calcul prend une limite
   d'épisode ; « 3 voix reçues » sur la fiche d'un candidat encore en jeu à
@@ -137,7 +139,14 @@ Quatre choix qui structurent le code :
   qui se coche répond encore), `none` (« Réduire les mouvements ») — posé par
   `useMotionLevel` ; le réglage système gagne toujours. Les cases restent des
   `<input>` natifs redessinés : le clavier, le lecteur d'écran et le script de
-  captures les trouvent.
+  captures les trouvent ;
+- **une hypothèse n'entre pas dans le référentiel.** Un duo créé à la main est
+  une **supposition** : elle vit dans les données personnelles, sur l'appareil,
+  et s'affiche partout comme telle. Dès que la source nomme ce duo — et que
+  l'anti-spoiler le laisse voir — c'est elle qui s'affiche, et la supposition
+  est dite confirmée ou contredite plutôt qu'effacée en silence. Un duo révélé
+  mais **masqué** ne compte pour rien, pas même pour retirer un nom de la liste
+  des binômes possibles : cette absence-là divulguerait ce que l'écran cache.
 
 ## Documentation
 

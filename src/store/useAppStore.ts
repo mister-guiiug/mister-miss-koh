@@ -17,6 +17,13 @@ import { z } from 'zod';
 import { createVersionedStore } from '@mister-guiiug/dev-pwa-config/versioned-store';
 import type { Referential } from '../domain/referential';
 import type { SpoilerMode } from '../domain/spoiler';
+import {
+  type GuessRefusal,
+  orderedMembers,
+  type PairGuess,
+  PairGuessSchema,
+  refuseGuess,
+} from '../domain/pairing';
 import { backend, type Origin } from '../backend/referentialRepository';
 
 const PersonalSchema = z.object({
@@ -25,6 +32,14 @@ const PersonalSchema = z.object({
   reduceMotion: z.boolean(),
   watched: z.array(z.number().int().positive()),
   favorites: z.array(z.string()),
+  /**
+   * Les duos supposés par l'utilisateur — jamais ceux de la source.
+   *
+   * `default` plutôt qu'une migration : un magasin écrit avant ce champ se
+   * valide encore, et repart simplement sans aucune supposition. Une version
+   * de plus n'apporterait ici qu'une chaîne de migrations à maintenir.
+   */
+  pairGuesses: z.array(PairGuessSchema).default([]),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -41,6 +56,7 @@ const personalStore = createVersionedStore<Personal>({
     reduceMotion: false,
     watched: [],
     favorites: [],
+    pairGuesses: [],
   }),
 });
 
@@ -68,6 +84,8 @@ interface AppState {
   reduceMotion: boolean;
   watched: readonly number[];
   favorites: readonly string[];
+  /** Les duos SUPPOSÉS, sur cet appareil. Le référentiel, lui, ne bouge pas. */
+  pairGuesses: readonly PairGuess[];
   init(): Promise<void>;
   reload(): Promise<void>;
   setSpoiler(mode: SpoilerMode): void;
@@ -75,17 +93,35 @@ interface AppState {
   setReduceMotion(enabled: boolean): void;
   toggleWatched(episodeNumber: number): void;
   toggleFavorite(contestantId: string): void;
+  /**
+   * Suppose un duo, ou dit pourquoi il est refusé.
+   *
+   * La LIMITE ANTI-SPOILER vient de l'appelant : elle dépend de la date du
+   * jour, que le magasin n'a pas à connaître, et c'est elle qui décide si la
+   * source « a déjà nommé » un binôme.
+   */
+  guessPair(a: string, b: string, limit: number): GuessRefusal | null;
+  /** Oublie la supposition qui nomme ce candidat, s'il y en a une. */
+  forgetPairGuess(contestantId: string): void;
 }
 
 export const useAppStore = create<AppState>((set, get) => {
   const persist = () => {
-    const { spoiler, animations, reduceMotion, watched, favorites } = get();
+    const {
+      spoiler,
+      animations,
+      reduceMotion,
+      watched,
+      favorites,
+      pairGuesses,
+    } = get();
     personalStore.save({
       spoiler,
       animations,
       reduceMotion,
       watched: [...watched],
       favorites: [...favorites],
+      pairGuesses: [...pairGuesses],
     });
   };
 
@@ -159,6 +195,28 @@ export const useAppStore = create<AppState>((set, get) => {
           ? current.filter(id => id !== contestantId)
           : [...current, contestantId],
       });
+      persist();
+    },
+    guessPair(a, b, limit) {
+      const { referential, pairGuesses } = get();
+      if (!referential) return 'candidat-inconnu';
+      const refusal = refuseGuess(referential, pairGuesses, limit, a, b);
+      if (refusal) return refusal;
+      // Une supposition CONTREDITE par la source ne tient plus personne, mais
+      // elle traîne encore ici : supposer à nouveau la remplace, sinon les
+      // deux cohabiteraient et l'écran citerait la périmée.
+      const kept = pairGuesses.filter(
+        g => !g.memberIds.includes(a) && !g.memberIds.includes(b)
+      );
+      set({ pairGuesses: [...kept, { memberIds: orderedMembers(a, b) }] });
+      persist();
+      return null;
+    },
+    forgetPairGuess(contestantId) {
+      const current = get().pairGuesses;
+      const next = current.filter(g => !g.memberIds.includes(contestantId));
+      if (next.length === current.length) return;
+      set({ pairGuesses: next });
       persist();
     },
   };

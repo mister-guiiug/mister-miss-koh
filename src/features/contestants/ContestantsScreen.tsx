@@ -7,8 +7,11 @@ import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
-import { groupingOf } from '../../domain/rules';
-import { isSpoiler } from '../../domain/spoiler';
+import {
+  effectivePairs,
+  groupingWithGuesses,
+  type PairGuess,
+} from '../../domain/pairing';
 import type { Contestant, Referential } from '../../domain/referential';
 
 type Status = 'tous' | 'en-jeu' | 'sorti';
@@ -29,45 +32,59 @@ interface Row extends Contestant {
 interface Group {
   key: string;
   label: string;
+  /** Le duo vient d'une supposition, pas de la source : ça se dit. */
+  guessed: boolean;
   rows: Row[];
 }
 
 /**
  * Les groupes de l'édition suivie.
  *
- * PAR DUO OU PAR TRIBU, selon ce que la saison est — `groupingOf` le lit dans
- * les données. Un duo n'apparaît que s'il a été RÉVÉLÉ par un départ, et pas
- * avant l'épisode qui l'a révélé : la source ne liste les duos nulle part, on
- * ne les connaît qu'a posteriori, et les afficher plus tôt divulgâcherait ce
- * départ. Les autres se rangent sous « Duo non révélé », qui n'est pas un aveu
- * de manque mais l'état réel de ce qu'on sait.
+ * PAR DUO OU PAR TRIBU, selon ce que la saison est — `groupingWithGuesses` le
+ * lit dans les données, ou dans le fait qu'on ait supposé un duo. Un duo de la
+ * SOURCE n'apparaît que s'il a été révélé par un départ, et pas avant
+ * l'épisode qui l'a révélé : la source ne liste les duos nulle part, on ne les
+ * connaît qu'a posteriori, et les afficher plus tôt divulgâcherait ce départ.
+ * Un duo SUPPOSÉ, lui, s'affiche tout de suite — il est de vous — et porte sa
+ * mention. Les autres se rangent sous « Duo non révélé », qui n'est pas un
+ * aveu de manque mais l'état réel de ce qu'on sait.
  */
-function groupsOf(ref: Referential, rows: Row[], limit: number): Group[] {
+function groupsOf(
+  ref: Referential,
+  rows: Row[],
+  guesses: readonly PairGuess[],
+  limit: number
+): Group[] {
   const byId = new Map(rows.map(r => [r.id, r]));
 
-  if (groupingOf(ref) === 'pair') {
+  if (groupingWithGuesses(ref, guesses) === 'pair') {
     const groups: Group[] = [];
     const placed = new Set<string>();
 
-    for (const pair of ref.pairs) {
-      if (isSpoiler(pair.revealEpisodeNumber, limit)) continue;
+    for (const pair of effectivePairs(ref, guesses, limit)) {
       const members = pair.memberIds
         .map(id => byId.get(id))
         .filter((r): r is Row => r !== undefined);
       if (members.length === 0) continue;
       for (const m of members) placed.add(m.id);
       groups.push({
-        key: pair.id,
+        key: pair.key,
         label: pair.memberIds
           .map(id => ref.contestants.find(c => c.id === id)?.displayName ?? '?')
           .join(' et '),
+        guessed: pair.origin === 'guess',
         rows: members,
       });
     }
 
     const rest = rows.filter(r => !placed.has(r.id));
     if (rest.length > 0) {
-      groups.push({ key: 'duo-inconnu', label: 'Duo non révélé', rows: rest });
+      groups.push({
+        key: 'duo-inconnu',
+        label: 'Duo non révélé',
+        guessed: false,
+        rows: rest,
+      });
     }
     return groups;
   }
@@ -76,12 +93,22 @@ function groupsOf(ref: Referential, rows: Row[], limit: number): Group[] {
   for (const team of ref.teams) {
     const members = rows.filter(r => r.teamId === team.id);
     if (members.length > 0) {
-      groups.push({ key: team.id, label: team.name, rows: members });
+      groups.push({
+        key: team.id,
+        label: team.name,
+        guessed: false,
+        rows: members,
+      });
     }
   }
   const rest = rows.filter(r => !r.teamId);
   if (rest.length > 0) {
-    groups.push({ key: 'sans-tribu', label: 'Sans tribu', rows: rest });
+    groups.push({
+      key: 'sans-tribu',
+      label: 'Sans tribu',
+      guessed: false,
+      rows: rest,
+    });
   }
   return groups;
 }
@@ -93,6 +120,8 @@ export function ContestantsScreen() {
   const limit = useSpoilerLimit();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<Status>('tous');
+
+  const guesses = useAppStore(s => s.pairGuesses);
 
   const groups = useMemo(() => {
     if (!referential) return [];
@@ -109,8 +138,8 @@ export function ContestantsScreen() {
       .filter(
         c => status === 'tous' || (status === 'en-jeu' ? c.inGame : !c.inGame)
       );
-    return groupsOf(referential, rows, limit);
-  }, [referential, favorites, limit, query, status]);
+    return groupsOf(referential, rows, guesses, limit);
+  }, [referential, favorites, guesses, limit, query, status]);
 
   if (!referential) return null;
 
@@ -151,7 +180,25 @@ export function ContestantsScreen() {
       ) : (
         groups.map(group => (
           <section key={group.key}>
-            {showHeadings && <h3 className="group-title">{group.label}</h3>}
+            {showHeadings && (
+              <h3 className="group-title">
+                {group.label}{' '}
+                {group.guessed && (
+                  <Badge tone="warning" size="xs">
+                    supposé
+                  </Badge>
+                )}
+              </h3>
+            )}
+            {/* L'indice ne dépend PAS du titre : tant qu'aucun duo n'est
+                connu, il n'y a qu'un groupe, son titre se tait — et c'est
+                exactement le moment où l'on cherche où sont les duos. */}
+            {group.key === 'duo-inconnu' && (
+              <p className="muted group-hint">
+                La source ne nomme un duo qu’au départ de l’un des deux. Depuis
+                la fiche d’un candidat, vous pouvez supposer son binôme.
+              </p>
+            )}
             <ul className="list">
               {group.rows.map(c => (
                 <li key={c.id} className="row">

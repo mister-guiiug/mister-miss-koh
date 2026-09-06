@@ -7,9 +7,10 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { FavoriteButton } from '../../components/FavoriteButton';
+import { PairBlock } from '../../components/PairBlock';
 import { TargetNotes } from '../../components/TargetNotes';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
-import { contestantById, partnerOf } from '../../domain/referential';
+import { contestantById } from '../../domain/referential';
 import {
   challengeWins,
   councilsAttended,
@@ -46,8 +47,8 @@ export function ContestantDetailScreen() {
     const upTo = Math.min(limit, lastAiredEpisode(referential));
     return {
       contestant,
-      partner: partnerOf(referential, id),
-      pair: referential.pairs.find(p => p.memberIds.includes(id)) ?? null,
+      // Le binôme — source ou supposé — est tout entier dans `PairBlock` :
+      // il dépend des suppositions, que cette dérivation n'a pas à connaître.
       departure:
         referential.departures.find(d => d.contestantId === id) ?? null,
       // Les avantages qu'il ou elle a tenus, dans l'ordre du tableau source.
@@ -73,7 +74,7 @@ export function ContestantDetailScreen() {
     );
   }
 
-  const { contestant, partner, pair, departure, advantages } = view;
+  const { contestant, departure, advantages } = view;
   const favorite = favorites.includes(contestant.id);
   const cause = contestantById(referential, departure?.causedById ?? null);
   const team = referential.teams.find(t => t.id === contestant.teamId) ?? null;
@@ -123,20 +124,9 @@ export function ContestantDetailScreen() {
           </dd>
         </dl>
 
-        {partner && (
-          // La source ne liste pas les duos : celui-ci n'est connu que parce
-          // qu'un départ l'a nommé. Le montrer plus tôt divulgâcherait ce
-          // départ.
-          <SpoilerGuard
-            episodeNumber={pair?.revealEpisodeNumber ?? null}
-            label="Révéler le binôme"
-          >
-            <p>
-              Binôme :{' '}
-              <Link to={`/candidats/${partner.id}`}>{partner.displayName}</Link>
-            </p>
-          </SpoilerGuard>
-        )}
+        {/* Le binôme de la source, la supposition qui la précède, et ce que
+            l'une est devenue quand l'autre a parlé. */}
+        <PairBlock contestant={contestant} />
 
         {source.kind === 'wikipedia' && source.url && (
           // Le lien va DIRECTEMENT à la section des candidats de la page

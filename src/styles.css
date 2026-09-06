@@ -701,6 +701,50 @@ body,
   color: var(--text-muted);
 }
 
+.group-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* ── Le binôme : celui de la source, et celui qu'on suppose ─────────────── */
+.pair-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pair-guess-line {
+  margin: 0;
+}
+
+.pair-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--dwc-border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.pair-picker .field {
+  flex: 1 1 12rem;
+}
+
+.pair-picker .field span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* L'explication passe sous les deux, jamais à côté. */
+.pair-picker > p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 /* ── La carte du lieu de tournage (LocationMap) ──────────────────────────── */
 .map {
   margin: 0;
