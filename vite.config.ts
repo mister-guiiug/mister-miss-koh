@@ -83,11 +83,12 @@ export default defineConfig(({ command }) => {
       }),
       // CSP par hash (socle). connect-src : Supabase seulement — le
       // référentiel ne se lit jamais depuis Wikipédia côté navigateur, c'est
-      // la fonction Edge qui s'en charge.
+      // la fonction Edge qui s'en charge. img-src : les tuiles OpenStreetMap
+      // de la carte du lieu de tournage (LocationMap), seul hôte externe.
       cspPlugin({
         dev: command === 'serve',
         connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
-        imgSrc: ["'self'", 'data:', 'blob:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org'],
       }),
       VitePWA({
         // `prompt`, pas `autoUpdate` : un déploiement ne recharge pas la page

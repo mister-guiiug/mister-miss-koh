@@ -30,6 +30,14 @@ const raw = {
         toEpisode: null,
       },
     ],
+    // Un lieu inventé, posé au large pour que la carte ait quelque chose à
+    // montrer sans désigner un endroit réel de tournage.
+    location: {
+      name: 'Île fictive (Océan imaginaire)',
+      pageTitle: null,
+      lat: -12.5,
+      lon: 45.25,
+    },
   },
   contestants: [
     {
@@ -341,6 +349,7 @@ const raw = {
   provenance: {
     kind: 'demo',
     label: 'Donnée fictive de démonstration',
+    title: null,
     url: null,
     revision: null,
     fetchedAt: null,

@@ -486,6 +486,38 @@ d'épreuve, qui se présentent souvent par deux, serait une invention.
 L'application ne montre donc un binôme qu'à partir de l'épisode qui l'a
 révélé : le dire plus tôt divulgâcherait ce départ.
 
+## Le lieu de tournage : une ligne d'infobox, et une page de plus
+
+L'infobox de la page — le seul tableau de l'introduction, la section 0 —
+porte une ligne « Lieu de tournage » : « Archipel des Perles (Panama) ». Deux
+choses s'y lisent, et elles n'ont pas le même usage. Le **texte** est ce que
+l'application affiche. Le **premier lien** de la cellule est la page la plus
+précise que la source cite — l'archipel, pas le pays — et c'est elle que l'on
+géolocalise : la page de la saison ne porte pas de coordonnées, mais celle du
+lieu en déclare (`prop=coordinates`, extension GeoData). Rien n'est estimé
+ici ; un lieu sans page, ou une page sans point, reste un lieu sans carte, et
+l'anomalie le dit (`lieu_sans_page`, `lieu_sans_coordonnees`).
+
+Ce qui n'est pas un lieu : un drapeau (`Fichier:…`), un lien rouge vers une
+page inexistante, un lien externe. Ils précèdent parfois le vrai lien, et les
+prendre géolocaliserait une image.
+
+Côté base, quatre colonnes sur `seasons` (migration `0019`) et **une entité de
+plus dans le modèle intermédiaire, `season`** — une différence par saison,
+relue et publiée comme les autres. C'est la version 5 de l'extraction : une
+page qui n'a pas bougé se relit quand même, et le lieu arrive par la voie
+ordinaire. La saison n'est **photographiée qu'une fois** par publication,
+qu'elle devienne visible ou qu'elle reçoive un lieu : deux photos de la même
+ligne, reposées dans l'ordre inverse, laisseraient la saison publiée après un
+retour arrière qui devait la cacher.
+
+En chemin, un manque plus ancien : `source_documents.last_seen_revision` et
+`last_seen_at` n'étaient jamais écrits — l'import gardait la révision sur
+l'exécution, la publication ne la reportait pas, et l'écran « Source de
+vérité » n'avait ni révision ni date à montrer. Depuis `0020`, `publish_run`
+estampille le document avec la révision et la date de lecture de l'exécution
+qu'il applique.
+
 ## « Déjà traitée » suppose le même traitement
 
 L'arrêt « révision inchangée » a menti le jour où l'extraction s'est enrichie :
@@ -522,8 +554,10 @@ git.
 
 ## Ce qui reste à écrire
 
-1. les **tribus** : de « Ikalu (jour 2 – 5) » vers `teams` et
-   `team_memberships` ;
-2. les **tribus**, les **binômes** et les **épreuves** : la publication ne les
-   écrit pas encore, et l'application affiche donc « — » en face de « Confort »
-   et « Immunité ».
+1. les **duos non révélés** : la source ne les liste nulle part, un duo n'est
+   connu que lorsqu'un départ le nomme — ils arriveront un départ à la fois ;
+2. les **résumés d'épisodes** : la source les rédige en prose, et le projet ne
+   stocke que des faits tabulaires — ce serait un changement de nature, pas
+   une extraction de plus ;
+3. les **ordinaux** des saisons précédentes : « 33<sup>e</sup> jour » perd son
+   « e » parce que tous les exposants sont retirés avec les appels de note.

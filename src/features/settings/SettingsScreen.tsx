@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
+import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
+import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
 import { useRefreshReferential } from '../../hooks/useRefreshReferential';
@@ -163,7 +166,7 @@ export function SettingsScreen() {
 
       <Card>
         <CardHeader
-          title="Données"
+          title="Source de vérité"
           action={
             <Button
               variant="outline"
@@ -175,7 +178,68 @@ export function SettingsScreen() {
             </Button>
           }
         />
-        {referential && <Provenance data={referential.provenance} />}
+        {referential && (
+          <div className="stack">
+            <Provenance data={referential.provenance} />
+            {referential.provenance.url && (
+              <p>
+                <a
+                  data-dwc="button"
+                  data-variant="primary"
+                  data-size="sm"
+                  href={referential.provenance.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ouvrir la page source <ExternalLink size={16} aria-hidden />
+                </a>
+              </p>
+            )}
+            <dl className="stats">
+              {referential.provenance.title && (
+                <>
+                  <dt>Page</dt>
+                  <dd>{referential.provenance.title}</dd>
+                </>
+              )}
+              {referential.provenance.revision && (
+                <>
+                  <dt>Révision</dt>
+                  <dd>
+                    <code>{referential.provenance.revision}</code>
+                  </dd>
+                </>
+              )}
+              {referential.provenance.fetchedAt && (
+                <>
+                  <dt>Lue le</dt>
+                  <dd>{formatDate(referential.provenance.fetchedAt)}</dd>
+                </>
+              )}
+              <dt>Version du référentiel</dt>
+              <dd>{referential.provenance.version}</dd>
+              <dt>Lieu de tournage</dt>
+              <dd>
+                {referential.season.location?.name ?? 'la source ne le dit pas'}
+              </dd>
+            </dl>
+            {/* La carte ne se dessine qu'avec un point : un lieu nommé sans
+                coordonnées se lit, il ne se place pas. */}
+            {referential.season.location &&
+              (referential.season.location.lat !== null &&
+              referential.season.location.lon !== null ? (
+                <LocationMap
+                  name={referential.season.location.name}
+                  lat={referential.season.location.lat}
+                  lon={referential.season.location.lon}
+                />
+              ) : (
+                <p className="muted">
+                  La page du lieu ne donne pas de coordonnées : pas de carte.
+                </p>
+              ))}
+          </div>
+        )}
         {notice && (
           <p role="status" className="notice">
             {notice}
@@ -190,6 +254,10 @@ export function SettingsScreen() {
             celles de la lecture précédente.
           </p>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Données" />
         <dl className="stats">
           <dt>Backend</dt>
           <dd>

@@ -1,31 +1,61 @@
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { PullToRefresh } from '../../components/PullToRefresh';
+import { TargetNotes } from '../../components/TargetNotes';
 import { useHaptics } from '../../hooks/useHaptics';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { contestantById } from '../../domain/referential';
 
 type Ref = NonNullable<ReturnType<typeof useAppStore.getState>['referential']>;
 
+/** Le prénom d'un candidat, cliquable vers sa fiche — ou « ? » s'il est inconnu. */
+function ContestantLink({ data, id }: { data: Ref; id: string | null }) {
+  const contestant = contestantById(data, id);
+  if (!contestant) return <>?</>;
+  return (
+    <Link to={`/candidats/${contestant.id}`}>{contestant.displayName}</Link>
+  );
+}
+
 /**
  * Les vainqueurs d'une épreuve : des candidats, des tribus, ou les deux.
  *
  * Une tribu ne se déplie pas en ses membres — il faudrait savoir qui en
  * faisait partie CE SOIR-LÀ, et le référentiel date les appartenances en
- * jours quand les épisodes ne le sont pas. Elle se nomme donc telle quelle.
+ * jours quand les épisodes ne le sont pas. Elle se nomme donc telle quelle ;
+ * un candidat, lui, mène à sa fiche.
  */
-function winners(
-  ref: Ref,
-  contestantIds: readonly string[],
-  teamIds: readonly string[]
-) {
-  const parts = [
-    ...teamIds.map(id => ref.teams.find(t => t.id === id)?.name ?? '?'),
-    ...contestantIds.map(id => contestantById(ref, id)?.displayName ?? '?'),
+function Winners({
+  data,
+  contestantIds,
+  teamIds,
+}: {
+  data: Ref;
+  contestantIds: readonly string[];
+  teamIds: readonly string[];
+}) {
+  const parts: ReactNode[] = [
+    ...teamIds.map(id => (
+      <span key={`t-${id}`}>
+        {data.teams.find(t => t.id === id)?.name ?? '?'}
+      </span>
+    )),
+    ...contestantIds.map(id => (
+      <ContestantLink key={`c-${id}`} data={data} id={id} />
+    )),
   ];
-  return parts.length === 0 ? '—' : parts.join(' et ');
+  if (parts.length === 0) return <>—</>;
+  return (
+    <>
+      {parts.flatMap((part, index) =>
+        index === 0 ? [part] : [<span key={`et-${index}`}> et </span>, part]
+      )}
+    </>
+  );
 }
 
 export function EpisodesScreen() {
@@ -85,19 +115,19 @@ export function EpisodesScreen() {
                 <dl className="stats">
                   <dt>Confort</dt>
                   <dd>
-                    {winners(
-                      referential,
-                      e.comfortWinnerIds,
-                      e.comfortWinnerTeamIds
-                    )}
+                    <Winners
+                      data={referential}
+                      contestantIds={e.comfortWinnerIds}
+                      teamIds={e.comfortWinnerTeamIds}
+                    />
                   </dd>
                   <dt>Immunité</dt>
                   <dd>
-                    {winners(
-                      referential,
-                      e.immunityWinnerIds,
-                      e.immunityWinnerTeamIds
-                    )}
+                    <Winners
+                      data={referential}
+                      contestantIds={e.immunityWinnerIds}
+                      teamIds={e.immunityWinnerTeamIds}
+                    />
                   </dd>
                   <dt>Conseil</dt>
                   <dd>
@@ -112,8 +142,10 @@ export function EpisodesScreen() {
                             )}
                             {r.kind === 'vote' && (
                               <>
-                                {contestantById(referential, r.eliminatedId)
-                                  ?.displayName ?? '?'}{' '}
+                                <ContestantLink
+                                  data={referential}
+                                  id={r.eliminatedId}
+                                />{' '}
                                 éliminé·e
                                 {r.reportedVotesFor !== null && (
                                   <>
@@ -128,8 +160,10 @@ export function EpisodesScreen() {
                             )}
                             {r.kind === 'linked' && (
                               <>
-                                {contestantById(referential, r.eliminatedId)
-                                  ?.displayName ?? '?'}{' '}
+                                <ContestantLink
+                                  data={referential}
+                                  id={r.eliminatedId}
+                                />{' '}
                                 part avec son binôme{' '}
                                 <Badge tone="muted" size="xs">
                                   0 voix
@@ -141,6 +175,15 @@ export function EpisodesScreen() {
                   </dd>
                 </dl>
               </SpoilerGuard>
+            )}
+            {/* Vos notes sur l'épisode : à vous, donc hors du garde
+                anti-spoiler — vous savez ce que vous y avez écrit. */}
+            {e.aired && (
+              <TargetNotes
+                target="episode"
+                targetId={e.id}
+                label={`l’épisode ${e.number}`}
+              />
             )}
           </Card>
         );

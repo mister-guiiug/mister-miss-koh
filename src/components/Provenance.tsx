@@ -29,7 +29,7 @@ export function Provenance({ data }: { data: ProvenanceData }) {
           <>
             {' — '}
             <a href={data.url} target="_blank" rel="noopener noreferrer">
-              page source
+              {data.title ? `page « ${data.title} »` : 'page source'}
             </a>
           </>
         )}

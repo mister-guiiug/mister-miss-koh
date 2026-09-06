@@ -51,11 +51,11 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 69 tests verts                     |
-| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 118 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 72 tests verts                     |
+| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 129 tests verts                    |
 | `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes               |
-| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 39 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 252,5 kB gzip                      |
+| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 255,1 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -98,12 +98,16 @@ src/
                  statistiques (zéro ≠ inconnu), règles de saison
   backend/       sélection du backend, port du référentiel, démonstration
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
-                 un rechargement en échec garde la dernière lecture réussie
+                 un rechargement en échec garde la dernière lecture réussie ;
+                 notes du compte (useNotesStore, dépôt injectable)
   animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti),
                  niveaux de mouvement (`data-motion` sur <html>)
-  hooks/         useSpoilerLimit, useSession (compte courant), useHaptics,
-                 useRefreshReferential (recharger et le dire — l'échec aussi)
-  components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh
+  hooks/         useSpoilerLimit, useSession (compte courant), useNotes (les
+                 notes du compte, une fois), useHaptics, useRefreshReferential
+                 (recharger et le dire — l'échec aussi)
+  components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
+                 NoteEditor + TargetNotes (une note là où la chose s'affiche),
+                 LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne
 supabase/

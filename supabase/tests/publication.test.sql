@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(39);
+select plan(43);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +72,9 @@ insert into import_differences
   ('dddddddd-0000-0000-0000-000000000001', 'advantage', 'saison-fictive:collier:1',
    'insert', 'unambiguous', 'validated',
    '{"kind":"immunity_necklace","location":"Camp unique","status":"not_used","foundDay":6,"playedDay":null,"playedEpisodeNumber":null,"annulledVotes":null,"annulledVotesTotal":null,"holders":[{"name":"Aël","fromDay":6,"toDay":null,"original":true},{"name":"Bastien","fromDay":6,"toDay":null,"original":true},{"name":"Inconnue","fromDay":6,"toDay":null,"original":false}]}'),
+  ('dddddddd-0000-0000-0000-000000000001', 'season', 'saison-fictive',
+   'insert', 'unambiguous', 'validated',
+   '{"locationName":"Île fictive (Océan imaginaire)","locationPageTitle":"Île fictive","locationLat":-12.5,"locationLon":45.25}'),
   -- Non validée : elle ne doit PAS être appliquée.
   ('dddddddd-0000-0000-0000-000000000001', 'council_vote', 'saison-fictive:e1:r1:Bastien',
    'insert', 'ambiguous', 'pending_review',
@@ -254,14 +257,33 @@ select is(
 
 select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 7,
-  'les sept différences validées sont marquées publiées'
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'published'), 8,
+  'les huit différences validées sont marquées publiées'
 );
 
 select is(
   (select count(*)::int from referential_versions
     where season_id = 'cccccccc-0000-0000-0000-000000000001'), 1,
   'la version du référentiel avance — c''est elle que le client compare'
+);
+
+select is(
+  (select location_name from seasons where id = 'cccccccc-0000-0000-0000-000000000001'),
+  'Île fictive (Océan imaginaire)',
+  'le lieu de tournage est publié avec la saison, relu comme le reste'
+);
+
+select is(
+  (select location_lat from seasons where id = 'cccccccc-0000-0000-0000-000000000001'),
+  -12.5::double precision,
+  'et ses coordonnées avec lui'
+);
+
+select is(
+  (select last_seen_revision from source_documents
+    where id = 'bbbbbbbb-0000-0000-0000-000000000001'),
+  '42',
+  'le document source dit quelle révision est en ligne'
 );
 
 
@@ -457,8 +479,14 @@ select is(
 );
 
 select is(
+  (select location_name from seasons where id = 'cccccccc-0000-0000-0000-000000000001'),
+  null,
+  'le lieu disparaît avec le retour arrière : la saison n''est photographiée qu''une fois'
+);
+
+select is(
   (select count(*)::int from import_differences
-    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 7,
+    where run_id = 'dddddddd-0000-0000-0000-000000000001' and status = 'validated'), 8,
   'les différences redeviennent validées : c''est leur application qui a été jugée mauvaise, pas elles'
 );
 

@@ -18,6 +18,10 @@ const rows: Rows = {
     edition_label: null,
     status: 'airing',
     source_document_id: 'doc1',
+    location_name: 'Île fictive (Océan imaginaire)',
+    location_page_title: 'Île fictive',
+    location_lat: -12.5,
+    location_lon: 45.25,
     season_rules: [
       {
         kind: 'linked_pair_departure',
@@ -217,6 +221,7 @@ const rows: Rows = {
   version: 7,
   provenance: {
     url: 'https://exemple.test/page',
+    title: 'Page fictive',
     last_seen_revision: '239179934',
     last_seen_at: '2026-09-05T08:00:00Z',
     reference_sources: { label: 'Wikipédia (fr)' },
@@ -368,15 +373,41 @@ describe('mapReferential', () => {
     });
   });
 
-  it('la provenance dit la source, la révision et la version — et rien sur une licence', () => {
+  it('la provenance dit la source, la page, la révision et la version — et rien sur une licence', () => {
     expect(ref.provenance).toEqual({
       kind: 'wikipedia',
       label: 'Wikipédia (fr)',
+      title: 'Page fictive',
       url: 'https://exemple.test/page',
       revision: '239179934',
       fetchedAt: '2026-09-05T08:00:00Z',
       version: 7,
     });
+  });
+
+  it('le lieu de tournage suit la saison, et un lieu sans nom n’existe pas', () => {
+    expect(ref.season.location).toEqual({
+      name: 'Île fictive (Océan imaginaire)',
+      pageTitle: 'Île fictive',
+      lat: -12.5,
+      lon: 45.25,
+    });
+    // Une ligne lue avant la migration 0019 n'a pas ces colonnes : le lieu
+    // est simplement absent, la saison reste lisible.
+    const sansLieu = mapReferential(
+      {
+        ...rows,
+        season: {
+          ...rows.season,
+          location_name: null,
+          location_page_title: null,
+          location_lat: null,
+          location_lon: null,
+        },
+      },
+      TODAY
+    );
+    expect(sansLieu.season.location).toBeNull();
   });
 });
 
