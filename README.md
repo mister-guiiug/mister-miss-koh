@@ -101,12 +101,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 292 tests verts              |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 317 tests verts              |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,8 kB gzip, index 104 kB  |
+| `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota | 24 assertions vertes         |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 285,3 kB gzip, index 93 kB   |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
@@ -114,8 +115,15 @@ Le serveur de développement écoute sur le port 5236 (configuration
 > rendait 0 : la borne existait, personne ne la contrôlait. C'est le job
 > **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*`, ce qui lui coûte
 > **environ 1 Kio de plus** qu'un build nu (104,04 contre 103,11 Kio, mesurés
-> côte à côte le 06/09). La borne se dérive sur lui, jamais sur le build local,
-> qui pèse aujourd'hui 103,67 Kio.
+> côte à côte le 06/09). La borne se dérive sur lui, jamais sur le build local.
+>
+> **Et attention à ce que ce chiffre veut dire.** Le chunk d'entrée est passé
+> de 103,67 à 92,51 Kio en gagnant le partage éphémère — non parce qu'il a
+> maigri, mais parce que `supabaseReferential` (16,7 Kio), désormais partagé
+> entre du code chargé d'emblée et une route paresseuse, a été détaché dans son
+> propre fichier. Ce fichier est **préchargé par `index.html`** : la charge du
+> premier écran n'a pas diminué, elle s'est répartie. `mainChunkKb` borne un
+> FICHIER, pas le premier écran.
 
 ## Licence, et ce que le projet stocke
 
@@ -243,9 +251,10 @@ Six choix qui structurent le code :
   mais **masqué** ne compte pour rien, pas même pour retirer un nom de la liste
   des binômes possibles : cette absence-là divulguerait ce que l'écran cache ;
 - **donner et publier ne sont pas le même geste, et l'écran ne les confond
-  pas.** Aucune route ne dépose une image sur un serveur ; un texte ou un
-  fichier de notes non plus. Ce qui publie — un lien de lecture — le dit avant,
-  et se révoque. Les détails qui font que ça tient : le fichier est relu depuis
+  pas.** Envoyer une image par la feuille du système, l'enregistrer, en montrer
+  le QR : rien de tout cela ne touche un serveur — un texte ou un fichier de
+  notes non plus. **Une seule route publie une image, et elle est à part** : le
+  partage éphémère (voir plus bas). Ce qui publie le dit avant, et se révoque. Les détails qui font que ça tient : le fichier est relu depuis
   IndexedDB **avant** que le bouton n'apparaisse (Safari veut que
   `navigator.share` parte du geste) ; la charge examinée par `canShare` est
   exactement celle qui sera envoyée — vérifier `{ files }` puis envoyer
@@ -255,6 +264,35 @@ Six choix qui structurent le code :
   une liste figée, ce qui rend le retrait immédiat. Ce qui ne peut pas passer
   est dit avec le chiffre : le QR code porte le lien parce qu'un QR contient au
   plus 2,9 ko.
+
+### Le partage éphémère d'une photo
+
+La **seule** route qui dépose une image sur un serveur. Elle meurt à la première
+des deux échéances : **une ouverture**, ou **un jour**.
+
+- **Une ligne, une vie.** Les octets sont dans la ligne (`bytea`), pas dans un
+  bucket. Un bucket, ce sont deux durées de vie à tenir synchrones ; le jour où
+  l'une part sans l'autre, il reste des octets qui survivent à leur promesse.
+  Le portrait est déjà réduit à 120 Kio par le dépôt local : c'est ce qui rend
+  ce choix tenable.
+- **Lire, c'est consommer** — `delete … returning`, une seule instruction, donc
+  deux lecteurs simultanés ne peuvent pas obtenir la même image.
+- **Mais l'ouverture de la PAGE ne consomme rien.** Les messageries préchargent
+  les liens qu'on leur confie ; si l'affichage consommait, un aperçu de
+  conversation brûlerait la photo avant son destinataire. La consommation est
+  un `rpc`, c'est-à-dire un POST, derrière un geste.
+- **Rien n'est marqué, tout est supprimé.** Conséquence assumée : après coup,
+  « déjà ouvert » et « n'a jamais existé » sont indistinguables — les
+  distinguer supposerait de garder la trace de ce qu'on a promis d'effacer.
+- **Aucun `update` n'est accordé, à personne** : une péremption ne se repousse
+  pas, pas même par son propriétaire. Et `bytes` n'est lisible par personne —
+  c'est un droit de COLONNE, tenu par le moteur.
+- **Cinq actifs par compte, en glissant** : le sixième ne se voit pas refuser,
+  il chasse le plus ancien.
+- **Deux mécanismes pour une seule promesse** : `expires_at > now()` dans la
+  fonction de lecture est le contrôle d'accès, immédiat ; le balayage
+  (`pg_cron`, au quart d'heure) est la promesse — les octets s'en vont même si
+  plus personne n'ouvre le lien.
 
 ## Documentation
 

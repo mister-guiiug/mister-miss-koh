@@ -86,6 +86,18 @@ export function profileUrl(appUrl: string, handle: string): string {
   return appRoute(appUrl, `/profil/${encodeURIComponent(handle)}`);
 }
 
+/**
+ * L'adresse d'une photo partagée pour un jour.
+ *
+ * Une seule portée, donc pas de segment pour la dire : ce jeton n'ouvre qu'une
+ * chose, et l'ouvrir la détruit. L'adresse est courte exprès — elle se colle
+ * dans une conversation, et un QR code la porte sans peine (là où l'image,
+ * elle, n'y entrerait jamais).
+ */
+export function photoShareUrl(appUrl: string, token: string): string {
+  return appRoute(appUrl, `/photo/${encodeURIComponent(token)}`);
+}
+
 /** Une note, ou toute une collection. */
 export type SharedKind = 'note' | 'notes';
 

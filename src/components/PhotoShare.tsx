@@ -9,10 +9,15 @@
  * contient au plus 2,9 ko, et l'écran affiche les deux tailles côte à côte
  * plutôt que de laisser croire qu'on scanne une photo.
  *
- * RIEN N'EST TÉLÉVERSÉ. Aucune des trois routes ne dépose l'image sur un
- * serveur : il n'y en a pas pour ça, et il n'y en aura pas. Le portrait est à
- * vous, il est sur votre appareil, et le partager veut dire le donner — pas le
- * publier.
+ * CES TROIS ROUTES NE TÉLÉVERSENT RIEN. Aucune ne dépose l'image sur un
+ * serveur. Le portrait est à vous, il est sur votre appareil, et le partager
+ * par là veut dire le donner — pas le publier.
+ *
+ * UNE QUATRIÈME, ELLE, PUBLIE — et c'est pour cela qu'elle est à part.
+ * `PhotoEphemeralShare` dépose une copie sur le serveur, pour un jour au plus
+ * et une ouverture au plus. Elle demande un compte, elle s'annonce avant le
+ * clic, et elle s'éteint d'elle-même. Ne pas la fondre dans les trois autres :
+ * ce qui les distingue est exactement ce que l'utilisateur doit décider.
  *
  * LE FICHIER EST PRÊT AVANT LE CLIC. Safari veut que `navigator.share` parte du
  * geste ; lire IndexedDB entre le clic et l'ouverture de la feuille suffirait à
@@ -30,6 +35,7 @@ import type { Contestant } from '../domain/referential';
 import { usePhotosStore } from '../store/usePhotosStore';
 import { canSharePhoto, sharePhoto } from '../backend/sharePhoto';
 import { QR_MAX_BYTES, contestantUrl, photoFileName } from '../domain/sharing';
+import { PhotoEphemeralShare } from './PhotoEphemeralShare';
 import { ShareLinkPanel } from './ShareLinkPanel';
 
 export function PhotoShare({ contestant }: { contestant: Contestant }) {
@@ -115,6 +121,11 @@ function SharePanel({ contestant }: { contestant: Contestant }) {
           Enregistrer l’image
         </Button>
       </ShareLinkPanel>
+      <PhotoEphemeralShare
+        file={file}
+        contestantId={contestant.id}
+        displayName={contestant.displayName}
+      />
     </section>
   );
 }

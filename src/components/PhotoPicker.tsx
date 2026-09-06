@@ -72,9 +72,15 @@ export function PhotoPicker({ contestant }: { contestant: Contestant }) {
         </Button>
       )}
 
+      {/* CETTE PHRASE A CHANGÉ LE JOUR OÙ LE PARTAGE ÉPHÉMÈRE EST ARRIVÉ.
+          Elle disait « l'application n'en publie aucune » ; c'est devenu faux,
+          et une promesse fausse coûte plus cher que la fonctionnalité qui la
+          rompt. Elle dit maintenant la règle ET son unique exception, qui est
+          volontaire et bornée. */}
       <p className="muted">
-        Votre image reste sur cet appareil : l’application n’en publie aucune et
-        n’en télécharge aucune.
+        Votre image reste sur cet appareil : rien ne la téléverse et rien ne la
+        télécharge. La seule exception est le partage d’un jour ci-dessous, que
+        vous déclenchez vous-même.
       </p>
     </div>
   );
