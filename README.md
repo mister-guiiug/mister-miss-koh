@@ -78,17 +78,17 @@ Le serveur de développement écoute sur le port 5236 (configuration
 
 ## Vérifier
 
-| Commande                          | Ce qu'elle vérifie                                    | État au 06/09/2026                 |
-| --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
-| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
-| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 246 tests verts                    |
-| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
-| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes               |
-| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées**       |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 277,8 kB gzip                      |
-| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
+| Commande                          | Ce qu'elle vérifie                                    | État au 06/09/2026           |
+| --------------------------------- | ----------------------------------------------------- | ---------------------------- |
+| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
+| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 246 tests verts              |
+| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
+| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
+| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
+| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 277,8 kB gzip, index 98 kB   |
+| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
 ## Licence, et ce que le projet stocke
 
