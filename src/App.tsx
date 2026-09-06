@@ -64,6 +64,10 @@ const PublicProfileScreen = lazy(async () => ({
   default: (await import('./features/profile/PublicProfileScreen'))
     .PublicProfileScreen,
 }));
+const SharedPhotoScreen = lazy(async () => ({
+  default: (await import('./features/share/SharedPhotoScreen'))
+    .SharedPhotoScreen,
+}));
 
 /**
  * La coquille reste à l'écran pendant le chargement : la frontière `Suspense`
@@ -103,6 +107,17 @@ function RoutedApp() {
             element={
               <ALaDemande>
                 <SharedNotesScreen />
+              </ALaDemande>
+            }
+          />
+          {/* Une photo confiée pour un jour. L'ARRIVÉE NE CONSOMME RIEN :
+              l'écran propose, un geste prend — sans quoi l'aperçu de lien
+              d'une messagerie brûlerait la photo avant son destinataire. */}
+          <Route
+            path="/photo/:token"
+            element={
+              <ALaDemande>
+                <SharedPhotoScreen />
               </ALaDemande>
             }
           />

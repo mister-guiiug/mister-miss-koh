@@ -357,6 +357,71 @@ body,
   gap: 0.5rem;
 }
 
+/* Le partage ÉPHÉMÈRE est la seule route qui publie : il se détache des trois
+   autres par un trait et une teinte d'avertissement, plutôt que de se ranger
+   parmi elles comme un bouton de plus. */
+.ephemeral-share {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in oklab, var(--warn) 45%, var(--border));
+  border-radius: var(--radius);
+}
+
+.ephemeral-share > * {
+  margin-block: 0;
+}
+
+.ephemeral-title,
+.ephemeral-invite {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ephemeral-title {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.ephemeral-invite {
+  margin: 0.9rem 0 0;
+}
+
+.ephemeral-quota {
+  font-size: 0.85rem;
+}
+
+/* L'écran d'arrivée. Le bouton qui consomme n'est pas noyé dans le texte :
+   c'est un geste irréversible, il a sa ligne. */
+.photo-offer,
+.photo-taken {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.photo-offer > *,
+.photo-taken > * {
+  margin-block: 0;
+}
+
+/* `max-width` et pas `width` : une vignette de 512 px ne gagne rien à être
+   étirée, et un fond posé sous l'image évite le blanc le temps du décodage. */
+.photo-received {
+  max-width: min(100%, 22rem);
+  height: auto;
+  border-radius: var(--radius);
+  background-color: var(--surface);
+}
+
+.photo-legend {
+  font-weight: 600;
+}
+
 .qr-block {
   display: flex;
   flex-direction: column;

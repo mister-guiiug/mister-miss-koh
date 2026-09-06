@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "test:edge": "cd supabase/functions && deno test --allow-read _shared/",
     "test:personnel:remote": "node scripts/pgtap-remote.mjs personnel.test.sql",
+    "test:photo:remote": "node scripts/pgtap-remote.mjs photo_partage.test.sql",
     "test:publication:remote": "node scripts/pgtap-remote.mjs publication.test.sql",
     "test:rls:remote": "node scripts/pgtap-remote.mjs rls.test.sql",
     "test:watch": "vitest",
