@@ -9,87 +9,102 @@
  * DEPUIS LE MAGASIN PARTAGÉ (`useNotesStore`) : une note écrite sur la fiche
  * d'un candidat ou sous un épisode apparaît ici aussitôt, et l'inverse.
  * L'éditeur est le même partout (`NoteEditor`) ; cet écran ajoute seulement
- * le choix de la cible, groupé par nature, et le lien vers chaque cible.
+ * le choix de la cible, le lien vers chaque cible — et le partage.
  *
- * CE QUE CET ÉCRAN NE FAIT PAS, ET LE DIT : il ne partage rien. Le schéma
- * porte déjà `share_links`, sa fonction de jeton et ses politiques ; le
- * parcours de partage viendra à part, parce qu'un lien révocable mérite son
- * propre écran et ses propres tests.
+ * TROIS FAÇONS DE DONNER SES NOTES, ET ELLES N'ENGAGENT PAS LA MÊME CHOSE.
+ *
+ * 1. ENVOYER un texte, ou l'ENREGISTRER en fichier : rien n'est publié, rien
+ *    ne vit sur le serveur, il n'y a rien à révoquer. C'est la route de qui
+ *    veut simplement montrer ses notes à quelqu'un.
+ * 2. UN LIEN PAR NOTE (`NoteShare`) : cette note-là devient lisible par qui
+ *    obtient l'adresse.
+ * 3. UN LIEN DE COLLECTION : une adresse qui montre TOUTES les notes rendues
+ *    partageables. Il nomme une règle, pas une liste figée — décocher une note
+ *    la retire du lien à la requête suivante, sans rien révoquer. C'est ce qui
+ *    permet de reprendre sa parole sans casser l'adresse qu'on a donnée.
+ *
+ * LA SÉLECTION NE PARTAGE RIEN PAR ELLE-MÊME. Cocher des notes prépare un
+ * envoi ou un enregistrement ; c'est le bouton « Partager par un lien » qui
+ * publie, derrière une confirmation qui dit combien de notes et ce que ça veut
+ * dire.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Star, Trash2 } from 'lucide-react';
+import {
+  Download,
+  Link2Off,
+  Pencil,
+  Send,
+  Share2,
+  Star,
+  Trash2,
+} from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
+import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
+import { downloadText } from '@mister-guiiug/dev-pwa-config/download';
+import {
+  currentAppUrl,
+  shareOrCopy,
+} from '@mister-guiiug/dev-pwa-config/share';
 import { useAppStore } from '../../store/useAppStore';
 import { useNotes } from '../../hooks/useNotes';
 import { useNotesStore } from '../../store/useNotesStore';
 import { NoteEditor, type NoteValues } from '../../components/NoteEditor';
-import type { Note, NoteTarget } from '../../backend/notes';
-
-const GROUPS = ['Saison', 'Candidats', 'Épisodes'] as const;
-type Group = (typeof GROUPS)[number];
-
-/** Les cibles que cet écran sait proposer, avec de quoi les nommer et y aller. */
-interface Choice {
-  target: NoteTarget;
-  id: string;
-  label: string;
-  group: Group;
-  href: string;
-}
+import { NoteShare } from '../../components/NoteShare';
+import { ShareLinkPanel } from '../../components/ShareLinkPanel';
+import { NOTE_GROUPS, findChoice, noteChoices } from '../../domain/noteTargets';
+import {
+  notesFileName,
+  notesToMarkdown,
+  notesToText,
+  type ExportableNote,
+} from '../../domain/notesExport';
+import { sharedUrl } from '../../domain/sharing';
+import type { Note } from '../../backend/notes';
 
 export function NotesScreen() {
   const { account, available, notes, loading, error } = useNotes();
   const referential = useAppStore(s => s.referential);
+  const links = useNotesStore(s => s.links);
   const create = useNotesStore(s => s.create);
   const update = useNotesStore(s => s.update);
   const remove = useNotesStore(s => s.remove);
+  const loadLinks = useNotesStore(s => s.loadLinks);
+  const setShareable = useNotesStore(s => s.setShareable);
+  const shareCollection = useNotesStore(s => s.shareCollection);
+  const revokeLink = useNotesStore(s => s.revokeLink);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState('');
   /** La note en cours de correction. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** La note dont le panneau de partage est déplié. */
+  const [sharing, setSharing] = useState<string | null>(null);
+  /** Les notes cochées — une préparation, jamais une publication. */
+  const [picked, setPicked] = useState<readonly string[]>([]);
   /** La note dont la suppression attend confirmation. */
   const [toDelete, setToDelete] = useState<Note | null>(null);
+  /** La publication d'une collection attend confirmation. */
+  const [toPublish, setToPublish] = useState(false);
   /** Remonte l'éditeur — donc le vide — après chaque note enregistrée. */
   const [formKey, setFormKey] = useState(0);
 
-  const choices = useMemo<Choice[]>(() => {
-    if (!referential) return [];
-    return [
-      {
-        target: 'season' as const,
-        id: referential.season.id,
-        label: referential.season.name,
-        group: 'Saison' as const,
-        href: '/',
-      },
-      ...referential.contestants.map(c => ({
-        target: 'season_contestant' as const,
-        id: c.id,
-        label: c.displayName,
-        group: 'Candidats' as const,
-        href: `/candidats/${c.id}`,
-      })),
-      ...referential.episodes.map(e => ({
-        target: 'episode' as const,
-        id: e.id,
-        label: `Épisode ${e.number}`,
-        group: 'Épisodes' as const,
-        href: '/episodes',
-      })),
-    ];
-  }, [referential]);
-
+  const choices = useMemo(() => noteChoices(referential), [referential]);
   const choiceOf = (note: Note) =>
-    choices.find(c => c.target === note.target && c.id === note.targetId) ??
-    null;
+    findChoice(choices, note.target, note.targetId);
+  const heading = referential
+    ? `Mes notes — ${referential.season.name}`
+    : 'Mes notes';
+
+  useEffect(() => {
+    if (account && links === null) void loadLinks();
+  }, [account, links, loadLinks]);
 
   if (!available || account === null) {
     return (
@@ -142,6 +157,54 @@ export function NotesScreen() {
     );
   };
 
+  const exportable = (note: Note): ExportableNote => ({
+    title: note.title,
+    body: note.body,
+    rating: note.rating,
+    updatedAt: note.updatedAt,
+    about: choiceOf(note)?.label ?? 'Cible retirée du référentiel',
+  });
+
+  const chosen = (notes ?? []).filter(n => picked.includes(n.id));
+  const shareable = (notes ?? []).filter(n => n.visibility !== 'private');
+  const collection = (links ?? []).find(l => l.scope === 'note_collection');
+
+  const toggle = (id: string) =>
+    setPicked(current =>
+      current.includes(id) ? current.filter(x => x !== id) : [...current, id]
+    );
+
+  const sendSelection = async () => {
+    const text = notesToText(chosen.map(exportable), heading);
+    const result = await shareOrCopy({ title: heading, text });
+    if (result === 'copied') toast.success('Notes copiées.');
+    if (result === 'failed') toast.error('L’envoi n’a pas abouti.');
+  };
+
+  const saveSelection = () => {
+    const document = notesToMarkdown(chosen.map(exportable), heading);
+    if (!downloadText(document, notesFileName(heading), 'text/markdown')) {
+      toast.error('L’enregistrement n’a pas pu démarrer.');
+    }
+  };
+
+  const publishSelection = () =>
+    run(
+      async () => {
+        // La visibilité D'ABORD, le lien ensuite : un lien de collection créé
+        // avant n'ouvrirait rien, et l'écran promettrait plus qu'il ne fait.
+        for (const note of chosen) {
+          if (note.visibility === 'private') await setShareable(note.id, true);
+        }
+        await shareCollection(heading);
+      },
+      'Lien de collection prêt.',
+      () => {
+        setToPublish(false);
+        setPicked([]);
+      }
+    );
+
   return (
     <div className="stack">
       <h2>Notes</h2>
@@ -162,7 +225,7 @@ export function NotesScreen() {
             <span>À propos de</span>
             <select value={choice} onChange={e => setChoice(e.target.value)}>
               <option value="">Choisir…</option>
-              {GROUPS.map(group => (
+              {NOTE_GROUPS.map(group => (
                 <optgroup key={group} label={group}>
                   {choices
                     .filter(c => c.group === group)
@@ -187,6 +250,72 @@ export function NotesScreen() {
         </p>
       )}
 
+      {collection && (
+        <Card>
+          <CardHeader
+            title="Lien de vos notes partagées"
+            subtitle={`${shareable.length} note${shareable.length > 1 ? 's' : ''} ouverte${shareable.length > 1 ? 's' : ''} à la lecture`}
+          />
+          <ShareLinkPanel
+            link={sharedUrl(currentAppUrl(), 'notes', collection.token)}
+            title={heading}
+            qrLabel="QR code du lien vers vos notes partagées"
+            note={
+              <p className="muted qr-note">
+                Ce lien montre les notes marquées « partagée », telles qu’elles
+                sont à l’instant où on l’ouvre. Retirer une note du partage la
+                fait disparaître aussitôt, sans révoquer le lien ni en refaire
+                un.
+              </p>
+            }
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  () => revokeLink(collection),
+                  'Lien de collection révoqué.',
+                  () => undefined
+                )
+              }
+            >
+              <Link2Off size={16} aria-hidden />
+              Révoquer
+            </Button>
+          </ShareLinkPanel>
+        </Card>
+      )}
+
+      {picked.length > 0 && (
+        <div className="bulk-bar" role="group" aria-label="Notes sélectionnées">
+          <strong>
+            {picked.length} note{picked.length > 1 ? 's' : ''} sélectionnée
+            {picked.length > 1 ? 's' : ''}
+          </strong>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void sendSelection()}
+          >
+            <Send size={16} aria-hidden />
+            Envoyer
+          </Button>
+          <Button variant="outline" size="sm" onClick={saveSelection}>
+            <Download size={16} aria-hidden />
+            Enregistrer
+          </Button>
+          <Button size="sm" disabled={busy} onClick={() => setToPublish(true)}>
+            <Share2 size={16} aria-hidden />
+            Partager par un lien
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setPicked([])}>
+            Tout décocher
+          </Button>
+        </div>
+      )}
+
       {notes === null ? (
         loading || !error ? (
           <SkeletonGroup label="Chargement des notes" lines={3} />
@@ -200,84 +329,127 @@ export function NotesScreen() {
         <ul className="list">
           {notes.map(note => {
             const target = choiceOf(note);
+            const about = target?.label ?? 'une cible retirée';
             return (
               <li key={note.id} className="note">
-                <div>
-                  <strong>
-                    {target ? (
-                      <Link to={target.href}>{target.label}</Link>
-                    ) : (
-                      'Cible retirée du référentiel'
-                    )}
-                  </strong>
-                  {editing === note.id ? (
-                    <NoteEditor
-                      initial={note}
-                      onSubmit={values =>
-                        run(
-                          () => update(note.id, values),
-                          'Note corrigée.',
-                          () => setEditing(null)
-                        )
-                      }
-                      onCancel={() => setEditing(null)}
-                      busy={busy}
-                      focusOnMount
-                    />
-                  ) : (
-                    <>
-                      {note.title && <p className="note-title">{note.title}</p>}
-                      {note.rating !== null && (
-                        <span
-                          className="rating"
-                          aria-label={`${note.rating} sur 5`}
-                        >
-                          {[1, 2, 3, 4, 5].map(n => (
-                            <Star
-                              key={n}
-                              size={14}
-                              aria-hidden
-                              fill={
-                                n <= (note.rating ?? 0)
-                                  ? 'currentColor'
-                                  : 'none'
-                              }
-                            />
-                          ))}
-                        </span>
+                <div className="note-row">
+                  <input
+                    type="checkbox"
+                    className="note-pick"
+                    checked={picked.includes(note.id)}
+                    onChange={() => toggle(note.id)}
+                    aria-label={`Sélectionner la note sur ${about}`}
+                  />
+                  <div>
+                    <strong>
+                      {target ? (
+                        <Link to={target.href}>{target.label}</Link>
+                      ) : (
+                        'Cible retirée du référentiel'
                       )}
-                      <p>{note.body}</p>
-                      <small className="muted">
-                        modifiée le {formatDate(note.updatedAt)}
-                      </small>
+                    </strong>{' '}
+                    {note.visibility !== 'private' && (
+                      <Badge tone="warning" size="xs">
+                        partagée
+                      </Badge>
+                    )}
+                    {editing === note.id ? (
+                      <NoteEditor
+                        initial={note}
+                        onSubmit={values =>
+                          run(
+                            () => update(note.id, values),
+                            'Note corrigée.',
+                            () => setEditing(null)
+                          )
+                        }
+                        onCancel={() => setEditing(null)}
+                        busy={busy}
+                        focusOnMount
+                      />
+                    ) : (
+                      <>
+                        {note.title && (
+                          <p className="note-title">{note.title}</p>
+                        )}
+                        {note.rating !== null && (
+                          <span
+                            className="rating"
+                            aria-label={`${note.rating} sur 5`}
+                          >
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <Star
+                                key={n}
+                                size={14}
+                                aria-hidden
+                                fill={
+                                  n <= (note.rating ?? 0)
+                                    ? 'currentColor'
+                                    : 'none'
+                                }
+                              />
+                            ))}
+                          </span>
+                        )}
+                        <p>{note.body}</p>
+                        <small className="muted">
+                          modifiée le {formatDate(note.updatedAt)}
+                        </small>
+                      </>
+                    )}
+                  </div>
+                  {editing !== note.id && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        iconOnly
+                        aria-label={`Partager la note sur ${about}`}
+                        aria-expanded={sharing === note.id}
+                        onClick={() =>
+                          setSharing(sharing === note.id ? null : note.id)
+                        }
+                      >
+                        <Share2 size={18} aria-hidden />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        iconOnly
+                        aria-label={`Modifier la note sur ${about}`}
+                        onClick={() => setEditing(note.id)}
+                      >
+                        <Pencil size={18} aria-hidden />
+                      </Button>
                     </>
                   )}
-                </div>
-                {editing !== note.id && (
                   <Button
                     variant="ghost"
                     size="sm"
                     iconOnly
-                    aria-label={`Modifier la note sur ${target?.label ?? 'une cible retirée'}`}
-                    onClick={() => setEditing(note.id)}
+                    aria-label={`Supprimer la note sur ${about}`}
+                    onClick={() => setToDelete(note)}
                   >
-                    <Pencil size={18} aria-hidden />
+                    <Trash2 size={18} aria-hidden />
                   </Button>
+                </div>
+                {sharing === note.id && (
+                  <NoteShare note={note} about={about} heading={heading} />
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconOnly
-                  aria-label={`Supprimer la note sur ${target?.label ?? 'une cible retirée'}`}
-                  onClick={() => setToDelete(note)}
-                >
-                  <Trash2 size={18} aria-hidden />
-                </Button>
               </li>
             );
           })}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={toPublish}
+        title={`Partager ${picked.length} note${picked.length > 1 ? 's' : ''} par un lien ?`}
+        message={`Ces notes deviendront lisibles par toute personne qui obtient le lien, sans compte. Vous pourrez révoquer le lien, ou retirer une note du partage, à tout moment.`}
+        loading={busy}
+        onConfirm={() => void publishSelection()}
+        onCancel={() => setToPublish(false)}
+      />
 
       <ConfirmDialog
         open={toDelete !== null}
@@ -296,6 +468,7 @@ export function NotesScreen() {
               'Note supprimée.',
               () => {
                 if (editing === toDelete.id) setEditing(null);
+                if (sharing === toDelete.id) setSharing(null);
                 setToDelete(null);
               }
             );

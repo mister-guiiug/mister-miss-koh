@@ -2212,6 +2212,24 @@ export type Database = {
           note_id: string;
           rating: number;
           tags: string[];
+          target: string;
+          target_id: string;
+          title: string;
+          updated_at: string;
+        }[];
+      };
+      get_shared_notes: {
+        Args: { share_token: string };
+        Returns: {
+          author_handle: string;
+          author_pseudonym: string;
+          body: string;
+          created_at: string;
+          note_id: string;
+          rating: number;
+          tags: string[];
+          target: string;
+          target_id: string;
           title: string;
           updated_at: string;
         }[];
@@ -2251,6 +2269,14 @@ export type Database = {
         Returns: undefined;
       };
       no_plan: { Args: never; Returns: boolean[] };
+      note_target: {
+        Args: { n: Database['public']['Tables']['personal_notes']['Row'] };
+        Returns: string;
+      };
+      note_target_id: {
+        Args: { n: Database['public']['Tables']['personal_notes']['Row'] };
+        Returns: string;
+      };
       num_failed: { Args: never; Returns: number };
       os_name: { Args: never; Returns: string };
       pass:

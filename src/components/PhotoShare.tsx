@@ -19,21 +19,18 @@
  * le perdre. Le blob est donc relu au montage, et le bouton n'apparaît que
  * lorsqu'il est en main.
  */
-import { useEffect, useId, useState } from 'react';
-import { Download, Link2, QrCode, Share2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Download, Share2 } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { downloadBlob } from '@mister-guiiug/dev-pwa-config/download';
-import {
-  currentAppUrl,
-  shareOrCopy,
-} from '@mister-guiiug/dev-pwa-config/share';
-import { qrToDataUrl } from '@mister-guiiug/dev-pwa-config/qr';
+import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { formatBytes } from '@mister-guiiug/dev-pwa-config/format';
 import type { Contestant } from '../domain/referential';
 import { usePhotosStore } from '../store/usePhotosStore';
 import { canSharePhoto, sharePhoto } from '../backend/sharePhoto';
 import { QR_MAX_BYTES, contestantUrl, photoFileName } from '../domain/sharing';
+import { ShareLinkPanel } from './ShareLinkPanel';
 
 export function PhotoShare({ contestant }: { contestant: Contestant }) {
   const url = usePhotosStore(s => s.urls[contestant.id]);
@@ -47,10 +44,7 @@ function SharePanel({ contestant }: { contestant: Contestant }) {
   const read = usePhotosStore(s => s.read);
   const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const panelId = useId();
 
   const title = `Portrait de ${contestant.displayName}`;
   const link = contestantUrl(currentAppUrl(), contestant.id);
@@ -91,30 +85,25 @@ function SharePanel({ contestant }: { contestant: Contestant }) {
     }
   };
 
-  const sendLink = async () => {
-    const result = await shareOrCopy({ title, url: link });
-    if (result === 'copied') toast.success('Lien copié.');
-    if (result === 'failed') toast.error('Le lien n’a pas pu être partagé.');
-  };
-
-  const toggleQr = () => {
-    const next = !open;
-    setOpen(next);
-    // Le poids du QR (~50 ko) n'est téléchargé qu'ici, à la première ouverture.
-    if (next && !qr) {
-      // `margin: 4` : la ZONE DE SILENCE que la norme exige autour du motif.
-      // La rogner fait échouer des lecteurs, et le rembourrage CSS ne la
-      // remplace pas — il n'est pas garanti clair sur tous les thèmes.
-      qrToDataUrl(link, { width: 512, margin: 4, errorCorrectionLevel: 'M' })
-        .then(setQr)
-        .catch(() => toast.error('Le QR code n’a pas pu être créé.'));
-    }
-  };
-
   return (
     <section className="photo-share">
       <h3 className="photo-share-title">Partager ce portrait</h3>
-      <div className="photo-share-actions">
+      <ShareLinkPanel
+        link={link}
+        title={title}
+        qrLabel={`QR code du lien vers la fiche de ${contestant.displayName}`}
+        note={
+          <p className="muted qr-note">
+            Ce QR code ouvre la fiche de {contestant.displayName} sur un autre
+            appareil. Il ne porte pas l’image
+            {file
+              ? ` : un QR code contient au plus ${formatBytes(QR_MAX_BYTES)}, ce portrait en pèse ${formatBytes(file.size)}`
+              : ''}
+            . L’image part par les boutons ci-dessus, d’appareil à appareil,
+            sans passer par un serveur.
+          </p>
+        }
+      >
         {file && canSharePhoto(file, title) && (
           <Button size="sm" disabled={busy} onClick={() => void send()}>
             <Share2 size={16} aria-hidden />
@@ -125,47 +114,7 @@ function SharePanel({ contestant }: { contestant: Contestant }) {
           <Download size={16} aria-hidden />
           Enregistrer l’image
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={toggleQr}
-        >
-          <QrCode size={16} aria-hidden />
-          QR code du lien
-        </Button>
-      </div>
-
-      {/* Toujours dans le document, pour que `aria-controls` désigne quelque
-          chose ; `[hidden]` est rétabli en CSS, qu'une règle `display` couvre. */}
-      <div id={panelId} className="qr-block" hidden={!open}>
-        {qr ? (
-          <img
-            className="qr-code"
-            src={qr}
-            width={192}
-            height={192}
-            alt={`QR code du lien vers la fiche de ${contestant.displayName}`}
-          />
-        ) : (
-          <p className="muted">Création du QR code…</p>
-        )}
-        <p className="muted qr-note">
-          Ce QR code ouvre la fiche de {contestant.displayName} sur un autre
-          appareil. Il ne porte pas l’image
-          {file
-            ? ` : un QR code contient au plus ${formatBytes(QR_MAX_BYTES)}, ce portrait en pèse ${formatBytes(file.size)}`
-            : ''}
-          . L’image part par les boutons ci-dessus, d’appareil à appareil, sans
-          passer par un serveur.
-        </p>
-        <p className="share-link">{link}</p>
-        <Button variant="outline" size="sm" onClick={() => void sendLink()}>
-          <Link2 size={16} aria-hidden />
-          Partager le lien
-        </Button>
-      </div>
+      </ShareLinkPanel>
     </section>
   );
 }

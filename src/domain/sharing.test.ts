@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { QR_MAX_BYTES, contestantUrl, photoFileName } from './sharing';
+import {
+  QR_MAX_BYTES,
+  contestantUrl,
+  photoFileName,
+  sharedUrl,
+} from './sharing';
 
 describe('le nom du fichier partagé', () => {
   it('nomme la personne, sans accent ni espace', () => {
@@ -51,6 +56,32 @@ describe('le lien d’une fiche', () => {
   it('encode un identifiant qui contiendrait autre chose que des lettres', () => {
     expect(contestantUrl('https://exemple.test/', 'c/ael?x')).toBe(
       'https://exemple.test/#/candidats/c%2Fael%3Fx'
+    );
+  });
+});
+
+describe('le lien d’un partage', () => {
+  it('inscrit la PORTÉE dans l’adresse — le jeton ne la dit pas', () => {
+    // Le serveur a deux lecteurs, un par portée, et rien dans un jeton ne
+    // désigne le sien : sans cette marque, ouvrir un lien demanderait
+    // d'essayer l'un puis l'autre.
+    expect(sharedUrl('https://exemple.test/koh/', 'note', 'jeton')).toBe(
+      'https://exemple.test/koh/#/partage/note/jeton'
+    );
+    expect(sharedUrl('https://exemple.test/koh/', 'notes', 'jeton')).toBe(
+      'https://exemple.test/koh/#/partage/notes/jeton'
+    );
+  });
+
+  it('laisse un jeton base64url intact, et encode le reste', () => {
+    // `generate_share_token` rend du base64url : lettres, chiffres, « - » et
+    // « _ », qu'aucun encodage ne doit déformer.
+    const jeton = 'aB3-_xYz';
+    expect(sharedUrl('https://exemple.test/', 'note', jeton)).toBe(
+      `https://exemple.test/#/partage/note/${jeton}`
+    );
+    expect(sharedUrl('https://exemple.test/', 'note', 'a/b')).toBe(
+      'https://exemple.test/#/partage/note/a%2Fb'
     );
   });
 });
