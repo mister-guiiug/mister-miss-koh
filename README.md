@@ -5,16 +5,17 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> **21 des 23 migrations** sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
-> d'isolation (33 assertions) et la publication transactionnelle (43 assertions)
-> passent contre cette base.
+> Les **23 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Les quatre suites
+> pgTAP passent contre cette base — isolation (33), publication (43), suivi du
+> compte (21), partage éphémère (24) —, jouées le 07/09/2026.
 >
-> ⚠️ **`0022` et `0023` attendent d'être poussées à la main.** Ce dépôt n'a
-> AUCUN workflow qui applique les migrations : une CI verte ne dit rien de
-> l'état de la base. Tant qu'elles ne le sont pas, le **partage éphémère d'une
-> photo** répond « Could not find the function » et la **suppression d'une
-> note** reste refusée. `supabase db push` avec `SUPABASE_ACCESS_TOKEN`.
+> ⚠️ **Ce dépôt n'a AUCUN workflow qui applique les migrations.** Une CI verte
+> ne dit donc rien de l'état de la base : `0022` et `0023` y sont restées en
+> attente pendant que le site déployé répondait « Could not find the function ».
+> Après toute migration, pousser à la main — `supabase db push --linked` avec
+> `SUPABASE_ACCESS_TOKEN` — puis rejouer les suites `*:remote`, seules à mesurer
+> le RÉEL.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
 > avec sa provenance et son anti-spoiler. Le retour arrière a servi pour de
