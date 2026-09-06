@@ -109,3 +109,83 @@ describe('useAppStore — chargement du référentiel', () => {
     expect(useAppStore.getState().error).toBe('référentiel illisible');
   });
 });
+
+/**
+ * Le suivi et le compte.
+ *
+ * CE QUI EST PROUVÉ ICI : que le magasin local reste la référence de
+ * l'appareil. Sans relais — pas de compte, démonstration, backend absent —,
+ * cocher un épisode marche exactement comme avant ; avec un relais, le geste
+ * s'écrit d'abord ici, puis part. L'ordre importe : si le magasin attendait la
+ * réponse du serveur, l'application cesserait de fonctionner hors ligne.
+ */
+describe('useAppStore — le suivi qui suit le compte', () => {
+  beforeEach(() => {
+    useAppStore.setState({ watched: [], favorites: [] });
+    useAppStore.getState().attachPersonalRemote(null);
+  });
+
+  it('sans relais, cocher un épisode et un favori marche — c’est le repli local', () => {
+    const store = useAppStore.getState();
+    store.toggleWatched(2);
+    store.toggleFavorite('c-ael');
+
+    expect(useAppStore.getState().watched).toEqual([2]);
+    expect(useAppStore.getState().favorites).toEqual(['c-ael']);
+
+    // Et se décoche tout aussi bien : aucune de ces bascules ne dépend d'un
+    // serveur, ni d'une promesse tenue.
+    useAppStore.getState().toggleWatched(2);
+    expect(useAppStore.getState().watched).toEqual([]);
+  });
+
+  it('avec un relais, chaque bascule part au compte — avec son sens', () => {
+    const favorite = vi.fn();
+    const watched = vi.fn();
+    useAppStore.getState().attachPersonalRemote({ favorite, watched });
+
+    useAppStore.getState().toggleWatched(3);
+    useAppStore.getState().toggleWatched(3);
+    useAppStore.getState().toggleFavorite('c-hina');
+
+    // `true` puis `false` : le relais reçoit l'ÉTAT VOULU, pas « quelque chose
+    // a changé ». Sans cela, un décochage se traduirait en ajout au serveur.
+    expect(watched.mock.calls).toEqual([
+      [3, true],
+      [3, false],
+    ]);
+    expect(favorite.mock.calls).toEqual([['c-hina', true]]);
+  });
+
+  it('un relais détaché ne reçoit plus rien : la déconnexion rend l’appareil à lui-même', () => {
+    const favorite = vi.fn();
+    const watched = vi.fn();
+    useAppStore.getState().attachPersonalRemote({ favorite, watched });
+    useAppStore.getState().attachPersonalRemote(null);
+
+    useAppStore.getState().toggleWatched(1);
+    useAppStore.getState().toggleFavorite('c-ael');
+
+    expect(watched).not.toHaveBeenCalled();
+    expect(favorite).not.toHaveBeenCalled();
+    // Et l'écran, lui, a bien changé.
+    expect(useAppStore.getState().watched).toEqual([1]);
+  });
+
+  it('la fusion remplace le suivi, dans l’ordre, sans rien renvoyer au serveur', () => {
+    const favorite = vi.fn();
+    const watched = vi.fn();
+    useAppStore.getState().attachPersonalRemote({ favorite, watched });
+
+    useAppStore
+      .getState()
+      .setPersonal({ watched: [5, 1, 3], favorites: ['c-gael'] });
+
+    expect(useAppStore.getState().watched).toEqual([1, 3, 5]);
+    expect(useAppStore.getState().favorites).toEqual(['c-gael']);
+    // La fusion VIENT du serveur : la lui repousser serait un aller-retour
+    // pour rien, et une boucle si l'envoi déclenchait une relecture.
+    expect(watched).not.toHaveBeenCalled();
+    expect(favorite).not.toHaveBeenCalled();
+  });
+});
