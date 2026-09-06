@@ -20,7 +20,10 @@ favoris et partage révocable.
 Un outil **non officiel**, sans lien avec les ayants droit de l'émission. Les
 données référentielles proviennent de Wikipédia, source **collaborative** :
 rien n'y est présenté comme officiel, et chaque valeur affichée porte sa
-provenance, sa révision et son statut de validation.
+provenance, sa révision et son statut de validation. Le pavé de provenance a
+sa carte « Source de vérité » dans les **Réglages** — on l'y consulte, il ne
+s'impose plus à chaque ouverture de l'accueil, où le sous-titre de la saison
+dit déjà s'il s'agit d'une démonstration.
 
 L'identité visuelle est **originale** — terre, feu, océan, jungle. Aucun logo,
 totem, photographie, extrait ou élément graphique de l'émission n'est reproduit.
@@ -98,12 +101,12 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 280 tests verts              |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 281 tests verts              |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,6 kB gzip, index 103 kB  |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,7 kB gzip, index 103 kB  |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,

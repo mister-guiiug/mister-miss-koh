@@ -146,6 +146,32 @@ describe('publier une sélection par un lien', () => {
   });
 });
 
+describe('modifier une note', () => {
+  it('la ligne cède la place au formulaire, corbeille comprise', async () => {
+    // Le formulaire était rendu dans la colonne du milieu, coincé entre la
+    // case à cocher et la corbeille : une commande destructrice à portée de
+    // pouce d'un champ de saisie, et une largeur de saisie amputée.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Modifier la note sur Aël' })
+    );
+
+    expect(screen.queryByLabelText('Sélectionner la note sur Aël')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Supprimer la note sur Aël' })
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Partager la note sur Aël' })
+    ).toBeNull();
+    // Les autres notes, elles, gardent les leurs.
+    expect(
+      screen.getByRole('button', { name: 'Supprimer la note sur Céleste' })
+    ).toBeInTheDocument();
+  });
+});
+
 describe('une note déjà ouverte à la lecture', () => {
   it('le dit dans la liste, sans attendre qu’on déplie quoi que ce soit', () => {
     held.notes = [note('n-1', 'c-ael', { visibility: 'link' })];

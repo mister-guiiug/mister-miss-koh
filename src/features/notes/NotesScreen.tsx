@@ -100,6 +100,8 @@ export function NotesScreen() {
   const [choice, setChoice] = useState('');
   /** La note en cours de correction. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** La note dont la suppression est en cours — pour la MONTRER. */
+  const [pending, setPending] = useState<string | null>(null);
   /** La note dont le panneau de partage est déplié. */
   const [sharing, setSharing] = useState<string | null>(null);
   /** Les notes cochées — une préparation, jamais une publication. */
@@ -174,6 +176,7 @@ export function NotesScreen() {
    */
   const deleteNote = (note: Note, about: string) => {
     setBusy(true);
+    setPending(note.id);
     void remove(note.id)
       .then(() => {
         if (editing === note.id) setEditing(null);
@@ -189,7 +192,10 @@ export function NotesScreen() {
       .catch((cause: unknown) => {
         toast.error(cause instanceof Error ? cause.message : String(cause));
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        setBusy(false);
+        setPending(null);
+      });
   };
 
   const submitNew = (values: NoteValues) => {
@@ -377,116 +383,129 @@ export function NotesScreen() {
             const target = choiceOf(note);
             const about = target?.label ?? 'une cible retirée';
             return (
-              <li key={note.id} className="note">
-                <div className="note-row">
-                  <input
-                    type="checkbox"
-                    className="note-pick"
-                    checked={picked.includes(note.id)}
-                    onChange={() => toggle(note.id)}
-                    aria-label={`Sélectionner la note sur ${about}`}
-                  />
-                  <div>
+              <li
+                key={note.id}
+                className="note"
+                data-pending={pending === note.id ? '' : undefined}
+              >
+                {editing === note.id ? (
+                  /* EN MODIFICATION, LE FORMULAIRE PREND TOUTE LA LARGEUR.
+                     Rendu dans la colonne du milieu, il se retrouvait coincé
+                     entre la case à cocher et la corbeille — deux commandes
+                     qui n'ont aucun sens pendant qu'on écrit, et un bouton
+                     destructeur à portée de pouce d'un champ de saisie. La
+                     ligne cède la place à la note qu'on corrige. */
+                  <div className="note-editing">
                     <strong>
                       {target ? (
                         <Link to={target.href}>{target.label}</Link>
                       ) : (
                         'Cible retirée du référentiel'
                       )}
-                    </strong>{' '}
-                    {/* Deux ouvertures, deux mots : « partagée » les
-                        confondrait, et publier n'est pas confier. */}
-                    {note.visibility === 'link' && (
-                      <Badge tone="warning" size="xs">
-                        par lien
-                      </Badge>
-                    )}
-                    {note.visibility === 'public' && (
-                      <Badge tone="danger" size="xs">
-                        publique
-                      </Badge>
-                    )}
-                    {editing === note.id ? (
-                      <NoteEditor
-                        initial={note}
-                        onSubmit={values =>
-                          run(
-                            () => update(note.id, values),
-                            'Note corrigée.',
-                            () => setEditing(null)
-                          )
-                        }
-                        onCancel={() => setEditing(null)}
-                        busy={busy}
-                        focusOnMount
-                      />
-                    ) : (
-                      <>
-                        {note.title && (
-                          <p className="note-title">{note.title}</p>
-                        )}
-                        {note.rating !== null && (
-                          <span
-                            className="rating"
-                            aria-label={`${note.rating} sur 5`}
-                          >
-                            {[1, 2, 3, 4, 5].map(n => (
-                              <Star
-                                key={n}
-                                size={14}
-                                aria-hidden
-                                fill={
-                                  n <= (note.rating ?? 0)
-                                    ? 'currentColor'
-                                    : 'none'
-                                }
-                              />
-                            ))}
-                          </span>
-                        )}
-                        <p>{note.body}</p>
-                        <small className="muted">
-                          modifiée le {formatDate(note.updatedAt)}
-                        </small>
-                      </>
-                    )}
+                    </strong>
+                    <NoteEditor
+                      initial={note}
+                      onSubmit={values =>
+                        run(
+                          () => update(note.id, values),
+                          'Note corrigée.',
+                          () => setEditing(null)
+                        )
+                      }
+                      onCancel={() => setEditing(null)}
+                      busy={busy}
+                      focusOnMount
+                    />
                   </div>
-                  {editing !== note.id && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        iconOnly
-                        aria-label={`Partager la note sur ${about}`}
-                        aria-expanded={sharing === note.id}
-                        onClick={() =>
-                          setSharing(sharing === note.id ? null : note.id)
-                        }
-                      >
-                        <Share2 size={18} aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        iconOnly
-                        aria-label={`Modifier la note sur ${about}`}
-                        onClick={() => setEditing(note.id)}
-                      >
-                        <Pencil size={18} aria-hidden />
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    iconOnly
-                    disabled={busy}
-                    aria-label={`Supprimer la note sur ${about}`}
-                    onClick={() => deleteNote(note, about)}
-                  >
-                    <Trash2 size={18} aria-hidden />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="note-row">
+                    <input
+                      type="checkbox"
+                      className="note-pick"
+                      checked={picked.includes(note.id)}
+                      onChange={() => toggle(note.id)}
+                      aria-label={`Sélectionner la note sur ${about}`}
+                    />
+                    <div>
+                      <strong>
+                        {target ? (
+                          <Link to={target.href}>{target.label}</Link>
+                        ) : (
+                          'Cible retirée du référentiel'
+                        )}
+                      </strong>{' '}
+                      {/* Deux ouvertures, deux mots : « partagée » les
+                          confondrait, et publier n'est pas confier. */}
+                      {note.visibility === 'link' && (
+                        <Badge tone="warning" size="xs">
+                          par lien
+                        </Badge>
+                      )}
+                      {note.visibility === 'public' && (
+                        <Badge tone="danger" size="xs">
+                          publique
+                        </Badge>
+                      )}
+                      {note.title && <p className="note-title">{note.title}</p>}
+                      {note.rating !== null && (
+                        <span
+                          className="rating"
+                          aria-label={`${note.rating} sur 5`}
+                        >
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star
+                              key={n}
+                              size={14}
+                              aria-hidden
+                              fill={
+                                n <= (note.rating ?? 0)
+                                  ? 'currentColor'
+                                  : 'none'
+                              }
+                            />
+                          ))}
+                        </span>
+                      )}
+                      <p>{note.body}</p>
+                      <small className="muted">
+                        {pending === note.id
+                          ? 'Suppression…'
+                          : `modifiée le ${formatDate(note.updatedAt)}`}
+                      </small>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconOnly
+                      aria-label={`Partager la note sur ${about}`}
+                      aria-expanded={sharing === note.id}
+                      onClick={() =>
+                        setSharing(sharing === note.id ? null : note.id)
+                      }
+                    >
+                      <Share2 size={18} aria-hidden />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconOnly
+                      aria-label={`Modifier la note sur ${about}`}
+                      onClick={() => setEditing(note.id)}
+                    >
+                      <Pencil size={18} aria-hidden />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconOnly
+                      disabled={busy}
+                      aria-label={`Supprimer la note sur ${about}`}
+                      onClick={() => deleteNote(note, about)}
+                    >
+                      <Trash2 size={18} aria-hidden />
+                    </Button>
+                  </div>
+                )}
                 {sharing === note.id && (
                   <NoteShare note={note} about={about} heading={heading} />
                 )}

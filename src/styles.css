@@ -425,6 +425,13 @@ body,
 .field {
   flex-direction: column;
   gap: 0.3rem;
+  /* `align-items: flex-start` vient de la règle partagée juste au-dessus, où
+     il sert aux cases et aux radios. Sur une colonne, il fait rétrécir le
+     champ à sa largeur INTRINSÈQUE — la vingtaine de caractères qu'un
+     `<input>` prend par défaut — au lieu de lui donner celle de son
+     étiquette : une adresse électronique ne tenait pas dans son propre
+     champ. `stretch` le rend à sa colonne. */
+  align-items: stretch;
 }
 
 .field input,
@@ -902,6 +909,21 @@ body,
 /* La coche s'aligne sur la première ligne de texte, pas sur le haut du bloc. */
 .note-pick {
   margin-top: 0.35rem;
+}
+
+/* En modification, la note cède toute sa largeur au formulaire : plus de case
+   à cocher ni de corbeille à côté d'un champ de saisie. */
+.note-editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* La note qu'on efface le DIT, le temps que le serveur réponde — sinon rien
+   ne distingue celle qui part de celles qui restent. */
+.note[data-pending] {
+  opacity: 0.55;
+  border-color: var(--danger);
 }
 
 .note-share {

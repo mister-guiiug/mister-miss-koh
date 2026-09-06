@@ -1,7 +1,6 @@
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { useAppStore } from '../../store/useAppStore';
-import { Provenance } from '../../components/Provenance';
 import { PullToRefresh } from '../../components/PullToRefresh';
 import { HomeTiles } from '../../components/HomeTiles';
 import { AppAnimation } from '../../animations/AppAnimation';
@@ -34,7 +33,12 @@ export function HomeScreen() {
             et un menu redondant avec la barre basse. */}
         <HomeTiles />
       </Card>
-      <Provenance data={referential.provenance} />
+      {/* LA PROVENANCE N'EST PLUS ICI, et la promesse tient quand même : elle
+          occupe sa carte « Source de vérité » dans les Réglages, avec la page,
+          la révision, la date de lecture et la version d'extraction. Sur
+          l'accueil, ce pavé de métadonnées passait avant les chiffres et
+          repoussait tout le reste — la traçabilité se consulte, elle ne
+          s'impose pas à chaque ouverture. */}
       <p className="muted">
         Application non officielle, sans lien avec les ayants droit de
         l’émission. Vos notes, favoris et réglages restent sur cet appareil tant
