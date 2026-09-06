@@ -82,11 +82,12 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 220 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 246 tests verts                    |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes               |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 276,7 kB gzip                      |
+| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées**       |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 277,8 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -141,7 +142,9 @@ src/
                  d'une image par la feuille du système (`sharePhoto.ts`), liens
                  de partage des notes (`sharing.ts` — créer, révoquer, lire),
                  profil (`profile.ts` — `upsert`, et la disponibilité demandée
-                 au serveur et non à la table)
+                 au serveur et non à la table), suivi du compte
+                 (`personal.ts` — favoris et épisodes vus, une union jamais un
+                 écrasement)
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
                  notes du compte (useNotesStore), portraits (usePhotosStore :
@@ -150,8 +153,10 @@ src/
                  niveaux de mouvement (`data-motion` sur <html>)
   hooks/         useSpoilerLimit, useSession (compte courant), useProfile (le
                  pseudonyme, chargé à la connexion et oublié après), useNotes (les
-                 notes du compte, une fois), useHaptics, useRefreshReferential
-                 (recharger et le dire — l'échec aussi)
+                 notes du compte, une fois), usePersonalSync (le suivi qui suit
+                 le compte, le magasin local en repli), useUndo (supprimer sans
+                 confirmer, annuler pendant huit secondes), useHaptics,
+                 useRefreshReferential (recharger et le dire — l'échec aussi)
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
                  PairBlock (le binôme : celui de la source, ou le vôtre),
@@ -160,8 +165,9 @@ src/
                  l'adresse en clair, et le partage natif d'un lien),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
-                 réglages, hors-ligne, et `share/` — ce qu'un lien ouvre, pour
-                 n'importe qui, sans session
+                 profil (pseudonyme, identifiant public, visibilité), réglages,
+                 hors-ligne, et `share/` — ce qu'un lien ouvre, pour n'importe
+                 qui, sans session
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
@@ -173,7 +179,7 @@ supabase/
                  0021 partage des notes (lecteur de collection, et la
                  jointure de profil rendue EXTERNE)
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
-  tests/         isolation RLS et publication (pgTAP)
+  tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
 ```
 
 Six choix qui structurent le code :
@@ -330,12 +336,51 @@ Deux réglages sans lesquels le lien ne ramène nulle part :
   `http://localhost:5236/`. Elle valait `http://localhost:3000` par défaut,
   c'est-à-dire nulle part.
 
-Les notes vivent **sur le serveur**, contrairement aux favoris et aux épisodes
-vus qui restent sur l'appareil : on relit une note ailleurs, et on ne veut pas
-la perdre en vidant un cache. Une note vise exactement **une** chose (saison,
-candidat, épisode…), garantie par une contrainte de cardinalité ; la
+Les notes vivent **sur le serveur** : on relit une note ailleurs, et on ne veut
+pas la perdre en vidant un cache. Une note vise exactement **une** chose
+(saison, candidat, épisode…), garantie par une contrainte de cardinalité ; la
 suppression est **logique** (`deleted_at`), pour qu'un lien partagé cesse
 d'ouvrir la note au moment où son auteur la retire.
+
+**Et cette suppression s'annule.** Supprimer une note ne demande plus de
+confirmation : la notification offre huit secondes pour revenir en arrière. Une
+boîte de dialogue avant chaque geste fatigue sans protéger — on répond « oui »
+par réflexe —, alors qu'un retour en arrière protège vraiment, et il ne coûte
+rien ici puisque la ligne n'a jamais été détruite : annuler retire une date.
+Pas de corbeille pour autant, et la raison est dans la RLS — la politique de
+lecture porte `deleted_at is null`, donc on ne peut pas _lister_ ses notes
+supprimées, tandis que la politique de mise à jour, elle, laisse les
+restaurer. La publication d'une collection, elle, garde sa confirmation : on
+confirme ce qui sort, on annule ce qui reste chez soi.
+
+**Les favoris et les épisodes vus suivent le compte, sans cesser d'être
+locaux.** L'anti-spoiler est la fonction centrale de l'application et il ne
+franchissait pas l'appareil : un épisode marqué vu sur le téléphone laissait la
+tablette afficher les éliminés. Il s'écrit maintenant aussi dans
+`user_favorites` et `watched_episodes` — tables présentes depuis la migration
+0003, fermées à autrui depuis 0004, **sans aucune migration nouvelle** —
+pendant que le magasin local reste la référence de l'appareil : sans compte,
+hors ligne, ou si le serveur refuse, l'application marche entière. À la
+connexion, l'appareil et le compte sont **réunis** (une union, jamais un
+écrasement) ; le prix, assumé et écrit, est qu'un décochage fait sur un
+appareil pendant que l'autre l'ignorait revient une fois.
+
+Le référentiel de **démonstration** ne synchronise rien : ses identifiants
+(`c-ael`, `e1`) ne sont pas des `uuid`, les envoyer ferait échouer chaque
+insertion et publierait un suivi qui ne veut rien dire.
+
+**Le profil** (`/profil`, sous le compte) donne un pseudonyme à ce que l'on
+partage, et un identifiant public facultatif. Ce sont **deux choses** : deux
+personnes ont le droit de s'appeler « Tarzan », une seule peut être `tarzan` —
+l'unicité porte sur l'adresse, pas sur le libellé, sans quoi chaque inscription
+deviendrait une course au nom. Sa disponibilité se demande au **serveur**
+(`handle_is_available`, `security definer`) : vérifiée côté client, un
+identifiant déjà pris passerait pour libre, puisque l'appelant ne voit pas le
+profil qui le détient. Tout y est **privé par défaut**, et chaque bascule
+— favoris, statistiques, notes publiques — est un consentement **séparé** :
+rendre son profil visible n'ouvre rien d'autre. Aucune adresse électronique n'y
+figure : elle n'est dans aucune colonne de `profiles`, elle reste dans
+`auth.users`, hors de portée de l'API publique.
 
 Enfin, la lecture filtre sur `user_id`, et ce n'est pas une précaution
 superflue : les politiques RLS sont **permissives**, donc combinées par OU. À
@@ -361,7 +406,10 @@ Dans l'ordre :
 4. la **suppression de compte** : la cascade existe en base, mais l'effacer
    demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
    l'avoir ;
-5. animations Rive — les composants, les rôles et les replis existent ;
+5. l'**export** et l'**import** de ses données : `export_my_data()` existe en
+   base (0004, § 9) et aucun écran ne l'appelle — la portabilité est écrite,
+   pas offerte ;
+6. animations Rive — les composants, les rôles et les replis existent ;
    **aucun fichier `.riv` n'est fourni**, et aucun ne sera inventé. En
    attendant, la flamme de l'écran d'attente est le repli CSS du rôle
    `referential-loading` : un `.riv` la remplacerait sans toucher à l'écran.

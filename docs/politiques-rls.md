@@ -1,12 +1,16 @@
 # Politiques RLS
 
-Migration : [`supabase/migrations/0004_rls.sql`](../supabase/migrations/0004_rls.sql).
-Tests : [`supabase/tests/rls.test.sql`](../supabase/tests/rls.test.sql), lancés
-par `supabase test db`.
+Migration : [`supabase/migrations/0004_rls.sql`](../supabase/migrations/0004_rls.sql),
+corrigée et complétée par [`0021_partage_des_notes.sql`](../supabase/migrations/0021_partage_des_notes.sql).
+Tests : [`supabase/tests/rls.test.sql`](../supabase/tests/rls.test.sql) — le
+partage et les notes — et
+[`supabase/tests/personnel.test.sql`](../supabase/tests/personnel.test.sql) — le
+suivi et l'annulation —, lancés par `supabase test db`.
 
-> **Tous exécutés contre la base hébergée** le 05/09/2026, sans Docker :
-> 24 assertions sur 24 pour l'isolation, 39 sur 39 pour la publication. Voir
-> [Exécution](#exécution).
+> `rls.test.sql` et `publication.test.sql` ont été **exécutés contre la base
+> hébergée**, sans Docker. `personnel.test.sql` (17 assertions, 06/09/2026) est
+> **écrit et non joué** : le jeton disponible sur le poste ne voit plus le
+> projet. Voir [Exécution](#exécution).
 
 ## Le principe : deux verrous, pas un
 
@@ -118,6 +122,31 @@ Vingt-quatre assertions, dont les huit qui comptent :
    compte — la limite est réelle, elle est écrite, et c'est le client qui la
    traite.
 
+`personnel.test.sql` en ajoute **dix-sept**, sur ce que `rls.test.sql` ne dit
+pas — et sans une ligne de SQL nouvelle : les tables et les politiques qu'il
+interroge existent depuis 0003 et 0004, personne n'avait jamais vérifié
+qu'elles tiennent.
+
+1. le **nombre** de politiques permissives de lecture de chaque table
+   personnelle : une pour `user_favorites` et `watched_episodes`, deux pour
+   `personal_notes`. C'est ce chiffre qui rend une lecture sans clause
+   `user_id` sûre sur les deux premières ; le jour où quelqu'un ajoutera « les
+   favoris d'un profil public », le fichier tombe **avant** la production, et
+   non le jour où quelqu'un rendra son profil visible ;
+2. **vu sur A, lu sur B.** Le serveur ne connaît pas les appareils : deux
+   appareils du même compte sont deux sessions portant le même `sub`. Ce que A
+   écrit, une session de A le lit ; une session de B ne le lit pas, ne peut pas
+   l'écrire au nom de A, et sa tentative de suppression est constatée **depuis
+   A** — parce qu'une suppression bloquée par la RLS ne lève pas, elle ne
+   touche rien, en silence ;
+3. **supprimer puis annuler.** Une note supprimée devient invisible à son
+   propre auteur, et il peut malgré tout la restaurer, avec son contenu
+   intact : la politique de lecture porte `deleted_at is null`, celle de mise à
+   jour non. C'est ce qui rend l'annulation possible sans toucher à la base —
+   et c'est aussi pourquoi il n'y a pas de corbeille : lister ses supprimées
+   demanderait une politique de lecture de plus, donc une politique
+   **permissive** de plus, combinée par OU avec les autres.
+
 ## Exécution
 
 `supabase test db` exige Docker — `pg_prove` tourne en conteneur — et Docker ne
@@ -133,6 +162,20 @@ transactionnelle (`npm run test:publication:remote`). Deux faits vérifiés au p
 ses verdicts sous `set role anon` sans droit supplémentaire ; la table de
 collecte, elle, appartient à `postgres` et doit être ouverte aux rôles de
 l'API.
+
+> **`personnel.test.sql` n'a pas pu être joué** (06/09/2026).
+> `npm run test:personnel:remote` s'arrête sur
+> `403 — Your account does not have the necessary privileges` : le jeton
+> disponible sur le poste ne voit qu'un autre projet du parc, pas
+> `oqldfzrsandcguajyxbh`. Ses dix-sept assertions sont donc **écrites et non
+> jouées**, et elles n'attendent aucune migration — tout ce qu'elles
+> interrogent est déjà en ligne.
+>
+> Deux façons de les jouer : `npm run test:personnel:remote` avec un
+> `SUPABASE_ACCESS_TOKEN` qui voit le projet, ou — mieux, parce que c'est le
+> seul endroit où les migrations s'exécutent vraiment — le réutilisable
+> `pwa-supabase-test.yml` du socle, sur une pile jetable, que ce dépôt
+> **n'appelle pas encore**.
 
 ## L'identité qui a publié
 
