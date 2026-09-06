@@ -28,6 +28,28 @@ beforeEach(() => {
   });
 });
 
+describe('l’ordre d’un duo à l’écran', () => {
+  it('nomme la dame en premier — et les lignes suivent le titre', () => {
+    // LE COUPLAGE EST CE QUI COMPTE : si le titre et les lignes lisaient deux
+    // listes, l'un annoncerait un ordre que l'autre contredirait juste en
+    // dessous. Elouan (m) et Fanny (f) sont rangés dans cet ordre par la
+    // source : c'est le duo qui montre le changement.
+    useAppStore.setState({ contestantFilter: 'tous' });
+    const { container } = renderList();
+
+    const titre = screen.getByText(/Fanny et Elouan/);
+    const groupe = titre.closest('section');
+    const noms = Array.from(
+      groupe!.querySelectorAll('.list .row a'),
+      a => a.textContent
+    );
+
+    expect(noms).toEqual(['Fanny', 'Elouan']);
+    // Et un duo déjà dans le bon ordre n'est pas retourné pour autant.
+    expect(container.textContent).toContain('Céleste et Dimitri');
+  });
+});
+
 describe('le filtre de statut', () => {
   it('part sur « En jeu », et la liste ne montre que ceux qui restent', () => {
     renderList();

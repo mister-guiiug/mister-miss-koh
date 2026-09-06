@@ -130,13 +130,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 323 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 328 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
 | `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 26 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 286,4 kB gzip, index 93 kB |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 286,5 kB gzip, index 93 kB |
 | `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
@@ -278,7 +278,10 @@ Six choix qui structurent le code :
   l'anti-spoiler le laisse voir — c'est elle qui s'affiche, et la supposition
   est dite confirmée ou contredite plutôt qu'effacée en silence. Un duo révélé
   mais **masqué** ne compte pour rien, pas même pour retirer un nom de la liste
-  des binômes possibles : cette absence-là divulguerait ce que l'écran cache ;
+  des binômes possibles : cette absence-là divulguerait ce que l'écran cache.
+  Un duo s'AFFICHE les dames d'abord, puis les hommes — un ordre de lecture
+  seulement : son ordre d'IDENTITÉ reste celui des identifiants, sans quoi deux
+  suppositions du même duo cesseraient d'être égales ;
 - **donner et publier ne sont pas le même geste, et l'écran ne les confond
   pas.** Envoyer une image par la feuille du système, l'enregistrer, en montrer
   le QR : rien de tout cela ne touche un serveur — un texte ou un fichier de

@@ -12,6 +12,7 @@ import { inGame, lastAiredEpisode } from '../../domain/stats';
 import {
   effectivePairs,
   groupingWithGuesses,
+  membersInDisplayOrder,
   type PairGuess,
 } from '../../domain/pairing';
 import type { Contestant, Referential } from '../../domain/referential';
@@ -60,14 +61,20 @@ function groupsOf(
     const placed = new Set<string>();
 
     for (const pair of effectivePairs(ref, guesses, limit)) {
-      const members = pair.memberIds
+      // LES DAMES D'ABORD, puis les hommes — un ordre d'AFFICHAGE seulement.
+      // `pair.memberIds` reste rangé par identifiant : c'est ce qui fait qu'un
+      // duo est une valeur, et que sa clé ne dépend pas d'un tri. Le titre du
+      // groupe et ses lignes lisent la MÊME liste, sinon l'un annoncerait un
+      // ordre que l'autre contredirait juste en dessous.
+      const shown = membersInDisplayOrder(ref, pair.memberIds);
+      const members = shown
         .map(id => byId.get(id))
         .filter((r): r is Row => r !== undefined);
       if (members.length === 0) continue;
       for (const m of members) placed.add(m.id);
       groups.push({
         key: pair.key,
-        label: pair.memberIds
+        label: shown
           .map(id => ref.contestants.find(c => c.id === id)?.displayName ?? '?')
           .join(' et '),
         guessed: pair.origin === 'guess',

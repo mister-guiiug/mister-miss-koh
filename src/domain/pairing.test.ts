@@ -4,6 +4,7 @@ import {
   effectivePairs,
   eligiblePartners,
   groupingWithGuesses,
+  membersInDisplayOrder,
   orderedMembers,
   partnerView,
   refuseGuess,
@@ -195,6 +196,57 @@ describe('ce qu’on dit à un candidat de son binôme', () => {
       confirmed: false,
       contradicted: null,
     });
+  });
+});
+
+describe('l’ordre d’affichage d’un duo', () => {
+  it('met les dames avant les hommes, dans les deux sens', () => {
+    // Céleste (f) et Dimitri (m) sont déjà dans cet ordre : rien ne bouge.
+    expect(membersInDisplayOrder(ref, ['c-celeste', 'c-dimitri'])).toEqual([
+      'c-celeste',
+      'c-dimitri',
+    ]);
+    // Elouan (m) et Fanny (f) sont à l'envers : ils s'échangent.
+    expect(membersInDisplayOrder(ref, ['c-elouan', 'c-fanny'])).toEqual([
+      'c-fanny',
+      'c-elouan',
+    ]);
+  });
+
+  it('ne touche PAS à l’ordre d’identité', () => {
+    // C'est la propriété que l'affichage ne doit pas emporter : un duo est une
+    // valeur, rangée par identifiant, et deux suppositions du même duo doivent
+    // rester égales quel que soit le candidat depuis lequel on les a faites.
+    expect(orderedMembers('c-fanny', 'c-elouan')).toEqual([
+      'c-elouan',
+      'c-fanny',
+    ]);
+    expect(orderedMembers('c-elouan', 'c-fanny')).toEqual([
+      'c-elouan',
+      'c-fanny',
+    ]);
+  });
+
+  it('à rang égal, l’ordre reçu décide — l’affichage ne bouge pas', () => {
+    // Deux hommes, deux femmes, ou deux inconnus : aucune raison de permuter,
+    // et permuter ferait danser la liste d'un rendu à l'autre.
+    expect(membersInDisplayOrder(ref, ['c-bastien', 'c-dimitri'])).toEqual([
+      'c-bastien',
+      'c-dimitri',
+    ]);
+    expect(membersInDisplayOrder(ref, ['c-ael', 'c-celeste'])).toEqual([
+      'c-ael',
+      'c-celeste',
+    ]);
+  });
+
+  it('un candidat inconnu du référentiel passe en dernier, sans lever', () => {
+    // Un duo supposé dont la source aurait retiré un membre : l'écran doit
+    // encore s'afficher, la dame en tête.
+    expect(membersInDisplayOrder(ref, ['inconnu', 'c-ael'])).toEqual([
+      'c-ael',
+      'inconnu',
+    ]);
   });
 });
 
