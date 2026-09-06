@@ -20,6 +20,7 @@ import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
+import { usePhotosStore } from './store/usePhotosStore';
 import { Layout } from './components/Layout';
 import { AppAnimation } from './animations/AppAnimation';
 import { useMotionLevel } from './animations/motion';
@@ -75,9 +76,14 @@ export function App() {
   // pilotent enfin ce qui bouge, écran d'attente compris.
   useMotionLevel();
 
+  // Les portraits vivent dans IndexedDB : une seule lecture, en parallèle du
+  // référentiel, et les vignettes sont prêtes avant le premier écran.
+  const loadPhotos = usePhotosStore(s => s.load);
+
   useEffect(() => {
     void init();
-  }, [init]);
+    void loadPhotos();
+  }, [init, loadPhotos]);
 
   return (
     <ThemeProvider

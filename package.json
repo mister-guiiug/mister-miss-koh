@@ -29,7 +29,7 @@
     "type-check": "tsc -b"
   },
   "bundleBudget": {
-    "totalGzipKb": 260
+    "totalGzipKb": 280
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

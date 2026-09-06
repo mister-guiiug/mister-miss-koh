@@ -173,9 +173,149 @@ body,
   border-radius: var(--radius);
 }
 
-.row > a {
+.row-main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.row-main > a {
   font-weight: 600;
+}
+
+/* ── Le portrait d'un candidat ───────────────────────────────────────────
+   Une photo si l'utilisateur en a rangé une, ses initiales sinon. Aucune
+   image n'est fournie ni récupérée : le repli doit donc être une vraie
+   vignette, pas un trou. */
+.avatar {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.avatar[data-size='lg'] {
+  width: 4.5rem;
+  height: 4.5rem;
+  font-size: 1.5rem;
+}
+
+/* Quatre teintes de la palette maison — terre, feu, océan, jungle — choisies
+   d'après l'identifiant : la même personne garde sa vignette. */
+.avatar-initials[data-tint='0'] {
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  color: var(--primary-strong);
+}
+
+.avatar-initials[data-tint='1'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--accent);
+}
+
+.avatar-initials[data-tint='2'] {
+  background: color-mix(in srgb, var(--ok) 18%, var(--surface));
+  color: var(--ok);
+}
+
+.avatar-initials[data-tint='3'] {
+  background: color-mix(in srgb, var(--warn) 18%, var(--surface));
+  color: var(--warn);
+}
+
+/* ── Sexe et âge ─────────────────────────────────────────────────────────── */
+.traits {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.traits[data-size='md'] {
+  font-size: 0.95rem;
+}
+
+.trait {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ── L'identité en tête de fiche ─────────────────────────────────────────── */
+.identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.identity-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.identity-main .chips-row {
+  margin: 0;
+}
+
+.photo-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+/* Une étiquette qui se comporte en bouton : c'est elle qu'on voit, l'input
+   reste focusable en dessous — d'où le contour porté par `:focus-within`. */
+.photo-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: calc(var(--radius) * 0.7);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast);
+}
+
+.photo-button:active {
+  transform: scale(0.96);
+}
+
+.photo-button:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.photo-button[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.photo-picker > p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .chips,
