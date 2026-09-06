@@ -26,14 +26,28 @@ describe('App', () => {
     expect(
       await screen.findByText('Saison de démonstration')
     ).toBeInTheDocument();
-    // La provenance est affichée : personne ne prend la fiction pour du réel.
-    // Le libellé apparaît deux fois — sous-titre de la saison ET badge de
-    // provenance — et c'est voulu : la fiction se dit partout où elle s'affiche.
+    // LA FICTION SE DIT DÈS L'ACCUEIL. Le pavé de provenance a quitté cet
+    // écran pour les Réglages, où on le consulte ; ce qui ne devait pas
+    // partir avec lui, c'est l'aveu — porté par le sous-titre de la saison.
     expect(
-      screen.getAllByText('Donnée fictive de démonstration').length
-    ).toBeGreaterThanOrEqual(2);
+      screen.getByText('Donnée fictive de démonstration')
+    ).toBeInTheDocument();
     // Et l'app se déclare non officielle.
     expect(screen.getByText(/non officielle/i)).toBeInTheDocument();
+  });
+
+  it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {
+    // Retirer un pavé d'un écran ne doit pas retirer la traçabilité de
+    // l'application : c'est la promesse du README, et elle se vérifie là où
+    // le pavé vit désormais.
+    window.location.hash = '#/reglages';
+    render(<App />);
+
+    expect(await screen.findByText('Source de vérité')).toBeInTheDocument();
+    // Sur la démonstration, le pavé de provenance dit la fiction et pourquoi.
+    expect(
+      screen.getByText(/Aucun de ces noms n’est réel/)
+    ).toBeInTheDocument();
   });
 
   it('le référentiel de démonstration passe la validation à la frontière', async () => {
