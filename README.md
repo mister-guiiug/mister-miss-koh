@@ -98,9 +98,11 @@ src/
                  statistiques (zéro ≠ inconnu), règles de saison
   backend/       sélection du backend, port du référentiel, démonstration
   store/         zustand — référentiel + données personnelles (magasin versionné)
-  animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti)
-  hooks/         useSpoilerLimit, useSession (compte courant)
-  components/    Layout, SpoilerGuard, Provenance
+  animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti),
+                 niveaux de mouvement (`data-motion` sur <html>)
+  hooks/         useSpoilerLimit, useSession (compte courant), useHaptics,
+                 useRefreshReferential (recharger et le dire)
+  components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne
 supabase/
@@ -114,7 +116,7 @@ supabase/
   tests/         isolation RLS et publication (pgTAP)
 ```
 
-Trois choix qui structurent le code :
+Quatre choix qui structurent le code :
 
 - **la statistique respecte l'anti-spoiler.** Chaque calcul prend une limite
   d'épisode ; « 3 voix reçues » sur la fiche d'un candidat encore en jeu à
@@ -122,7 +124,15 @@ Trois choix qui structurent le code :
 - **zéro n'est pas inconnu.** Les comptes rendent `{ value, complete }` ; un
   départ de binôme vaut `0` certain, un détail de voix partiel vaut « ≥ n » ;
 - **les règles de saison sont des données.** « Le binôme suit l'éliminé » est
-  lu dans `season.rules`, jamais présumé — une saison ordinaire n'en déduit rien.
+  lu dans `season.rules`, jamais présumé — une saison ordinaire n'en déduit rien ;
+- **le mouvement est un confort, jamais une information.** Tout ce qui bouge
+  est en CSS (entrée d'écran, révélation d'un contenu démasqué, étoile des
+  favoris, cases et boutons) sous `data-motion` sur `<html>` — `full`,
+  `essential` (« Animations » décochée : plus rien de décoratif, mais une case
+  qui se coche répond encore), `none` (« Réduire les mouvements ») — posé par
+  `useMotionLevel` ; le réglage système gagne toujours. Les cases restent des
+  `<input>` natifs redessinés : le clavier, le lecteur d'écran et le script de
+  captures les trouvent.
 
 ## Documentation
 
@@ -270,4 +280,6 @@ Dans l'ordre :
    demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
    l'avoir ;
 5. animations Rive — les composants, les rôles et les replis existent ;
-   **aucun fichier `.riv` n'est fourni**, et aucun ne sera inventé.
+   **aucun fichier `.riv` n'est fourni**, et aucun ne sera inventé. En
+   attendant, la flamme de l'écran d'attente est le repli CSS du rôle
+   `referential-loading` : un `.riv` la remplacerait sans toucher à l'écran.
