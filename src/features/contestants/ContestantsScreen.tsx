@@ -15,16 +15,12 @@ import {
   type PairGuess,
 } from '../../domain/pairing';
 import type { Contestant, Referential } from '../../domain/referential';
-
-type Status = 'tous' | 'en-jeu' | 'sorti';
-
-/* Trois valeurs qui changent la VUE de la liste : un contrôle segmenté, un
-   tap au lieu de deux — le `<select>` demandait d'ouvrir puis de choisir. */
-const STATUS_OPTIONS: { value: Status; label: string }[] = [
-  { value: 'tous', label: 'Tous' },
-  { value: 'en-jeu', label: 'En jeu' },
-  { value: 'sorti', label: 'Sorti·e' },
-];
+import {
+  CONTESTANT_FILTER_OPTIONS,
+  filterLabel,
+  matchesFilter,
+  type ContestantFilter,
+} from '../../domain/contestantFilter';
 
 interface Row extends Contestant {
   inGame: boolean;
@@ -121,7 +117,11 @@ export function ContestantsScreen() {
   const toggleFavorite = useAppStore(s => s.toggleFavorite);
   const limit = useSpoilerLimit();
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<Status>('tous');
+  // Le filtre, lui, n'est PAS un état d'écran : il vit dans les données
+  // personnelles, comme les favoris — le reprendre à chaque visite était le
+  // geste de trop.
+  const status = useAppStore(s => s.contestantFilter);
+  const setStatus = useAppStore(s => s.setContestantFilter);
 
   const guesses = useAppStore(s => s.pairGuesses);
 
@@ -137,9 +137,7 @@ export function ContestantsScreen() {
         favorite: favorites.includes(c.id),
       }))
       .filter(c => !q || c.displayName.toLowerCase().includes(q))
-      .filter(
-        c => status === 'tous' || (status === 'en-jeu' ? c.inGame : !c.inGame)
-      );
+      .filter(c => matchesFilter(status, c.inGame));
     return groupsOf(referential, rows, guesses, limit);
   }, [referential, favorites, guesses, limit, query, status]);
 
@@ -168,16 +166,23 @@ export function ContestantsScreen() {
           <SegmentedControl
             ariaLabel="Statut"
             value={status}
-            onChange={value => setStatus(value as Status)}
-            options={STATUS_OPTIONS}
+            onChange={value => setStatus(value as ContestantFilter)}
+            options={[...CONTESTANT_FILTER_OPTIONS]}
             fullWidth
           />
         </div>
       </div>
       {total === 0 ? (
+        /* Le filtre est RETENU d'une visite à l'autre : arriver sur une liste
+           vide sans savoir lequel est posé serait une énigme. On nomme donc
+           celui qui vide, et on distingue le filtre de la recherche. */
         <EmptyState
           title="Aucun candidat"
-          description="Aucun nom ne correspond à ce filtre."
+          description={
+            query.trim()
+              ? `Aucun nom ne correspond à « ${query.trim()} », filtre « ${filterLabel(status)} ».`
+              : `Le filtre « ${filterLabel(status)} » ne laisse personne.`
+          }
         />
       ) : (
         groups.map(group => (

@@ -32,6 +32,11 @@ import {
   refuseGuess,
 } from '../domain/pairing';
 import { backend, type Origin } from '../backend/referentialRepository';
+import {
+  CONTESTANT_FILTERS,
+  DEFAULT_CONTESTANT_FILTER,
+  type ContestantFilter,
+} from '../domain/contestantFilter';
 
 const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
@@ -47,6 +52,16 @@ const PersonalSchema = z.object({
    * de plus n'apporterait ici qu'une chaîne de migrations à maintenir.
    */
   pairGuesses: z.array(PairGuessSchema).default([]),
+  /**
+   * Le filtre de la liste des candidats, retenu d'une visite à l'autre.
+   *
+   * Meme `default` que pour les duos supposes : un magasin ecrit avant ce
+   * champ se valide encore, et repart sur « En jeu » — le defaut voulu pour
+   * tout le monde, pas seulement pour les nouveaux venus.
+   */
+  contestantFilter: z
+    .enum(CONTESTANT_FILTERS)
+    .default(DEFAULT_CONTESTANT_FILTER),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -78,6 +93,7 @@ const personalStore = createVersionedStore<Personal>({
     watched: [],
     favorites: [],
     pairGuesses: [],
+    contestantFilter: DEFAULT_CONTESTANT_FILTER,
   }),
 });
 
@@ -107,11 +123,14 @@ interface AppState {
   favorites: readonly string[];
   /** Les duos SUPPOSÉS, sur cet appareil. Le référentiel, lui, ne bouge pas. */
   pairGuesses: readonly PairGuess[];
+  /** Le filtre de la liste des candidats, retenu d'une visite à l'autre. */
+  contestantFilter: ContestantFilter;
   init(): Promise<void>;
   reload(): Promise<void>;
   setSpoiler(mode: SpoilerMode): void;
   setAnimations(enabled: boolean): void;
   setReduceMotion(enabled: boolean): void;
+  setContestantFilter(filter: ContestantFilter): void;
   toggleWatched(episodeNumber: number): void;
   toggleFavorite(contestantId: string): void;
   /**
@@ -157,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => {
       watched,
       favorites,
       pairGuesses,
+      contestantFilter,
     } = get();
     personalStore.save({
       spoiler,
@@ -165,6 +185,7 @@ export const useAppStore = create<AppState>((set, get) => {
       watched: [...watched],
       favorites: [...favorites],
       pairGuesses: [...pairGuesses],
+      contestantFilter,
     });
   };
 
@@ -220,6 +241,10 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     setReduceMotion(enabled) {
       set({ reduceMotion: enabled });
+      persist();
+    },
+    setContestantFilter(filter) {
+      set({ contestantFilter: filter });
       persist();
     },
     toggleWatched(episodeNumber) {
