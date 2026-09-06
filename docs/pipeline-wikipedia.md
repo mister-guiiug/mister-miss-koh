@@ -114,7 +114,7 @@ Et le tableau a **deux lignes d'en-tête** : « Épreuves » chapeaute « Confor
 et « Immunité », « Conseil » chapeaute « Éliminé(s) », « Votes » et « Départ ».
 Une colonne se désigne donc par sa paire (chapeau, sous-titre).
 
-**Deux défauts du lecteur de tableaux, trouvés par la donnée réelle :**
+**Trois défauts du lecteur de tableaux, trouvés par la donnée réelle :**
 
 - du **CSS fuyait dans le texte**. MediaWiki insère des blocs `<style>` dans
   les cellules (les légendes colorées de la colonne « Tribu ») : le texte de la
@@ -122,7 +122,14 @@ Une colonne se désigne donc par sa paire (chapeau, sous-titre).
 - des **valeurs multiples se collaient**. La colonne « Saisons précédentes »
   empile deux à trois mentions séparées par des `<br>` ; sans marque de
   frontière, on obtenait « Vainqueur de la saison 9Éliminée le… », une chaîne
-  que personne ne peut redécouper.
+  que personne ne peut redécouper ;
+- **l'ordinal partait avec les appels de note** (vu en production le
+  06/09/2026, dans `contestant_previous_seasons`). La page écrit
+  `33<sup>e</sup> jour`, et TOUS les `<sup>` sortaient des cellules pour
+  écarter les `[n° 2]` : le référentiel publiait « Éliminé le 33 jour de la
+  saison 27 ». Seuls les appels de note sortent désormais — classe
+  `reference`, ou texte entre crochets — et l'exposant d'un ordinal reste
+  collé à son nombre. C'est une version de sortie de plus (`6`).
 
 Les frontières de bloc sont désormais explicites, et `cellLines` rend les
 valeurs séparées là où `cellText` n'en attend qu'une.

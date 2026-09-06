@@ -106,6 +106,27 @@ Deno.test("fixture : les saisons précédentes sont SÉPARÉES, pas recollées",
   }
 });
 
+Deno.test("fixture : « 33e jour », pas « 33 jour » — l'ordinal garde son exposant", () => {
+  // Constat du 06/09/2026 en production : tous les `<sup>` sortaient avec les
+  // appels de note, et le « e » de l'ordinal partait avec eux. C'est ce libellé
+  // que `contestant_previous_seasons.label` publie : il doit être celui de la page.
+  const maxime = candidats.contestants.find((c) => c.displayName === "Maxime");
+  assertEquals(maxime?.previousSeasons, ["Éliminé le 33e jour de la saison 27"]);
+  const freddy = candidats.contestants.find((c) => c.displayName === "Freddy");
+  assert(
+    freddy?.previousSeasons.includes("Abandon médical le 2e jour de La Légende"),
+    `Freddy : ${freddy?.previousSeasons.join(" | ")}`,
+  );
+  for (const c of candidats.contestants) {
+    for (const mention of c.previousSeasons) {
+      assert(
+        !/\d jour\b/.test(mention),
+        `ordinal amputé pour ${c.displayName} : « ${mention} »`,
+      );
+    }
+  }
+});
+
 Deno.test("fixture : la tribu est lue sans le CSS de la légende", () => {
   for (const c of candidats.contestants) {
     for (const stint of [...c.teams, ...c.teamStatuses]) {

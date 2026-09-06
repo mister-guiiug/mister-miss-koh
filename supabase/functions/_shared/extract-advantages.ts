@@ -94,11 +94,17 @@ function columnStarting(grid: Grid, row: number, prefix: string): number {
 
 const isPlaceholder = (raw: string) => PLACEHOLDERS.has(fold(raw));
 
-/** Un entier seul, ou rien. « 12 » → 12 ; « Non utilisé » → null. */
+/**
+ * Un entier seul, ou rien. « 12 » → 12 ; « Non utilisé » → null.
+ *
+ * L'ordinal est admis : la colonne « Épisode » écrit `15<sup>e</sup>`, et le
+ * lecteur de tableaux garde cet exposant depuis le 06/09/2026 (il n'en retire
+ * plus que les appels de note). « 15e » → 15, « 1er » → 1.
+ */
 function parseCount(raw: string): number | null {
-  const text = raw.trim();
-  if (!/^\d+$/.test(text)) return null;
-  const value = Number.parseInt(text, 10);
+  const match = raw.trim().match(/^(\d+)(?:er|re|e)?$/);
+  if (!match) return null;
+  const value = Number.parseInt(match[1], 10);
   return value >= 0 && value < 1000 ? value : null;
 }
 

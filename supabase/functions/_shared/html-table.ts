@@ -109,6 +109,12 @@ function entityValue(body: string): string | null {
  * son binôme ». Garder l'appel donnerait la valeur `0[n° 2]`, qui n'est ni un
  * nombre ni un nom. La note elle-même n'est pas perdue : elle est relevée à
  * part par `footnoteRefs`, parce que c'est souvent elle qui explique la valeur.
+ *
+ * LES AUTRES EXPOSANTS RESTENT. Constat du 06/09/2026 en production : « Éliminé
+ * le 33<sup>e</sup> jour de la saison 27 » se publiait « Éliminé le 33 jour de
+ * la saison 27 », parce que TOUS les `<sup>` sortaient. L'ordinal est du texte,
+ * et son exposant reste collé au nombre : « 33e ». Ce qui distingue un appel de
+ * note est décrit sur `isFootnoteRef`.
  */
 export function cellText(html: string): string {
   return cellLines(html).join(" ");
@@ -133,30 +139,91 @@ export function cellLines(html: string): string[] {
   // la cellule commençait par « .mw-parser-output .legende-bloc-ce… ».
   let cleaned = dropElements(html, "style");
   cleaned = dropElements(cleaned, "script");
-  cleaned = dropElements(cleaned, "sup");
+  cleaned = dropFootnoteRefs(cleaned);
   return stripTags(cleaned)
     .split(BLOCK_MARKER)
     .map((part) => decodeEntities(part).replace(/\s+/g, " ").trim())
     .filter((part) => part.length > 0);
 }
 
-/** Identifiants des notes citées dans la cellule (`n° 2`, `12`…). */
+/**
+ * Identifiants des notes citées dans la cellule (`n° 2`, `12`…).
+ *
+ * Même tri que `cellLines` : un ordinal en exposant n'est pas une note, et la
+ * virgule que MediaWiki intercale entre deux appels (`<sup class="reference
+ * cite_virgule">,</sup>`) porte la classe sans porter de numéro.
+ */
 export function footnoteRefs(html: string): string[] {
   const refs: string[] = [];
-  let i = 0;
-  while (i < html.length) {
-    const open = html.indexOf("<sup", i);
-    if (open === -1) break;
-    const close = html.indexOf("</sup>", open);
-    if (close === -1) break;
-    const label = decodeEntities(stripTags(html.slice(open, close)))
+  for (const sup of findSups(html)) {
+    if (!isFootnoteRef(sup)) continue;
+    const label = decodeEntities(stripTags(sup.inner))
       .replace(/[[\]]/g, "")
       .replace(/\s+/g, " ")
       .trim();
-    if (label) refs.push(label);
-    i = close + 6;
+    if (/[\p{L}\p{N}]/u.test(label)) refs.push(label);
   }
   return refs;
+}
+
+/** Un `<sup>…</sup>` tel qu'il est écrit : ses attributs, son contenu, sa place. */
+interface SupElement {
+  readonly start: number;
+  readonly end: number;
+  readonly attrs: string;
+  readonly inner: string;
+}
+
+/** Les `<sup>` d'un fragment, balayage linéaire. Une balise non fermée arrête. */
+function findSups(html: string): SupElement[] {
+  const open = "<sup";
+  const close = "</sup>";
+  const found: SupElement[] = [];
+  let i = 0;
+  while (i < html.length) {
+    const start = html.indexOf(open, i);
+    if (start === -1) break;
+    const headEnd = html.indexOf(">", start);
+    if (headEnd === -1) break;
+    const end = html.indexOf(close, headEnd);
+    if (end === -1) break;
+    found.push({
+      start,
+      end: end + close.length,
+      attrs: html.slice(start + open.length, headEnd),
+      inner: html.slice(headEnd + 1, end),
+    });
+    i = end + close.length;
+  }
+  return found;
+}
+
+/**
+ * Un exposant est un APPEL DE NOTE s'il porte la classe `reference` — celle
+ * que MediaWiki pose sur chaque appel, et sur la virgule entre deux appels —
+ * ou si son texte est entre crochets : `[1]`, `[n° 2]`, et les balises de
+ * maintenance comme `[source secondaire souhaitée]`.
+ *
+ * Tout autre exposant est du texte : l'ordinal de « 33<sup>e</sup> jour »,
+ * de « 1<sup>er</sup> épisode ». Le retirer amputait la valeur.
+ */
+function isFootnoteRef(sup: SupElement): boolean {
+  const classes = decodeEntities(attrValue(sup.attrs, "class")).split(/\s+/);
+  if (classes.includes("reference")) return true;
+  const text = decodeEntities(stripTags(sup.inner)).trim();
+  return text.startsWith("[") && text.endsWith("]");
+}
+
+/** Retire les appels de note, et seulement eux : les autres `<sup>` restent. */
+function dropFootnoteRefs(html: string): string {
+  let out = "";
+  let i = 0;
+  for (const sup of findSups(html)) {
+    if (!isFootnoteRef(sup)) continue;
+    out += html.slice(i, sup.start);
+    i = sup.end;
+  }
+  return out + html.slice(i);
 }
 
 /** Supprime un élément et son contenu, balayage linéaire. */

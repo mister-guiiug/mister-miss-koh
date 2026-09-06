@@ -1,14 +1,20 @@
 /**
  * Lancement : `deno test --allow-read supabase/functions/_shared/`
  *
- * Les cas synthétiques figent le contrat ; le dernier bloc travaille sur la
- * VRAIE page, capturée le 05/09/2026 dans `fixtures/votes-section.html`. Une
- * fixture datée vaut mieux qu'un appel réseau dans un test : elle rend l'échec
- * reproductible, et elle documente la structure telle qu'elle était le jour où
- * l'extraction a été écrite.
+ * Les cas synthétiques figent le contrat ; les derniers blocs travaillent sur
+ * la VRAIE page, capturée le 05/09/2026 dans `fixtures/votes-section.html` et
+ * `fixtures/candidats-section.html`. Une fixture datée vaut mieux qu'un appel
+ * réseau dans un test : elle rend l'échec reproductible, et elle documente la
+ * structure telle qu'elle était le jour où l'extraction a été écrite.
  */
 import { assert, assertEquals } from "jsr:@std/assert@^1";
-import { cellText, decodeEntities, footnoteRefs, parseTables } from "./html-table.ts";
+import {
+  cellLines,
+  cellText,
+  decodeEntities,
+  footnoteRefs,
+  parseTables,
+} from "./html-table.ts";
 
 Deno.test("décodage : seulement ce que MediaWiki produit", () => {
   assertEquals(decodeEntities("a &amp; b"), "a & b");
@@ -24,6 +30,36 @@ Deno.test("texte de cellule : l'appel de note sort, la valeur reste", () => {
   const html = '0<sup id="cite_ref-2" class="reference"><a href="#x">[n° 2]</a></sup>';
   assertEquals(cellText(html), "0");
   assertEquals(footnoteRefs(html), ["n° 2"]);
+});
+
+Deno.test("texte de cellule : l'ordinal en exposant reste collé au nombre", () => {
+  // Constat du 06/09/2026 en production : « Éliminé le 33 jour de la saison
+  // 27 » — le « e » de l'ordinal partait avec les appels de note. Ici, dans la
+  // même cellule, un ordinal à garder et un appel à retirer.
+  const html =
+    'Éliminé le <abbr class="abbr" title="Trente-troisième">33<sup>e</sup></abbr>' +
+    "&#160;jour de la saison 27" +
+    '<sup id="cite_ref-4" class="reference"><a href="#cite_note-4">' +
+    '<span class="cite-bracket">&#91;</span>n° 4<span class="cite-bracket">&#93;</span>' +
+    "</a></sup>";
+  assertEquals(cellText(html), "Éliminé le 33e jour de la saison 27");
+  assertEquals(footnoteRefs(html), ["n° 4"], "l'ordinal n'est pas une note");
+  assertEquals(
+    cellText('<abbr title="Premier">1<sup>er</sup></abbr> membre'),
+    "1er membre",
+  );
+});
+
+Deno.test("appels de note : la classe ou les crochets, virgule comprise", () => {
+  // Deux appels que MediaWiki sépare par une virgule elle-même en exposant, et
+  // une balise de maintenance sans la classe `reference` mais entre crochets.
+  const html = '12<sup id="cite_ref-5" class="reference"><a href="#n5">[5]</a></sup>' +
+    '<sup class="reference cite&#95;virgule">,</sup>' +
+    '<sup id="cite_ref-7" class="reference"><a href="#n7">[7]</a></sup>' +
+    '<sup class="need&#95;ref&#95;tag"><a href="/wiki/x">[source secondaire souhaitée]</a></sup>';
+  assertEquals(cellText(html), "12");
+  // La virgule porte la classe, pas un numéro : elle n'est pas une note.
+  assertEquals(footnoteRefs(html), ["5", "7", "source secondaire souhaitée"]);
 });
 
 Deno.test("texte de cellule : le barré est du texte comme un autre", () => {
@@ -125,4 +161,29 @@ Deno.test("fixture : la ligne courte de la source est SIGNALÉE, pas rattrapée"
     // Les cellules manquantes sont comblées par `null`, jamais par du vide.
     assertEquals(table.grid[r].length, table.width);
   }
+});
+
+// ── La vraie page, tableau des candidats ──────────────────────────────────
+
+const candidatsFixture = await Deno.readTextFile(
+  new URL("./fixtures/candidats-section.html", import.meta.url),
+);
+
+Deno.test("fixture : les ordinaux des « Saisons précédentes » gardent leur exposant", () => {
+  // Constat du 06/09/2026 en production : « Éliminé le 33 jour de la saison
+  // 27 » dans `contestant_previous_seasons.label`. La page écrit
+  // `33<sup>e</sup> jour`, et l'exposant partait avec les appels de note.
+  const [table] = parseTables(candidatsFixture);
+  const lines = table.grid.flatMap((row) =>
+    row.flatMap((cell) => (cell ? cellLines(cell.html) : []))
+  );
+  const days = lines.filter((line) => line.includes(" jour "));
+  assert(days.length >= 10, `${days.length} mentions datées en jours, attendu davantage`);
+  for (const line of days) {
+    assert(/\d(?:er|re|e) jour /.test(line), `ordinal amputé : « ${line} »`);
+  }
+  assert(
+    lines.includes("Éliminé le 33e jour de la saison 27"),
+    `la mention de Maxime manque :\n${days.join("\n")}`,
+  );
 });
