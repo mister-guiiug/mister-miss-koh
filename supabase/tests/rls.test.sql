@@ -12,7 +12,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(33);
+select plan(34);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 -- Deux comptes, une note privée chacun, et une saison à moitié publiée.
@@ -221,10 +221,24 @@ select is(
   (select count(*)::int from get_shared_note('jeton-de-demonstration')), 1,
   'anonyme : le bon jeton ouvre la note partagée'
 );
+-- `PT404` N'EST PAS UN DÉTAIL DE PLOMBERIE : PostgREST traduit le SQLSTATE en
+-- statut HTTP, et il range tout ce qu'il ne connaît pas — dont `P0002` — dans
+-- le fourre-tout 500. Un lien périmé annonçait donc une panne serveur. La
+-- convention `PTxxx` impose le statut ; mesuré, `PT404` rend bien un 404.
 select throws_ok(
   $$ select * from get_shared_note('jeton-invente') $$,
-  'P0002', NULL,
-  'un jeton inventé est refusé'
+  'PT404', NULL,
+  'un jeton inventé est refusé — et « introuvable », pas « en panne »'
+);
+
+-- La règle, pour toutes les autres : rien dans `public` ne doit plus lever
+-- `P0002`, sans quoi le défaut reviendrait par une fonction neuve.
+select is(
+  (select count(*)::int from pg_proc p
+     join pg_namespace ns on ns.oid = p.pronamespace
+    where ns.nspname = 'public' and p.prokind = 'f'
+      and p.prosrc like '%P0002%'), 0,
+  'aucune fonction ne répond « erreur serveur » pour un objet introuvable'
 );
 
 -- Le contenu rendu est CHOISI : ni propriétaire, ni identifiant de lien.
@@ -247,7 +261,7 @@ update share_links set revoked_at = now()
 select devenir_anonyme();
 select throws_ok(
   $$ select * from get_shared_note('jeton-de-demonstration') $$,
-  'P0002', NULL,
+  'PT404', NULL,
   'la révocation prend effet immédiatement'
 );
 
@@ -260,7 +274,7 @@ update share_links
 select devenir_anonyme();
 select throws_ok(
   $$ select * from get_shared_note('jeton-de-demonstration') $$,
-  'P0002', NULL,
+  'PT404', NULL,
   'un lien expiré n''ouvre plus rien'
 );
 
@@ -319,7 +333,7 @@ update share_links set revoked_at = null, expires_at = null
 select devenir_anonyme();
 select throws_ok(
   $$ select * from get_shared_notes('jeton-de-demonstration') $$,
-  'P0002', NULL,
+  'PT404', NULL,
   'un jeton de note VIVANT n''ouvre pas la collection'
 );
 
@@ -329,7 +343,7 @@ update share_links set revoked_at = now()
 select devenir_anonyme();
 select throws_ok(
   $$ select * from get_shared_notes('jeton-collection') $$,
-  'P0002', NULL,
+  'PT404', NULL,
   'révoquer le lien de collection ferme tout, aussitôt'
 );
 

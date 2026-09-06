@@ -5,9 +5,9 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **23 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> Les **24 migrations** sont appliquées sur le projet Supabase hébergé, qui
 > suit les **18 pages de saison** déclarées par Wikipédia. Les quatre suites
-> pgTAP passent contre cette base — isolation (33), publication (43), suivi du
+> pgTAP passent contre cette base — isolation (34), publication (43), suivi du
 > compte (21), partage éphémère (24) —, jouées le 07/09/2026.
 >
 > ⚠️ **Ce dépôt n'a AUCUN workflow qui applique les migrations.** Une CI verte
@@ -34,6 +34,16 @@ dit déjà s'il s'agit d'une démonstration.
 
 L'identité visuelle est **originale** — terre, feu, océan, jungle. Aucun logo,
 totem, photographie, extrait ou élément graphique de l'émission n'est reproduit.
+
+**Un seul logo, un seul fichier.** `public/favicon.svg` — une flamme sur une
+vague, dans une pastille — est la source unique : l'en-tête le sert tel quel,
+et `npm run icons` en tire tous les PNG du manifeste. L'en-tête portait
+auparavant une flamme de `lucide`, contour générique sans vague ni pastille,
+d'où trois marques différentes selon qu'on regardait le site, l'onglet ou
+l'application installée. Le fond du `--maskable` reprend la couleur de la
+pastille (`18,32,28`) et non le défaut du socle (`12,18,34`), sans quoi
+l'icône installée montrait un cadre bleu-noir autour d'une pastille
+vert-noir.
 
 **Les portraits des candidats ne font pas exception.** L'application n'en
 distribue aucun et n'en télécharge aucun : chaque candidat porte une vignette
@@ -113,13 +123,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 318 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 319 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
-| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 33 assertions vertes       |
+| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
 | `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 24 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 285,3 kB gzip, index 93 kB |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 285,4 kB gzip, index 93 kB |
 | `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,

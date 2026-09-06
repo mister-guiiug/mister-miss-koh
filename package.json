@@ -13,7 +13,7 @@
     "doctor": "pwa-doctor",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "icons": "pwa-icons --source public/favicon.svg --out public --maskable",
+    "icons": "pwa-icons --source public/favicon.svg --out public --maskable --bg 18,32,28",
     "lint": "eslint .",
     "prepare": "husky || true",
     "preview": "vite preview --base /mister-miss-koh/",

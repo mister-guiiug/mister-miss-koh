@@ -357,6 +357,15 @@ body,
   gap: 0.5rem;
 }
 
+/* La marque de l'en-tête : le fichier du favicon, servi tel quel. Le rayon
+   reprend celui que le SVG dessine (14/64) pour que la pastille ne paraisse
+   pas posée dans un carré. */
+.brand-mark {
+  display: block;
+  flex: none;
+  border-radius: calc(28px * 14 / 64);
+}
+
 /* Le partage ÉPHÉMÈRE est la seule route qui publie : il se détache des trois
    autres par un trait et une teinte d'avertissement, plutôt que de se ranger
    parmi elles comme un bouton de plus. */

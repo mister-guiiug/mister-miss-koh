@@ -1,9 +1,9 @@
 # Tests pgTAP, délégués au réutilisable de la famille.
 #
 # LE SEUL ENDROIT OÙ LES MIGRATIONS S'EXÉCUTENT VRAIMENT. Le poste de
-# développement n'a pas de démon Docker qui démarre : les vingt-trois
+# développement n'a pas de démon Docker qui démarre : les vingt-quatre
 # migrations de ce dépôt n'y sont que RELUES. Ici, la pile jetable du runner
-# les applique depuis zéro — `0001` à `0023`, dans l'ordre, sur une base vide —
+# les applique depuis zéro — `0001` à `0024`, dans l'ordre, sur une base vide —
 # puis joue `supabase/tests/`.
 #
 # CE QUE CE DÉPÔT-CI AVAIT À Y GAGNER. Ses 1 134 lignes de pgTAP existaient
