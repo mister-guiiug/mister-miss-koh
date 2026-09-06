@@ -76,11 +76,12 @@ export function Layout() {
           </p>
         )}
       </AppHeader>
-      <PageContainer as="main" width="md">
+      <PageContainer as="main" width="md" reserve="bottom-nav">
         <Outlet />
         <AppFooter repoUrl={REPO_URL} version />
       </PageContainer>
       <BottomNav
+        placement="fixed"
         items={NAV}
         currentPath={pathname}
         linkComponent={Link}
