@@ -85,7 +85,12 @@ body {
   line-height: 1.5;
 }
 
-a {
+/* Un lien habillé en bouton (`a[data-dwc='button']`, « Ouvrir la page
+   source ») prend les couleurs de sa variante, que le socle définit dans une
+   COUCHE. Cette règle-ci est hors couche : elle l'emporterait quelle que soit
+   la spécificité, et un bouton primaire se retrouvait orange sur orange,
+   illisible. Les liens-boutons sont donc exclus. */
+a:not([data-dwc='button']) {
   color: var(--primary);
 }
 
