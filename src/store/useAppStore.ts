@@ -45,10 +45,22 @@ const personalStore = createVersionedStore<Personal>({
 });
 
 interface AppState {
+  /** Le premier chargement est terminé, réussi ou non : l'attente peut cesser. */
   ready: boolean;
+  /** Un chargement est en cours — le premier comme un rechargement. */
   loading: boolean;
+  /**
+   * Le message du DERNIER chargement en échec, effacé par le suivant qui
+   * réussit. Il ne dit pas s'il y a quelque chose à montrer : c'est
+   * `referential` qui le dit. Sans référentiel, c'est le premier chargement
+   * qui a échoué et l'écran bloque (App) ; avec, c'est un rechargement, la
+   * lecture précédente reste affichée et l'échec se signale — toast de
+   * `useRefreshReferential`, avis des Réglages.
+   */
   error: string | null;
+  /** La dernière lecture réussie. Un échec ne l'efface jamais. */
   referential: Referential | null;
+  /** D'où vient `referential`, et ce qu'il faut en dire : de la même lecture. */
   origin: Origin | null;
   notice: string | null;
   spoiler: SpoilerMode;
@@ -89,6 +101,11 @@ export const useAppStore = create<AppState>((set, get) => {
         error: null,
       });
     } catch (error) {
+      // Rien d'autre ne bouge : référentiel, origine et avis restent ceux de
+      // la dernière lecture réussie. Un rechargement qui échoue se signale, il
+      // ne remplace pas l'application ; seul le premier chargement, qui ne
+      // laisse rien derrière lui, bloque l'écran — et App le sait par
+      // `referential`, pas par `error`.
       set({
         ready: true,
         error: error instanceof Error ? error.message : 'référentiel illisible',
