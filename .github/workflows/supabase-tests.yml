@@ -1,0 +1,42 @@
+# Tests pgTAP, délégués au réutilisable de la famille.
+#
+# LE SEUL ENDROIT OÙ LES MIGRATIONS S'EXÉCUTENT VRAIMENT. Le poste de
+# développement n'a pas de démon Docker qui démarre : les vingt-et-une
+# migrations de ce dépôt n'y sont que RELUES. Ici, la pile jetable du runner
+# les applique depuis zéro — `0001` à `0021`, dans l'ordre, sur une base vide —
+# puis joue `supabase/tests/`.
+#
+# CE QUE CE DÉPÔT-CI AVAIT À Y GAGNER. Ses 1 134 lignes de pgTAP existaient
+# déjà, mais ne se jouaient que CONTRE LA BASE LIÉE, à la main
+# (`npm run test:rls:remote` & co, via `scripts/pgtap-remote.mjs`). Deux angles
+# morts en découlaient : personne ne lançait ces tests avant de pousser, et le
+# schéma testé était celui que la base HÉBERGÉE avait fini par avoir — pas
+# celui que les migrations FABRIQUENT depuis zéro. Les deux chemins se
+# complètent, ils ne se remplacent pas : `pgtap-remote.mjs` mesure le réel,
+# ce workflow mesure ce que le dépôt promet.
+#
+# AUCUN SECRET, aucune condition : tout se passe dans une base jetable du
+# runner, et rien ne touche le projet hébergé.
+name: Supabase tests
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pgtap:
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-test.yml@v4
