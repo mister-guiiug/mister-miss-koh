@@ -11,12 +11,16 @@ import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { sendMagicLink, signOut } from '../../backend/auth';
-import { useSession } from '../../hooks/useSession';
+import { useProfile } from '../../hooks/useProfile';
+import { ProfileCard } from './ProfileCard';
 
 type Sending = 'idle' | 'sending' | 'sent';
 
 export function AccountScreen() {
-  const { account, available } = useSession();
+  // `useProfile` porte AUSSI la session : c'est lui qui charge le profil à la
+  // connexion et l'oublie à la déconnexion, et cet écran est le seul qui reste
+  // monté dans les deux cas.
+  const { account, available } = useProfile();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<Sending>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +70,7 @@ export function AccountScreen() {
             Se déconnecter
           </Button>
         </Card>
+        <ProfileCard />
       </div>
     );
   }

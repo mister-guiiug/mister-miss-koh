@@ -5,9 +5,9 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **dix-huit** migrations sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
-> d'isolation (22 assertions) et la publication transactionnelle (39 assertions)
+> Les **vingt et une** migrations sont appliquées sur le projet Supabase hébergé,
+> qui suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
+> d'isolation (33 assertions) et la publication transactionnelle (43 assertions)
 > passent contre cette base.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
@@ -38,6 +38,14 @@ appareil : aucune route ne la dépose sur un serveur, il n'y en a pas pour ça.
 Le QR code, lui, porte le **lien de la fiche**, jamais l'image — un QR code
 contient au plus 2,9 ko, et l'écran affiche les deux tailles côte à côte
 plutôt que de le laisser croire.
+
+**Un pseudonyme se choisit, il ne s'invente pas.** Aucun profil n'est créé
+automatiquement : `pseudonym` est obligatoire, et le fabriquer depuis une
+adresse électronique reviendrait à vous attribuer un nom. Tant que vous n'en
+choisissez pas un, une note partagée est signée « quelqu'un qui n'a pas choisi
+de pseudonyme » — c'est l'état réel, pas une panne. L'**identifiant public**,
+lui, est facultatif : c'est une adresse unique, et sa disponibilité se demande
+au serveur, seul à voir les profils des autres.
 
 **Vos notes, elles, peuvent être données OU publiées — et l'écran ne confond
 pas les deux.** Les envoyer en texte ou les enregistrer en Markdown ne publie
@@ -74,11 +82,11 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 186 tests verts                    |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 220 tests verts                    |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts                    |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes               |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes               |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 275,3 kB gzip                      |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (280 kB gzip)        | 276,7 kB gzip                      |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
@@ -125,18 +133,23 @@ src/
                  supposés (`pairing.ts` — la source prime toujours), partage
                  (`sharing.ts` — nom de fichier, adresses, capacité d'un QR),
                  notes en document (`notesExport.ts` — Markdown et texte brut),
-                 cibles d'une note (`noteTargets.ts` — nommer, ou le dire)
+                 cibles d'une note (`noteTargets.ts` — nommer, ou le dire),
+                 pseudonyme et identifiant public (`profile.ts` — les règles du
+                 schéma, dites avant que PostgreSQL ne les oppose)
   backend/       sélection du backend, port du référentiel, démonstration,
                  portraits (IndexedDB, sur l'appareil — `photos.ts`), envoi
                  d'une image par la feuille du système (`sharePhoto.ts`), liens
-                 de partage des notes (`sharing.ts` — créer, révoquer, lire)
+                 de partage des notes (`sharing.ts` — créer, révoquer, lire),
+                 profil (`profile.ts` — `upsert`, et la disponibilité demandée
+                 au serveur et non à la table)
   store/         zustand — référentiel + données personnelles (magasin versionné) ;
                  un rechargement en échec garde la dernière lecture réussie ;
                  notes du compte (useNotesStore), portraits (usePhotosStore :
                  URL d'objet, révoquées dès qu'elles sont remplacées)
   animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti),
                  niveaux de mouvement (`data-motion` sur <html>)
-  hooks/         useSpoilerLimit, useSession (compte courant), useNotes (les
+  hooks/         useSpoilerLimit, useSession (compte courant), useProfile (le
+                 pseudonyme, chargé à la connexion et oublié après), useNotes (les
                  notes du compte, une fois), useHaptics, useRefreshReferential
                  (recharger et le dire — l'échec aussi)
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
@@ -340,10 +353,11 @@ Dans l'ordre :
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
-3. le **profil** (pseudonyme, visibilité) : la table et ses politiques sont
-   prêtes, l'écran non — et rien ne crée jamais de ligne dans `profiles`, ce
-   qui rend tout partage anonyme (« quelqu'un qui n'a pas choisi de
-   pseudonyme ») ;
+3. le **profil PUBLIC** : le pseudonyme et l'identifiant se choisissent depuis
+   l'écran Compte, mais `profiles.visibility` reste à `private` et aucun écran
+   ne montre le profil de quelqu'un d'autre. Tant qu'il n'y en a pas, la
+   bascule n'aurait rien à gouverner — et les trois consentements séparés
+   (`show_favorites`, `show_stats`, `show_notes`) attendent avec elle ;
 4. la **suppression de compte** : la cascade existe en base, mais l'effacer
    demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
    l'avoir ;
