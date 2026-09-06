@@ -47,7 +47,7 @@ export function HomeScreen() {
       {/* Le pied de page vit ICI et sur les Réglages — deux écrans, pas la
           coquille : rendu partout, il transforme chaque bas de page en
           signature. C'est la règle que `pwa-doctor` 4.5.0 fait respecter. */}
-      <AppFooter issues repoUrl={REPO_URL} version />
+      <AppFooter issues repoUrl={REPO_URL} />
     </div>
   );
 }

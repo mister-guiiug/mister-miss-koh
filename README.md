@@ -130,7 +130,7 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 328 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 330 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |

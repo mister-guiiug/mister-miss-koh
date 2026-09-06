@@ -55,6 +55,33 @@ describe('App', () => {
     expect(container.querySelector('.lucide-flame')).toBeNull();
   });
 
+  it('le titre ramène à l’accueil, depuis n’importe quel écran', async () => {
+    const user = userEvent.setup();
+    window.location.hash = '#/reglages';
+    render(<App />);
+    expect(await screen.findByText('Source de vérité')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Mister & miss Koh' }));
+
+    expect(
+      await screen.findByText('Saison de démonstration')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Source de vérité')).not.toBeInTheDocument();
+  });
+
+  it('le pied de page ne répète plus la version', async () => {
+    // Elle a sa carte « Version installée » dans les Réglages, et le
+    // paragraphe « À propos » la porte aussi : trois fois, c'était deux de
+    // trop, et celle du bas ne menait à rien.
+    const { container } = render(<App />);
+    await screen.findByText('Saison de démonstration');
+
+    const pied = container.querySelector('[data-dwc="app-footer"]');
+    expect(pied).not.toBeNull();
+    expect(pied!.textContent).not.toMatch(/\d+\.\d+\.\d+/);
+    expect(pied!.textContent).toContain('Code source');
+  });
+
   it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {
     // Retirer un pavé d'un écran ne doit pas retirer la traçabilité de
     // l'application : c'est la promesse du README, et elle se vérifie là où

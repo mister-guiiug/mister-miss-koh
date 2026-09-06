@@ -78,7 +78,13 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="stack">
+    /* `settings` porte le RYTHME des cartes. Mesurés, leurs blocs se
+       touchaient : 1 px entre le texte du compte et son lien, 0 px entre la
+       version et son bouton — deux endroits où l'on croit lire un seul bloc.
+       Le rythme est posé une fois sur le conteneur, pas ajouté marge par
+       marge : une marge entre voisins perd contre le `margin: 0` d'un enfant
+       de spécificité égale, un `gap` ne se dispute avec personne. */
+    <div className="stack settings">
       <h2>Réglages</h2>
 
       <Card>
@@ -164,7 +170,21 @@ export function SettingsScreen() {
                 ? `Connecté·e en tant que ${account.email ?? 'compte sans adresse'}.`
                 : 'Non connecté·e. Un compte ne sert qu’à retrouver vos notes d’un autre appareil ; tout le reste fonctionne sans.'}
         </p>
-        {available && <Link to="/compte">Gérer le compte</Link>}
+        {/* UN BOUTON, comme les deux autres actions de l'écran. C'était un
+            lien nu de 24 px de haut au milieu de cartes dont les actions font
+            44 : trop petit pour un pouce, et surtout d'une autre famille que
+            « Actualiser les données » ou « Forcer le rechargement », qui sont
+            pourtant la même chose — l'action de leur carte. */}
+        {available && (
+          <Link
+            data-dwc="button"
+            data-variant="outline"
+            data-size="sm"
+            to="/compte"
+          >
+            Gérer le compte
+          </Link>
+        )}
       </Card>
 
       <Card>
@@ -329,7 +349,7 @@ export function SettingsScreen() {
       </Card>
       {/* Le second des DEUX écrans qui portent le pied de page : l'accueil,
           où l'on arrive, et « À propos », où l'on vient chercher ces liens. */}
-      <AppFooter issues repoUrl={REPO_URL} version />
+      <AppFooter issues repoUrl={REPO_URL} />
     </div>
   );
 }

@@ -72,7 +72,16 @@ export function Layout() {
   return (
     <div className="app-shell">
       <AppHeader
-        title="Mister & miss Koh"
+        /* Le titre RAMÈNE À L'ACCUEIL. Le socle n'a pas de prop pour cela —
+           son `backHref` rend une flèche de retour, ce qui n'est pas la même
+           promesse — mais `title` accepte un nœud : un lien y tient. Il garde
+           la couleur du titre (`.brand-link`), sinon la règle non layered
+           `a { color: var(--primary) }` de l'app le peindrait en orange. */
+        title={
+          <Link className="brand-link" to="/">
+            Mister &amp; miss Koh
+          </Link>
+        }
         leading={
           /* LA MARQUE, PAS UNE ICÔNE QUI LUI RESSEMBLE. L'en-tête portait une
              flamme de `lucide` : un contour générique, sans la vague et sans

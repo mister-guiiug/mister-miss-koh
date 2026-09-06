@@ -410,6 +410,60 @@ body,
   gap: 0.5rem;
 }
 
+/* ── Réglages : un rythme, pas des marges ──────────────────────────────── */
+/*
+   Chaque carte devient une COLONNE avec son propre écart. Les enfants
+   remettent leur marge à zéro pour ne pas s'y ajouter — c'est le conteneur
+   qui décide, une fois.
+*/
+.settings [data-dwc='card'] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings [data-dwc='card'] > * {
+  margin-block: 0;
+}
+
+/* Un bouton seul dans une carte ne s'étire pas à toute la largeur : sur une
+   colonne, `stretch` le rendrait aussi large que la carte, ce qui le ferait
+   passer pour l'action principale de l'écran. */
+.settings [data-dwc='card'] > [data-dwc='update-button-group'],
+.settings [data-dwc='card'] > [data-dwc='button'] {
+  align-self: flex-start;
+}
+
+/* Le bouton de mise à jour vient du socle avec son propre habillage : fond
+   plein là où les deux autres actions de l'écran sont bordées et
+   transparentes. Trois actions qui font la même chose — l'action de leur
+   carte — n'ont aucune raison d'avoir trois apparences. */
+.settings [data-dwc='update-button'] {
+  background: transparent;
+  color: var(--primary);
+  /* `currentColor`, comme la variante « outline » du socle : la bordure suit
+     le texte, et suivra encore le jour où la palette changera. */
+  border-color: currentColor;
+}
+
+/* Le titre est un lien vers l'accueil, mais il reste un TITRE : il ne prend
+   ni la couleur ni le soulignement des liens de contenu. Seul le survol le
+   trahit — et le focus, que le socle dessine déjà. */
+/* `a.brand-link`, PAS `.brand-link` : la règle globale de l'app est
+   `a:not([data-dwc='button'])`, de spécificité (0,1,1) — une classe seule
+   (0,1,0) perd, et le titre repassait en orange. Mesuré, pas déduit. */
+a.brand-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  a.brand-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
 /* La marque de l'en-tête : le fichier du favicon, servi tel quel. Le rayon
    reprend celui que le SVG dessine (14/64) pour que la pastille ne paraisse
    pas posée dans un carré. */
