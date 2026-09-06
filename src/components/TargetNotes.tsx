@@ -59,6 +59,7 @@ export function TargetNotes({
   const [writing, setWriting] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
 
   const mine = useMemo(
     () =>
@@ -115,6 +116,7 @@ export function TargetNotes({
    */
   const deleteNote = (note: Note) => {
     setBusy(true);
+    setPending(note.id);
     void remove(note.id)
       .then(() => {
         if (editing === note.id) setEditing(null);
@@ -128,7 +130,10 @@ export function TargetNotes({
       .catch((cause: unknown) => {
         toast.error(cause instanceof Error ? cause.message : String(cause));
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        setBusy(false);
+        setPending(null);
+      });
   };
 
   return (
@@ -136,9 +141,16 @@ export function TargetNotes({
       {mine.length > 0 && (
         <ul className="list">
           {mine.map(note => (
-            <li key={note.id} className="note">
-              <div>
-                {editing === note.id ? (
+            <li
+              key={note.id}
+              className="note"
+              data-pending={pending === note.id ? '' : undefined}
+            >
+              {editing === note.id ? (
+                /* En modification, la note cède toute sa largeur au
+                   formulaire — comme sur l'écran Notes. Un bouton destructeur
+                   à côté d'un champ de saisie n'a rien à y faire. */
+                <div className="note-editing">
                   <NoteEditor
                     initial={note}
                     onSubmit={values => submitEdit(note.id, values)}
@@ -146,38 +158,46 @@ export function TargetNotes({
                     busy={busy}
                     focusOnMount
                   />
-                ) : (
-                  <>
+                </div>
+              ) : (
+                /* `.note-row` N'EST PAS DÉCORATIF : `.note` est une COLONNE
+                   (elle accueille le panneau de partage sous sa ligne), et un
+                   bouton `iconOnly` y serait étiré à toute la largeur — le
+                   socle lui donne `aspect-ratio: 1`, donc un carré de la
+                   largeur de la carte. C'est cette ligne qui rend au crayon et
+                   à la corbeille leur taille. */
+                <div className="note-row">
+                  <div>
                     {note.title && <strong>{note.title}</strong>}
                     {note.rating !== null && <Rating value={note.rating} />}
                     <p>{note.body}</p>
                     <small className="muted">
-                      modifiée le {formatDate(note.updatedAt)}
+                      {pending === note.id
+                        ? 'Suppression…'
+                        : `modifiée le ${formatDate(note.updatedAt)}`}
                     </small>
-                  </>
-                )}
-              </div>
-              {editing !== note.id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconOnly
-                  aria-label={`Modifier cette note sur ${label}`}
-                  onClick={() => setEditing(note.id)}
-                >
-                  <Pencil size={18} aria-hidden />
-                </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Modifier cette note sur ${label}`}
+                    onClick={() => setEditing(note.id)}
+                  >
+                    <Pencil size={18} aria-hidden />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    disabled={busy}
+                    aria-label={`Supprimer cette note sur ${label}`}
+                    onClick={() => deleteNote(note)}
+                  >
+                    <Trash2 size={18} aria-hidden />
+                  </Button>
+                </div>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                iconOnly
-                disabled={busy}
-                aria-label={`Supprimer cette note sur ${label}`}
-                onClick={() => deleteNote(note)}
-              >
-                <Trash2 size={18} aria-hidden />
-              </Button>
             </li>
           ))}
         </ul>
