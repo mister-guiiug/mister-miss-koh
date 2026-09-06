@@ -70,8 +70,10 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  3 — + colliers d'immunité (détenteurs datés, statut, voix annulées)
  *  4 — + la cause d'un départ lié (`causedBy`), qui nomme le duo
  *  5 — + le lieu de tournage (infobox de l'introduction) et ses coordonnées
+ *  6 — les ordinaux gardent leur exposant (« 33e jour », et non plus
+ *      « 33 jour ») : seuls les appels de note sortent des cellules
  */
-export const EXTRACTOR_VERSION = "5";
+export const EXTRACTOR_VERSION = "6";
 
 export interface SourceDocument {
   readonly id: string;
