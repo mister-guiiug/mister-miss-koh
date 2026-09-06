@@ -318,6 +318,69 @@ body,
   font-size: 0.8rem;
 }
 
+/* ── Partager le portrait qu'on a déposé ─────────────────────────────────── */
+.photo-share {
+  margin-block: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.photo-share-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.photo-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.qr-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+/* `display: flex` ci-dessus l'emporterait sur le `display: none` que le
+   navigateur attache à `[hidden]` : sans cette règle, le panneau replié
+   resterait visible. */
+.qr-block[hidden] {
+  display: none;
+}
+
+/* Fond blanc EN TOUTES CIRCONSTANCES, thème sombre compris : un QR code se lit
+   par le contraste entre ses modules et son fond, et un appareil photo devant
+   un QR sombre sur fond sombre ne trouve rien. La lisibilité passe avant
+   l'accord avec le thème. */
+.qr-code {
+  width: 192px;
+  height: 192px;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.7);
+  background: #fff;
+}
+
+.qr-note {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.share-link {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: calc(var(--radius) * 0.5);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  /* Une URL n'a pas d'espace où se couper : sans cela elle déborde de la
+     carte sur un téléphone. */
+  overflow-wrap: anywhere;
+}
+
 .chips,
 .timeline {
   margin: 0;
