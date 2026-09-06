@@ -15,15 +15,21 @@
  * immédiatement, y compris pour une note partagée : attendre une purge
  * laisserait un lien vivant après que son auteur l'a retirée.
  *
- * ET ELLE SE DÉFAIT. `restore` remet `deleted_at` à `null`, ce que le serveur
- * autorise déjà : la politique de lecture porte `deleted_at is null`, celle de
- * MISE À JOUR non — le propriétaire peut donc écrire dans une ligne qu'il ne
- * peut plus lire. C'est ce qui rend l'annulation possible SANS toucher à la
- * base, et c'est aussi pourquoi il n'y a pas de corbeille : lister ses notes
- * supprimées demanderait une politique de lecture de plus, donc une migration
- * — et sur ce dépôt, une politique permissive de plus se combine par OU avec
- * les autres, ce qui est exactement le piège documenté dans
- * `docs/politiques-rls.md`.
+ * ET ELLE SE DÉFAIT — MAIS PAS PAR UN `update`. Ce module a longtemps posé et
+ * retiré `deleted_at` directement, en croyant que la politique de mise à jour
+ * suffisait puisqu'elle ne filtre pas sur `deleted_at`. C'était faux, et
+ * personne n'a JAMAIS pu supprimer une note : la ligne issue d'un `update`
+ * doit rester visible sous une politique de SELECT, et les deux politiques de
+ * lecture portent `deleted_at is null`. Le serveur répondait « new row
+ * violates row-level security policy » ; l'autre moitié — restaurer — ne
+ * trouvait tout simplement aucune ligne, sans rien dire. Les deux passent
+ * désormais par `delete_note` et `restore_note` (migration 0023), deux
+ * fonctions `security definer` qui vérifient elles-mêmes à qui elles ouvrent.
+ *
+ * C'est aussi pourquoi il n'y a toujours pas de corbeille : lister ses notes
+ * supprimées demanderait une politique de lecture de plus — et sur ce dépôt,
+ * une politique permissive de plus se combine par OU avec les autres, ce qui
+ * est exactement le piège documenté dans `docs/politiques-rls.md`.
  */
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -233,30 +239,30 @@ export function createNotesRepository(
 
     async remove(id) {
       const supabase = await getClient();
-      const { error } = await supabase
-        .from('personal_notes')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
+      const { error } = await supabase.rpc('delete_note', { note_id: id });
       if (error) fail('suppression', error.message);
     },
 
     /**
      * La note revient AVEC son contenu, parce qu'il n'est jamais parti : rien
-     * n'a été effacé, seule une date avait été posée. C'est le `select` qui le
-     * prouve — la ligne rendue est celle du serveur, pas une copie gardée à
-     * l'écran, et l'appelant ne peut donc pas afficher une restauration qui
-     * n'aurait pas eu lieu.
+     * n'a été effacé, seule une date avait été posée. C'est le retour de la
+     * fonction qui le prouve — la ligne rendue est celle du serveur, pas une
+     * copie gardée à l'écran, et l'appelant ne peut donc pas afficher une
+     * restauration qui n'aurait pas eu lieu.
+     *
+     * `restore_note` rend une TABLE : une ligne quand elle a restauré, et elle
+     * lève plutôt que de rendre zéro. On prend donc la première, et son
+     * absence est une erreur — pas une note vide.
      */
     async restore(id) {
       const supabase = await getClient();
-      const { data, error } = await supabase
-        .from('personal_notes')
-        .update({ deleted_at: null })
-        .eq('id', id)
-        .select(NOTE_COLUMNS)
-        .single();
+      const { data, error } = await supabase.rpc('restore_note', {
+        note_id: id,
+      });
       if (error) fail('restauration', error.message);
-      return mapNote(data);
+      const [row] = (data as unknown[] | null | undefined) ?? [];
+      if (row === undefined) fail('restauration', 'note introuvable');
+      return mapNote(row);
     },
   };
 }

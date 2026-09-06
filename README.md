@@ -5,10 +5,16 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **vingt et une** migrations sont appliquées sur le projet Supabase hébergé,
-> qui suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
+> **21 des 23 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Les politiques
 > d'isolation (33 assertions) et la publication transactionnelle (43 assertions)
 > passent contre cette base.
+>
+> ⚠️ **`0022` et `0023` attendent d'être poussées à la main.** Ce dépôt n'a
+> AUCUN workflow qui applique les migrations : une CI verte ne dit rien de
+> l'état de la base. Tant qu'elles ne le sont pas, le **partage éphémère d'une
+> photo** répond « Could not find the function » et la **suppression d'une
+> note** reste refusée. `supabase db push` avec `SUPABASE_ACCESS_TOKEN`.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
 > avec sa provenance et son anti-spoiler. Le retour arrière a servi pour de
@@ -37,10 +43,15 @@ identifiables ; les republier ici contredirait la ligne ci-dessus.
 
 **Partager une de vos images, c'est la donner — pas la publier.** L'image part
 par la feuille de partage du système ou par un enregistrement, d'appareil à
-appareil : aucune route ne la dépose sur un serveur, il n'y en a pas pour ça.
-Le QR code, lui, porte le **lien de la fiche**, jamais l'image — un QR code
-contient au plus 2,9 ko, et l'écran affiche les deux tailles côte à côte
-plutôt que de le laisser croire.
+appareil, sans toucher à un serveur. Le QR code, lui, porte le **lien de la
+fiche**, jamais l'image — un QR code contient au plus 2,9 ko, et l'écran
+affiche les deux tailles côte à côte plutôt que de le laisser croire.
+
+**Sauf si vous le demandez, une fois, et pour un jour.** Le **partage
+éphémère** est la seule route de l'application qui dépose une image sur un
+serveur : elle y meurt à la première ouverture, ou au bout d'un jour — la
+première des deux échéances. Le bouton le dit avant le clic, la copie s'efface
+d'elle-même, et vous pouvez l'éteindre plus tôt.
 
 **Un pseudonyme se choisit, il ne s'invente pas.** Aucun profil n'est créé
 automatiquement : `pseudonym` est obligatoire, et le fabriquer depuis une
@@ -97,18 +108,18 @@ Le serveur de développement écoute sur le port 5236 (configuration
 
 ## Vérifier
 
-| Commande                          | Ce qu'elle vérifie                                    | État au 06/09/2026           |
-| --------------------------------- | ----------------------------------------------------- | ---------------------------- |
-| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
-| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 317 tests verts              |
-| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
-| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
-| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
-| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota | 24 assertions vertes         |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 285,3 kB gzip, index 93 kB   |
-| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
+| Commande                          | Ce qu'elle vérifie                                     | État au 06/09/2026         |
+| --------------------------------- | ------------------------------------------------------ | -------------------------- |
+| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
+| `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 318 tests verts            |
+| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
+| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 33 assertions vertes       |
+| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
+| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
+| `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 24 assertions vertes       |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 285,3 kB gzip, index 93 kB |
+| `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
 > `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et

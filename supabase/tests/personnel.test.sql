@@ -21,11 +21,18 @@
 -- ║     tables-là — et c'est le § 0 qui dit pourquoi.                         ║
 -- ║                                                                          ║
 -- ║  3. UNE SUPPRESSION SE DÉFAIT. `deleted_at` rend la note invisible à son  ║
--- ║     PROPRE auteur (la politique de lecture le dit) ; la politique de mise ║
--- ║     à jour, elle, ne filtre pas dessus. C'est ce qui rend l'annulation    ║
--- ║     possible SANS TOUCHER À LA BASE — et c'est aussi pourquoi il n'y a    ║
--- ║     pas de corbeille : lister ses supprimées demanderait une politique de ║
--- ║     lecture de plus.                                                      ║
+-- ║     PROPRE auteur — d'où l'absence de corbeille : lister ses supprimées   ║
+-- ║     demanderait une politique de lecture de plus.                        ║
+-- ║                                                                          ║
+-- ║     CE PARAGRAPHE DISAIT LE CONTRAIRE, ET C'EST CE QUI A COÛTÉ LE PLUS    ║
+-- ║     CHER. Il affirmait que « la politique de mise à jour ne filtre pas    ║
+-- ║     sur `deleted_at`, donc on peut écrire dans une ligne qu'on ne lit     ║
+-- ║     plus ». C'est faux : la ligne issue d'un `update` doit RESTER         ║
+-- ║     VISIBLE sous une politique de SELECT, et une note supprimée ne l'est  ║
+-- ║     sous aucune. Personne n'avait donc jamais pu supprimer une note —     ║
+-- ║     l'application non plus. Ce fichier le disait depuis le début, en      ║
+-- ║     échouant ; il a fallu qu'un job de CI le lise pour qu'on l'entende.   ║
+-- ║     Corrigé par la migration 0023 (`delete_note`, `restore_note`).        ║
 -- ║                                                                          ║
 -- ║ LE PIÈGE DU « OU ». Les politiques permissives se combinent par OU : sur  ║
 -- ║ `personal_notes`, « les miennes » plus « les publiques » donne une        ║
@@ -36,7 +43,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(17);
+select plan(21);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 -- Deux comptes, une saison publiée à deux candidats et deux épisodes, et le
@@ -89,7 +96,14 @@ values
   ('a0000000-0000-4000-8000-000000000041',
    '11111111-1111-1111-1111-111111111111',
    'a0000000-0000-4000-8000-000000000001',
-   'Note supprimable de A', 'contenu à retrouver intact', 'private');
+   'Note de A', 'contenu à retrouver intact', 'private'),
+  -- Celle de B : c'est elle qui prouve que la porte de 0023 regarde À QUI
+  -- elle ouvre. Sans une note d'autrui, « refusé » se confondrait avec
+  -- « n'existe pas ».
+  ('a0000000-0000-4000-8000-000000000042',
+   '22222222-2222-2222-2222-222222222222',
+   'a0000000-0000-4000-8000-000000000001',
+   'Note de B', 'contenu de B', 'private');
 
 -- Se faire passer pour un utilisateur : rôle + revendication `sub` du jeton,
 -- exactement ce que PostgREST met en place à chaque requête.
@@ -99,6 +113,18 @@ begin
   perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claims',
     json_build_object('sub', who, 'role', 'authenticated')::text, true);
+end $$;
+
+-- Le code d'erreur d'un refus, sans passer par `throws_ok` — dont la surcharge
+-- à quatre arguments ne se laisse pas résoudre ici. On compare un `sqlstate`
+-- avec `is()` : même verdict, aucune ambiguïté.
+create or replace function refus_de(fn text, note uuid) returns text
+language plpgsql as $$
+begin
+  execute format('select %I($1)', fn) using note;
+  return 'aucun refus';
+exception when others then
+  return sqlstate;
 end $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -218,8 +244,17 @@ select is(
   'avant suppression, A lit sa note'
 );
 
-update personal_notes set deleted_at = now()
- where id = 'a0000000-0000-4000-8000-000000000041';
+-- CE TEST A ÉCHOUÉ, ET IL AVAIT RAISON. Il posait `deleted_at` par un `update`
+-- direct — ce que l'application fait aussi — et PostgreSQL le refusait :
+-- « new row violates row-level security policy ». La ligne issue d'un `update`
+-- doit rester visible sous une politique de SELECT, et les deux politiques de
+-- lecture portent `deleted_at is null`. Personne n'avait donc JAMAIS pu
+-- supprimer une note. La migration 0023 ouvre la porte étroite qui manquait ;
+-- ces assertions passent maintenant par elle, comme l'application.
+select lives_ok(
+  $$select delete_note('a0000000-0000-4000-8000-000000000041')$$,
+  'A supprime sa note — ce qu''un `update` direct ne permet pas'
+);
 
 select is(
   (select count(*)::int from personal_notes
@@ -227,26 +262,39 @@ select is(
   'supprimée, la note devient invisible À SON PROPRE AUTEUR — d''où l''absence de corbeille'
 );
 
+-- La fonction est `security definer` : elle voit tout. C'est son `user_id =
+-- auth.uid()` qui tient lieu de politique, et c'est donc lui qu'il faut
+-- éprouver — sinon la porte ouvrirait à qui la pousse.
 select devenir('22222222-2222-2222-2222-222222222222');
-update personal_notes set deleted_at = null
- where id = 'a0000000-0000-4000-8000-000000000041';
+select is(
+  refus_de('restore_note', 'a0000000-0000-4000-8000-000000000041'), 'P0002',
+  'B ne peut pas ressusciter la note de A : la fonction ne la lui rend pas'
+);
 
 select devenir('11111111-1111-1111-1111-111111111111');
 select is(
   (select count(*)::int from personal_notes
     where id = 'a0000000-0000-4000-8000-000000000041'), 0,
-  'B n''a pas pu ressusciter la note de A : elle est toujours supprimée'
+  'et elle est toujours supprimée'
 );
 
--- L'annulation, faite par son auteur : la politique de MISE À JOUR ne porte pas
--- `deleted_at is null`, on peut donc écrire dans une ligne qu'on ne lit plus.
-update personal_notes set deleted_at = null
- where id = 'a0000000-0000-4000-8000-000000000041';
+-- L'annulation, faite par son auteur. La note revient AVEC son contenu :
+-- rien n'avait été effacé, seule une date avait été posée.
+select is(
+  (select title from restore_note('a0000000-0000-4000-8000-000000000041')),
+  'Note de A',
+  'restaurée par son auteur, la note revient avec son titre'
+);
 
 select is(
   (select count(*)::int from personal_notes
     where id = 'a0000000-0000-4000-8000-000000000041'), 1,
-  'restaurée par son auteur, la note redevient lisible'
+  'et elle redevient lisible'
+);
+
+select is(
+  refus_de('delete_note', 'a0000000-0000-4000-8000-000000000042'), 'P0002',
+  'la note de B ne se supprime pas depuis le compte de A'
 );
 select is(
   (select body from personal_notes
