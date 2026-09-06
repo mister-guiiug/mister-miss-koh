@@ -1,17 +1,16 @@
-import { Link } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { useAppStore } from '../../store/useAppStore';
 import { Provenance } from '../../components/Provenance';
 import { PullToRefresh } from '../../components/PullToRefresh';
+import { HomeTiles } from '../../components/HomeTiles';
 import { AppAnimation } from '../../animations/AppAnimation';
-import { lastAiredEpisode } from '../../domain/stats';
+import { REPO_URL } from '../../links';
 
 export function HomeScreen() {
   const referential = useAppStore(s => s.referential);
   const notice = useAppStore(s => s.notice);
   if (!referential) return null;
-
-  const last = lastAiredEpisode(referential);
 
   return (
     <div className="stack">
@@ -30,17 +29,10 @@ export function HomeScreen() {
           title={referential.season.name}
           subtitle={referential.season.editionLabel}
         />
-        <p>
-          {referential.contestants.length} candidats ·{' '}
-          {last === 0
-            ? 'aucun épisode diffusé'
-            : `${last} épisode${last > 1 ? 's' : ''} diffusé${last > 1 ? 's' : ''}`}
-        </p>
-        <p>
-          <Link to="/tableau-de-bord">Tableau de bord</Link> ·{' '}
-          <Link to="/candidats">Candidats</Link> ·{' '}
-          <Link to="/episodes">Épisodes</Link>
-        </p>
+        {/* Les tuiles remplacent la ligne de liens : chacune porte un chiffre,
+            et c'est le chiffre qui fait la différence entre un tableau de bord
+            et un menu redondant avec la barre basse. */}
+        <HomeTiles />
       </Card>
       <Provenance data={referential.provenance} />
       <p className="muted">
@@ -48,6 +40,10 @@ export function HomeScreen() {
         l’émission. Vos notes, favoris et réglages restent sur cet appareil tant
         que vous ne créez pas de compte.
       </p>
+      {/* Le pied de page vit ICI et sur les Réglages — deux écrans, pas la
+          coquille : rendu partout, il transforme chaque bas de page en
+          signature. C'est la règle que `pwa-doctor` 4.5.0 fait respecter. */}
+      <AppFooter issues repoUrl={REPO_URL} version />
     </div>
   );
 }

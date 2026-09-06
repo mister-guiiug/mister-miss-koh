@@ -5,6 +5,7 @@ import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -13,6 +14,7 @@ import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';
 import type { SpoilerMode } from '../../domain/spoiler';
 import { Provenance } from '../../components/Provenance';
+import { REPO_URL } from '../../links';
 
 const SPOILER_OPTIONS: { value: SpoilerMode; label: string; hint: string }[] = [
   {
@@ -302,6 +304,9 @@ export function SettingsScreen() {
           officiels. Version {__APP_VERSION__}.
         </p>
       </Card>
+      {/* Le second des DEUX écrans qui portent le pied de page : l'accueil,
+          où l'on arrive, et « À propos », où l'on vient chercher ces liens. */}
+      <AppFooter issues repoUrl={REPO_URL} version />
     </div>
   );
 }

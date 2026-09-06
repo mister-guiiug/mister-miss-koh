@@ -64,6 +64,14 @@ notes que vous avez marquées « partagée » — telles qu'elles sont à l'inst
 où on l'ouvre : en retirer une la fait disparaître aussitôt, sans révoquer le
 lien ni en refaire un.
 
+**L'accueil montre des chiffres, pas un menu.** Quatre tuiles — en jeu,
+épisodes vus, favoris, tableau de bord — parce qu'une tuile qui ne porte qu'un
+nom ne vaut pas mieux que l'onglet du bas. Le **tableau de bord** y a sa place
+propre : c'est le seul écran que la barre basse ne propose pas. Et ces comptes
+respectent l'**anti-spoiler** : « 16 en jeu » s'arrête à la limite que vous avez
+réglée, ce que l'écran dit sous les tuiles plutôt que de laisser croire à une
+erreur de calcul.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
@@ -90,24 +98,20 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 268 tests verts              |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 280 tests verts              |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 281,0 kB gzip, index 101 kB  |
-| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette, 0 info    |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,6 kB gzip, index 103 kB  |
+| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
-> **La dette du docteur est nouvelle, et elle est fondée** : le pied de page
-> (code source, soutien, « Signaler un problème ») est rendu par la coquille,
-> donc sur **tous** les écrans ; le socle 4.5.0 demande deux écrans au plus.
-> Elle sera levée avec la refonte de l'accueil, où ce pied a sa place.
->
-> **Et le budget de bundle est enfin MESURÉ.** Jusqu'à la 4.5.0,
+> **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
 > `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et
 > rendait 0 : la borne existait, personne ne la contrôlait. C'est le job
-> **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*` et son chunk
-> d'entrée pèse 102,45 Kio contre 101,51 pour celui de la CI.
+> **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*`, et son chunk
+> d'entrée pèse **104,04 Kio** contre 103,11 pour celui de la CI. La borne se
+> dérive sur lui, jamais sur un build local nu.
 
 ## Licence, et ce que le projet stocke
 
@@ -149,7 +153,9 @@ déploiement, Lighthouse et nettoyage, `pwa-icons`, `pwa-bundle-budget`,
 ```
 src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
-                 statistiques (zéro ≠ inconnu), règles de saison, duos
+                 statistiques (zéro ≠ inconnu), chiffres de l'accueil
+                 (`summary.ts` — comptés À LA LIMITE anti-spoiler), règles de
+                 saison, duos
                  supposés (`pairing.ts` — la source prime toujours), partage
                  (`sharing.ts` — nom de fichier, adresses, capacité d'un QR),
                  notes en document (`notesExport.ts` — Markdown et texte brut),
@@ -179,6 +185,7 @@ src/
                  confirmer, annuler pendant huit secondes), useHaptics,
                  useRefreshReferential (recharger et le dire — l'échec aussi)
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh,
+                 HomeTiles (l'accueil en tuiles : un chiffre par destination),
                  NoteEditor + TargetNotes (une note là où la chose s'affiche),
                  PairBlock (le binôme : celui de la source, ou le vôtre),
                  Avatar + ContestantTraits + PhotoPicker (portrait, sexe, âge),
