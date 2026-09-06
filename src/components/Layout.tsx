@@ -12,13 +12,11 @@ import {
 } from 'lucide-react';
 import { AppHeader } from '@mister-guiiug/dev-pwa-config/react/app-header';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
-import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { PageContainer } from '@mister-guiiug/dev-pwa-config/react/page-container';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { usePersonalSync } from '../hooks/usePersonalSync';
-import { REPO_URL } from '../links';
 
 const NAV = [
   { href: '/', label: 'Accueil', icon: <Home size={20} aria-hidden /> },
@@ -91,12 +89,16 @@ export function Layout() {
       </AppHeader>
       <PageContainer as="main" width="md" reserve="bottom-nav">
         {/* La clé est le chemin : chaque écran se remonte et fait son entrée
-            (`.screen`, image-clé `dwc-rise` du socle). Le pied de page, lui,
-            reste en place d'un écran à l'autre. */}
+            (`.screen`, image-clé `dwc-rise` du socle).
+
+            LE PIED DE PAGE N'EST PLUS ICI. Rendu par la coquille, il signait
+            les dix-sept écrans ; le socle 4.5.0 en demande deux au plus, et il
+            a raison — « Code source · M'offrir un café · Signaler un
+            problème » sous une fiche de candidat est du bruit. Il vit
+            désormais sur l'accueil et sur les Réglages, là où on le cherche. */}
         <div key={pathname} className="screen">
           <Outlet />
         </div>
-        <AppFooter issues repoUrl={REPO_URL} version />
       </PageContainer>
       <BottomNav
         placement="fixed"

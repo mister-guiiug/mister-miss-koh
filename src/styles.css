@@ -927,6 +927,82 @@ body,
   font-size: 0.9rem;
 }
 
+/* ── Les tuiles de l'accueil ──────────────────────────────────────────────
+   Deux colonnes sur un téléphone, quatre dès qu'il y a la place. `auto-fit`
+   plutôt qu'un nombre fixe : le nombre de tuiles change selon qu'un compte
+   est connecté, et une grille figée laisserait un trou. */
+.tiles {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+/* La tuile ENTIÈRE est le lien : une cible tactile de cette taille vaut mieux
+   qu'un mot souligné, et le lecteur d'écran annonce une seule destination. */
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  height: 100%;
+  padding: 0.7rem 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    border-color: var(--primary);
+    background: var(--dwc-primary-soft);
+  }
+}
+
+.tile:active {
+  transform: scale(0.98);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.tile-icon {
+  color: var(--primary);
+  line-height: 0;
+}
+
+.tile-value {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-weight: 700;
+  /* Les chiffres gardent la même largeur : sans cela, « 3 » et « 11 » font
+     danser les libellés d'une tuile à l'autre au fil des épisodes. */
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tile small {
+  font-size: 0.75rem;
+}
+
+.tiles-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+
 /* ── Choisir qui peut lire ────────────────────────────────────────────────
    Un groupe de radios en cartes : le bouton à gauche, le libellé et sa
    conséquence à droite. La conséquence est écrite SOUS le choix, jamais
