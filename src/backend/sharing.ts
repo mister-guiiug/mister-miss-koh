@@ -25,6 +25,7 @@ import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseFactory } from './supabaseReferential';
 import { NOTE_TARGETS, type NoteTarget } from './notes';
+import type { Visibility } from '../domain/visibility';
 
 export type ShareScope = 'note' | 'note_collection';
 
@@ -125,14 +126,24 @@ export function mapSharedNote(input: unknown): SharedNote {
 export interface SharingRepository {
   /** Les liens vivants du compte, les plus récents d'abord. */
   list(): Promise<ShareLink[]>;
-  /** Ouvre une note à la lecture par lien, et rend son adresse. */
-  shareNote(noteId: string, label: string | null): Promise<ShareLink>;
+  /**
+   * Donne une adresse à une note. `current` dit où elle en est : privée, elle
+   * s'ouvre « par lien » du même geste ; publique, elle le reste.
+   */
+  shareNote(
+    noteId: string,
+    label: string | null,
+    current: Visibility
+  ): Promise<ShareLink>;
   /** Un lien pour TOUTES les notes déjà ouvertes à la lecture par lien. */
   shareCollection(label: string | null): Promise<ShareLink>;
-  /** Referme la vanne : lien révoqué ET note redevenue privée. */
-  revoke(link: ShareLink): Promise<void>;
-  /** Ouvre ou referme la visibilité « link » d'une note, sans toucher aux liens. */
-  setShareable(noteId: string, shareable: boolean): Promise<void>;
+  /**
+   * Éteint l'adresse. `closeNote` referme EN PLUS la note — l'appelant seul
+   * sait si elle était ouverte par ce lien ou publique par ailleurs.
+   */
+  revoke(link: ShareLink, closeNote: boolean): Promise<void>;
+  /** Déplace la visibilité d'une note, sans toucher à ses liens. */
+  setVisibility(noteId: string, visibility: Visibility): Promise<void>;
   /** Lecture publique — aucune session requise. */
   readNote(token: string): Promise<SharedNote[]>;
   readCollection(token: string): Promise<SharedNote[]>;
@@ -154,19 +165,21 @@ export function createSharingRepository(
     return data.user?.id ?? fail(what, 'aucune session');
   };
 
-  const setVisibility = async (
+  const writeVisibility = async (
     supabase: SupabaseClient,
     noteId: string,
-    shareable: boolean,
+    visibility: Visibility,
     what: string
   ) => {
     const { error } = await supabase
       .from('personal_notes')
       .update({
-        visibility: shareable ? 'link' : 'private',
+        visibility,
         // Trace la PREMIÈRE ouverture, jamais effacée : elle dit que cette
         // note est sortie une fois, ce qu'un retour au privé ne défait pas.
-        ...(shareable ? { shared_at: new Date().toISOString() } : {}),
+        ...(visibility === 'private'
+          ? {}
+          : { shared_at: new Date().toISOString() }),
       })
       .eq('id', noteId);
     if (error) fail(what, error.message);
@@ -213,12 +226,16 @@ export function createSharingRepository(
       return (data ?? []).map(mapLink);
     },
 
-    async shareNote(noteId, label) {
+    async shareNote(noteId, label, current) {
       const supabase = await getClient();
       const userId = await userOf(supabase, 'partage');
       // La visibilité D'ABORD : un lien créé alors que la note est encore
-      // privée existe et n'ouvre rien — l'écran promettrait à tort.
-      await setVisibility(supabase, noteId, true, 'partage');
+      // privée existe et n'ouvre rien — l'écran promettrait à tort. Une note
+      // déjà PUBLIQUE, en revanche, ne redescend pas à « par lien » parce
+      // qu'on lui fabrique une adresse : ce serait la refermer sans le dire.
+      if (current === 'private') {
+        await writeVisibility(supabase, noteId, 'link', 'partage');
+      }
       return insertLink(
         supabase,
         { owner_id: userId, scope: 'note', note_id: noteId, label },
@@ -236,26 +253,28 @@ export function createSharingRepository(
       );
     },
 
-    async revoke(link) {
+    async revoke(link, closeNote) {
       const supabase = await getClient();
       const { error } = await supabase
         .from('share_links')
         .update({ revoked_at: new Date().toISOString() })
         .eq('id', link.id);
       if (error) fail('révocation', error.message);
-      // Une collection ne désigne aucune note : rien d'autre à refermer.
-      if (link.scope === 'note' && link.noteId) {
-        await setVisibility(supabase, link.noteId, false, 'révocation');
+      // `closeNote` vient de l'appelant, qui SAIT où en est la note : une
+      // collection ne désigne rien à refermer, et une note devenue PUBLIQUE
+      // n'a pas à redevenir privée parce qu'on éteint une vieille adresse.
+      if (closeNote && link.noteId) {
+        await writeVisibility(supabase, link.noteId, 'private', 'révocation');
       }
     },
 
-    async setShareable(noteId, shareable) {
+    async setVisibility(noteId, visibility) {
       const supabase = await getClient();
-      await setVisibility(
+      await writeVisibility(
         supabase,
         noteId,
-        shareable,
-        shareable ? 'partage' : 'retrait du partage'
+        visibility,
+        visibility === 'private' ? 'retrait du partage' : 'partage'
       );
     },
 

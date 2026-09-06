@@ -118,7 +118,7 @@ describe('ouvrir une note à la lecture', () => {
     // Un lien créé alors que la note est encore privée existe et n'ouvre
     // rien : `get_shared_note` exige `visibility in ('link','public')`.
     const log: string[] = [];
-    await repository(log, { row: linkRow() }).shareNote('n-1', null);
+    await repository(log, { row: linkRow() }).shareNote('n-1', null, 'private');
 
     expect(log).toEqual([
       'update personal_notes → shared_at,visibility',
@@ -152,7 +152,7 @@ describe('révoquer', () => {
     // Révoquer sans refermer laisserait la note « link » : elle entrerait
     // dans le lien de collection, que personne n'a révoqué.
     const log: string[] = [];
-    await repository(log).revoke(link());
+    await repository(log).revoke(link(), true);
 
     expect(log).toEqual([
       'update share_links → revoked_at',
@@ -163,7 +163,8 @@ describe('révoquer', () => {
   it('une collection ne désigne aucune note : rien d’autre à refermer', async () => {
     const log: string[] = [];
     await repository(log).revoke(
-      link({ scope: 'note_collection', noteId: null })
+      link({ scope: 'note_collection', noteId: null }),
+      false
     );
 
     expect(log).toEqual(['update share_links → revoked_at']);
@@ -175,7 +176,7 @@ describe('retirer une note du partage', () => {
     // `shared_at` dit qu'une note est sortie une fois ; la refermer ne défait
     // pas ce fait.
     const log: string[] = [];
-    await repository(log).setShareable('n-1', false);
+    await repository(log).setVisibility('n-1', 'private');
 
     expect(log).toEqual(['update personal_notes → visibility']);
   });

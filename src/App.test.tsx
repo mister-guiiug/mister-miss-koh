@@ -85,3 +85,32 @@ describe('App', () => {
     expect(useAppStore.getState().error).toBe('serveur injoignable');
   });
 });
+
+/**
+ * Les deux écrans où l'on n'arrive QUE par un lien sont chargés à la demande,
+ * pour qu'ils ne pèsent pas sur le premier écran de tout le monde. Ce qui se
+ * vérifie ici n'est pas le découpage — c'est qu'un lien reçu ouvre encore
+ * quelque chose : une frontière `Suspense` mal posée ou un chemin d'import
+ * faux ne se voient qu'à l'exécution, et jamais dans un diff.
+ */
+describe('les écrans chargés à la demande', () => {
+  it('un lien de partage ouvre son écran', async () => {
+    window.location.hash = '#/partage/note/jeton-invente';
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Notes partagées' })
+    ).toBeInTheDocument();
+  });
+
+  it('l’adresse d’un profil ouvre le sien', async () => {
+    window.location.hash = '#/profil/personne';
+    render(<App />);
+
+    // Sans backend configuré, la lecture échoue : l'écran dit alors ce qu'il
+    // dit pour une adresse inconnue — et c'est bien LUI qui est monté.
+    expect(
+      await screen.findByText('Aucun profil à cette adresse')
+    ).toBeInTheDocument();
+  });
+});

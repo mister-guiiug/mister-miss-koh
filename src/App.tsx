@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -30,7 +30,7 @@ import { ContestantsScreen } from './features/contestants/ContestantsScreen';
 import { ContestantDetailScreen } from './features/contestants/ContestantDetailScreen';
 import { EpisodesScreen } from './features/episodes/EpisodesScreen';
 import { NotesScreen } from './features/notes/NotesScreen';
-import { SharedNotesScreen } from './features/share/SharedNotesScreen';
+
 import { AccountScreen } from './features/account/AccountScreen';
 import { SettingsScreen } from './features/settings/SettingsScreen';
 import { OfflineScreen } from './features/offline/OfflineScreen';
@@ -47,6 +47,43 @@ const ICONS = lucideIconSet({
   external: ExternalLink,
 });
 
+/**
+ * Les deux écrans où l'on n'ARRIVE QUE PAR UN LIEN — le partage d'une note, le
+ * profil de quelqu'un — quittent le bundle d'entrée.
+ *
+ * Personne ne les atteint en naviguant : ni la barre basse, ni l'accueil n'y
+ * mènent. Les faire payer à chaque première visite, c'est facturer à tout le
+ * monde ce que presque personne n'ouvre — et le chunk d'entrée est précisément
+ * ce que `bundleBudget.mainChunkKb` borne.
+ */
+const SharedNotesScreen = lazy(async () => ({
+  default: (await import('./features/share/SharedNotesScreen'))
+    .SharedNotesScreen,
+}));
+const PublicProfileScreen = lazy(async () => ({
+  default: (await import('./features/profile/PublicProfileScreen'))
+    .PublicProfileScreen,
+}));
+
+/**
+ * La coquille reste à l'écran pendant le chargement : la frontière `Suspense`
+ * est POSÉE SUR L'ÉLÉMENT de la route, pas autour des routes — sinon l'en-tête
+ * et la barre basse disparaîtraient le temps d'un aller-retour réseau.
+ */
+function ALaDemande({ children }: { children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="stack">
+          <SkeletonGroup label="Chargement de la page" lines={3} />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
+
 function RoutedApp() {
   return (
     <HashRouter>
@@ -61,7 +98,24 @@ function RoutedApp() {
           {/* Ouvert à tous, sans session : c'est le serveur qui décide, à
               partir du jeton seul. La portée est dans l'adresse parce qu'un
               jeton ne dit pas laquelle des deux fonctions l'ouvre. */}
-          <Route path="/partage/:kind/:token" element={<SharedNotesScreen />} />
+          <Route
+            path="/partage/:kind/:token"
+            element={
+              <ALaDemande>
+                <SharedNotesScreen />
+              </ALaDemande>
+            }
+          />
+          {/* Le profil de quelqu'un, à son identifiant public. Ouvert à tous
+              parce que la RLS le décide, pas parce que la route l'autorise. */}
+          <Route
+            path="/profil/:handle"
+            element={
+              <ALaDemande>
+                <PublicProfileScreen />
+              </ALaDemande>
+            }
+          />
           <Route path="/compte" element={<AccountScreen />} />
           <Route path="/reglages" element={<SettingsScreen />} />
           <Route path="/hors-connexion" element={<OfflineScreen />} />

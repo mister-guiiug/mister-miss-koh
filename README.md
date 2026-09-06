@@ -47,6 +47,14 @@ de pseudonyme » — c'est l'état réel, pas une panne. L'**identifiant public*
 lui, est facultatif : c'est une adresse unique, et sa disponibilité se demande
 au serveur, seul à voir les profils des autres.
 
+**Un profil est privé par défaut, et « Public » n'est offert qu'avec une
+adresse.** La page se rejoint par `#/profil/<identifiant>` : la proposer sans
+identifiant promettrait une page injoignable, et retirer son identifiant
+referme le profil. Un profil public montre le pseudonyme, l'adresse, quelques
+mots — et, si son auteur le décide, ses notes **publiques**. Celles-là
+seulement : une note « qui a le lien » n'y remonte jamais, parce que confier
+n'est pas publier. Repasser en « Privé » ferme la page à la requête suivante.
+
 **Vos notes, elles, peuvent être données OU publiées — et l'écran ne confond
 pas les deux.** Les envoyer en texte ou les enregistrer en Markdown ne publie
 rien. Un **lien de lecture**, lui, les ouvre à qui obtient l'adresse, sans
@@ -82,12 +90,12 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 246 tests verts              |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 268 tests verts              |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 277,8 kB gzip, index 98 kB   |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 280,8 kB gzip, index 101 kB  |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
 ## Licence, et ce que le projet stocke
@@ -135,6 +143,8 @@ src/
                  (`sharing.ts` — nom de fichier, adresses, capacité d'un QR),
                  notes en document (`notesExport.ts` — Markdown et texte brut),
                  cibles d'une note (`noteTargets.ts` — nommer, ou le dire),
+                 qui peut lire quoi (`visibility.ts` — les niveaux, et pourquoi
+                 un profil n'en offre que deux),
                  pseudonyme et identifiant public (`profile.ts` — les règles du
                  schéma, dites avant que PostgreSQL ne les oppose)
   backend/       sélection du backend, port du référentiel, démonstration,
@@ -165,9 +175,10 @@ src/
                  l'adresse en clair, et le partage natif d'un lien),
                  LocationMap (tuiles OpenStreetMap en SVG, géométrie dans mapTiles)
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
-                 profil (pseudonyme, identifiant public, visibilité), réglages,
-                 hors-ligne, et `share/` — ce qu'un lien ouvre, pour n'importe
-                 qui, sans session
+                 profil (pseudonyme, identifiant public, visibilité),
+                 `profile/` — le profil de quelqu'un, à son adresse —,
+                 réglages, hors-ligne, et `share/` — ce qu'un lien ouvre, pour
+                 n'importe qui, sans session
 supabase/
   migrations/    0001 référentiel · 0002 import · 0003 personnel · 0004 RLS
                  0005 amorçage · 0006 source · 0007 publication · 0008 catalogue
@@ -398,11 +409,15 @@ Dans l'ordre :
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
-3. le **profil PUBLIC** : le pseudonyme et l'identifiant se choisissent depuis
-   l'écran Compte, mais `profiles.visibility` reste à `private` et aucun écran
-   ne montre le profil de quelqu'un d'autre. Tant qu'il n'y en a pas, la
-   bascule n'aurait rien à gouverner — et les trois consentements séparés
-   (`show_favorites`, `show_stats`, `show_notes`) attendent avec elle ;
+3. les **deux consentements qui restent morts**, et pour de bonnes raisons.
+   `show_favorites` n'a rien à montrer : les favoris et les épisodes vus ne
+   quittent jamais l'appareil, `user_favorites` reste vide côté serveur, et
+   afficher la bascule promettrait une synchronisation qu'on a refusée.
+   `show_stats` n'ajouterait qu'un compte de notes déjà visible. Aucune des
+   deux n'est offerte tant qu'elle ne gouverne rien. De même, le partage d'un
+   profil **par lien** (`get_shared_profile`, portées `profile` / `favorites` /
+   `ranking` de `share_links`) reste inutilisé : l'adresse d'un profil public
+   se donne telle quelle, sans jeton à révoquer ;
 4. la **suppression de compte** : la cascade existe en base, mais l'effacer
    demande un appel serveur — le navigateur n'a pas ce droit, et ne doit pas
    l'avoir ;

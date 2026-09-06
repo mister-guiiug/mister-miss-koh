@@ -85,7 +85,13 @@ export interface Note {
   readonly targetId: string;
 }
 
-const SELECT =
+/**
+ * Les colonnes d'une note. Exportées parce que le profil public en lit aussi
+ * (les notes `public` de quelqu'un) : deux listes divergeraient.
+ *
+ * `user_id` n'en fait PAS partie — il n'est utile qu'en clause `where`.
+ */
+export const NOTE_COLUMNS =
   'id, title, body, rating, is_draft, is_pinned, visibility, updated_at, ' +
   'season_id, season_contestant_id, episode_id, team_id, challenge_id, ' +
   'council_id, departure_id';
@@ -181,7 +187,7 @@ export function createNotesRepository(
       const userId = await userOf(supabase, 'lecture des notes');
       const { data, error } = await supabase
         .from('personal_notes')
-        .select(SELECT)
+        .select(NOTE_COLUMNS)
         .eq('user_id', userId)
         .order('is_pinned', { ascending: false })
         .order('updated_at', { ascending: false });
@@ -202,7 +208,7 @@ export function createNotesRepository(
           body: draft.body,
           rating: draft.rating,
         })
-        .select(SELECT)
+        .select(NOTE_COLUMNS)
         .single();
       if (error) fail('création', error.message);
       return mapNote(data);
@@ -219,7 +225,7 @@ export function createNotesRepository(
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select(SELECT)
+        .select(NOTE_COLUMNS)
         .single();
       if (error) fail('mise à jour', error.message);
       return mapNote(data);
@@ -247,7 +253,7 @@ export function createNotesRepository(
         .from('personal_notes')
         .update({ deleted_at: null })
         .eq('id', id)
-        .select(SELECT)
+        .select(NOTE_COLUMNS)
         .single();
       if (error) fail('restauration', error.message);
       return mapNote(data);

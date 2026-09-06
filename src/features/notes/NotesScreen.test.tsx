@@ -47,7 +47,7 @@ const note = (
   ...over,
 });
 
-const setShareable = vi.fn(() => Promise.resolve());
+const setVisibility = vi.fn(() => Promise.resolve());
 const shareCollection = vi.fn(() => Promise.resolve({} as never));
 
 /** La barre d'actions : « Enregistrer » existe aussi dans l'éditeur. */
@@ -69,7 +69,7 @@ beforeEach(() => {
   held.notes = [note('n-1', 'c-ael'), note('n-2', 'c-celeste')];
   useAppStore.setState({ referential: DEMO_REFERENTIAL, ready: true });
   // `links` non nul : sans quoi l'écran irait les chercher sur le serveur.
-  useNotesStore.setState({ links: [], setShareable, shareCollection });
+  useNotesStore.setState({ links: [], setVisibility, shareCollection });
 });
 
 describe('la sélection', () => {
@@ -120,7 +120,7 @@ describe('publier une sélection par un lien', () => {
       screen.getByText('Partager 2 notes par un lien ?')
     ).toBeInTheDocument();
     // Rien n'est publié tant qu'on n'a pas confirmé.
-    expect(setShareable).not.toHaveBeenCalled();
+    expect(setVisibility).not.toHaveBeenCalled();
     expect(shareCollection).not.toHaveBeenCalled();
   });
 
@@ -141,7 +141,7 @@ describe('publier une sélection par un lien', () => {
 
     // Céleste est déjà ouverte : la ré-ouvrir écraserait son `shared_at` pour
     // rien, et compterait dans le quota d'écritures.
-    expect(setShareable.mock.calls).toEqual([['n-1', true]]);
+    expect(setVisibility.mock.calls).toEqual([['n-1', 'link']]);
     expect(shareCollection).toHaveBeenCalledTimes(1);
   });
 });
@@ -151,6 +151,6 @@ describe('une note déjà ouverte à la lecture', () => {
     held.notes = [note('n-1', 'c-ael', { visibility: 'link' })];
     renderScreen();
 
-    expect(screen.getByText('partagée')).toBeInTheDocument();
+    expect(screen.getByText('par lien')).toBeInTheDocument();
   });
 });

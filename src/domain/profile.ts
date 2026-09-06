@@ -30,6 +30,9 @@ export const HANDLE_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
 export const HANDLE_MIN = 3;
 export const HANDLE_MAX = 32;
 
+/** `profiles.bio` : deux cent quatre-vingts caractères, pas un de plus. */
+export const BIO_MAX = 280;
+
 /** Ce qui cloche, en une phrase — ou `null` si tout va bien. */
 export function checkPseudonym(value: string): string | null {
   const trimmed = value.trim();
