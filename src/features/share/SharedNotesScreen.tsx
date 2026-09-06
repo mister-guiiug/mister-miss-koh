@@ -25,6 +25,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { sharingRepository, type SharedNote } from '../../backend/sharing';
 import { labelOf, noteChoices } from '../../domain/noteTargets';
 import { stars } from '../../domain/notesExport';
+import { attribution } from '../../domain/profile';
 
 type State =
   | { step: 'loading' }
@@ -89,8 +90,7 @@ function SharedNotes({
   }, [kind, token]);
 
   const choices = noteChoices(referential);
-  const author =
-    state.step === 'ready' ? (state.notes[0]?.author ?? null) : null;
+  const first = state.step === 'ready' ? (state.notes[0] ?? null) : null;
 
   return (
     <div className="stack">
@@ -121,9 +121,7 @@ function SharedNotes({
       {state.step === 'ready' && state.notes.length > 0 && (
         <>
           <p className="muted">
-            {author
-              ? `Partagé par ${author}.`
-              : 'Partagé par quelqu’un qui n’a pas choisi de pseudonyme.'}{' '}
+            {`Partagé par ${attribution(first?.author ?? null, first?.authorHandle ?? null)}.`}{' '}
             Ces notes sont des opinions personnelles, pas des données de la
             saison.
           </p>

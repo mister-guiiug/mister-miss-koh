@@ -77,6 +77,7 @@ const SharedRow = z.object({
   target_id: z.string(),
   updated_at: z.string(),
   author_pseudonym: z.string().nullable(),
+  author_handle: z.string().nullable(),
 });
 
 /**
@@ -96,6 +97,8 @@ export interface SharedNote {
   readonly targetId: string;
   readonly updatedAt: string;
   readonly author: string | null;
+  /** L'adresse publique de l'auteur — unique, quand il s'en est choisi une. */
+  readonly authorHandle: string | null;
 }
 
 export function mapSharedNote(input: unknown): SharedNote {
@@ -115,6 +118,7 @@ export function mapSharedNote(input: unknown): SharedNote {
     targetId: row.target_id,
     updatedAt: row.updated_at,
     author: row.author_pseudonym,
+    authorHandle: row.author_handle,
   };
 }
 

@@ -26,6 +26,7 @@ const shared = (over: Partial<SharedNote> = {}): SharedNote => ({
   targetId: 'c-ael',
   updatedAt: '2026-09-06T10:00:00.000Z',
   author: null,
+  authorHandle: null,
   ...over,
 });
 
@@ -78,7 +79,20 @@ describe('ouvrir un partage', () => {
     repo.readNote.mockResolvedValue([shared({ author: 'Alpha' })]);
     open('/partage/note/jeton');
 
-    expect(await screen.findByText(/Partagé par Alpha/)).toBeInTheDocument();
+    expect(await screen.findByText(/Partagé par Alpha\./)).toBeInTheDocument();
+  });
+
+  it('ajoute son adresse publique quand il s’en est choisi une', async () => {
+    // Le pseudonyme est un libellé — deux personnes peuvent le partager ;
+    // l'identifiant, lui, désigne quelqu'un.
+    repo.readNote.mockResolvedValue([
+      shared({ author: 'Alpha', authorHandle: 'alpha' }),
+    ]);
+    open('/partage/note/jeton');
+
+    expect(
+      await screen.findByText(/Partagé par Alpha \(@alpha\)\./)
+    ).toBeInTheDocument();
   });
 });
 
