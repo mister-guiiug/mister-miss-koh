@@ -95,8 +95,19 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 280,8 kB gzip, index 101 kB  |
-| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 105 kB)  | 281,0 kB gzip, index 101 kB  |
+| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette, 0 info    |
+
+> **La dette du docteur est nouvelle, et elle est fondée** : le pied de page
+> (code source, soutien, « Signaler un problème ») est rendu par la coquille,
+> donc sur **tous** les écrans ; le socle 4.5.0 demande deux écrans au plus.
+> Elle sera levée avec la refonte de l'accueil, où ce pied a sa place.
+>
+> **Et le budget de bundle est enfin MESURÉ.** Jusqu'à la 4.5.0,
+> `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et
+> rendait 0 : la borne existait, personne ne la contrôlait. C'est le job
+> **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*` et son chunk
+> d'entrée pèse 102,45 Kio contre 101,51 pour celui de la CI.
 
 ## Licence, et ce que le projet stocke
 
@@ -112,7 +123,7 @@ Voir [docs/attribution.md](./docs/attribution.md).
 
 ## Socle
 
-L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 4.0.0),
+L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 4.5.0),
 paquet de configuration et de composants de la famille `miss-*` / `mister-*`.
 
 > Jusqu'au 05/09/2026, ce paquet s'appelait `dev-wpa-config` : une coquille
