@@ -45,6 +45,44 @@ export function orderedMembers(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
 }
 
+/**
+ * Le rang d'affichage d'un candidat dans son duo : les dames, puis les hommes.
+ *
+ * Les deux autres cas — « autre » et l'inconnu — passent APRÈS, dans cet
+ * ordre. La consigne ne nomme que deux catégories ; plutôt que d'insérer les
+ * autres au hasard, on leur donne une place fixe à la suite, pour que l'ordre
+ * ne dépende jamais de la façon dont la source a rangé sa ligne.
+ */
+function displayRank(gender: Contestant['gender']): number {
+  if (gender === 'f') return 0;
+  if (gender === 'm') return 1;
+  if (gender === 'other') return 2;
+  return 3;
+}
+
+/**
+ * Les membres d'un duo dans l'ordre où on les MONTRE — les dames d'abord.
+ *
+ * L'ordre d'AFFICHAGE n'est pas l'ordre d'IDENTITÉ : `orderedMembers` range
+ * par identifiant pour qu'un duo soit une valeur, comparable et persistable,
+ * quel que soit le candidat depuis lequel on l'a supposé. Trier ici par sexe
+ * casserait cette propriété — deux suppositions du même duo cesseraient d'être
+ * égales — et le tri ne connaîtrait de toute façon que des identifiants. On
+ * laisse donc l'identité tranquille et on trie au dernier moment.
+ *
+ * Le tri est STABLE : à rang égal, l'ordre canonique décide, donc l'affichage
+ * ne bouge pas d'un rendu à l'autre.
+ */
+export function membersInDisplayOrder(
+  ref: Referential,
+  memberIds: readonly [string, string]
+): [string, string] {
+  const [a, b] = memberIds;
+  const rankOf = (id: string) =>
+    displayRank(contestantById(ref, id)?.gender ?? null);
+  return rankOf(b) < rankOf(a) ? [b, a] : [a, b];
+}
+
 function sameMembers(
   x: readonly [string, string],
   y: readonly [string, string]
