@@ -6,6 +6,7 @@ import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button';
 import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -292,6 +293,28 @@ export function SettingsScreen() {
             </>
           )}
         </dl>
+      </Card>
+
+      {/* CE BOUTON EXISTE PARCE QUE LE CACHE PEUT MENTIR. L'application se met
+          à jour en mode « prompt » : la nouvelle version se télécharge en fond
+          et le bandeau propose de recharger. Mais tant qu'on ne l'accepte pas,
+          le service worker continue de SERVIR L'ANCIENNE — y compris le
+          document lui-même, si bien qu'une route neuve peut renvoyer à
+          l'accueil et donner l'impression d'un déploiement manqué. Recharger
+          la page ne suffit pas ; vider le cache HTTP non plus. Le bouton du
+          socle purge le Cache Storage et repart avec un anti-cache. */}
+      <Card>
+        <CardHeader title="Version installée" />
+        <dl className="stats">
+          <dt>Version</dt>
+          <dd>{__APP_VERSION__}</dd>
+        </dl>
+        <UpdateButton
+          label="Forcer le rechargement de la version"
+          updatingLabel="Rechargement…"
+          showHint
+          hint="Récupère la dernière version publiée, même si cet appareil en garde une plus ancienne en cache. Vos notes, favoris et réglages ne sont pas touchés."
+        />
       </Card>
 
       <Card>

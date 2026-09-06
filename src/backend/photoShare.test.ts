@@ -118,6 +118,7 @@ describe('ouvrir', () => {
             photo_base64: 'AQID',
             photo_mime: 'image/webp',
             photo_label: 'Portrait de Laure',
+            photo_contestant: 'sc-laure',
           },
         ],
         error: null,
@@ -129,6 +130,9 @@ describe('ouvrir', () => {
     expect(lu?.label).toBe('Portrait de Laure');
     expect(lu?.blob.type).toBe('image/webp');
     expect(lu?.blob.size).toBe(3);
+    // La cible sort avec les octets : c'est elle qui évite au destinataire
+    // l'aller-retour par ses fichiers.
+    expect(lu?.contestantId).toBe('sc-laure');
   });
 
   it('rend `null` quand le lien n’ouvre plus rien', async () => {

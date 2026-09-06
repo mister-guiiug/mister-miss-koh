@@ -357,6 +357,59 @@ body,
   gap: 0.5rem;
 }
 
+/* Les outils de photo, repliés sous la fiche. Le repli n'est pas une
+   cachette : le résumé se lit comme un titre, et son chevron dit qu'il
+   s'ouvre. `list-style: none` + `::marker` vide pour que Safari cesse
+   d'afficher son propre triangle par-dessus le nôtre. */
+.photo-tools {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.photo-tools > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.photo-tools > summary::-webkit-details-marker,
+.photo-tools > summary::marker {
+  display: none;
+  content: '';
+}
+
+.photo-tools > summary::after {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-base);
+}
+
+.photo-tools[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+/* Le premier bloc déplié ne doit pas coller au résumé. Le rythme est posé
+   ici, pas dans chaque composant : `PhotoPicker` et `PhotoShare` servent
+   aussi ailleurs. */
+.photo-tools[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+/* Les deux issues d'une photo reçue, sur une ligne qui se replie. */
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 /* La marque de l'en-tête : le fichier du favicon, servi tel quel. Le rayon
    reprend celui que le SVG dessine (14/64) pour que la pastille ne paraisse
    pas posée dans un carré. */
