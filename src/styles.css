@@ -523,6 +523,22 @@ body,
   padding-bottom: var(--spacing-fluid-sm, 0.75rem);
 }
 
+/* Le bandeau de mise à jour aussi. Le socle le rend EN FLUX, après la
+   coquille, sans le positionner : sous une barre basse fixe, il finissait hors
+   de l'écran puis, une fois la page déroulée, dans les 4,5 rem que la barre
+   couvre — son bouton « Recharger » n'était atteignable par personne. Fixé
+   au-dessus de la barre, sous le bandeau d'en-tête (30) et le toast (70). */
+[data-dwc='update-banner'],
+[data-dwc='offline-ready'] {
+  position: fixed;
+  inset-inline: var(--spacing-fluid-sm, 0.75rem);
+  bottom: calc(4.5rem + max(env(safe-area-inset-bottom), 0px) + 0.5rem);
+  z-index: 25;
+  max-width: 40rem;
+  margin-inline: auto;
+  animation: dwc-rise var(--motion-base) var(--ease-out) backwards;
+}
+
 .spoiler {
   padding: 0.8rem;
   border: 1px dashed var(--dwc-border-strong);
@@ -693,6 +709,8 @@ body,
 [data-motion='essential'] .fav[data-pop] svg,
 [data-motion='essential'] .flame,
 [data-motion='essential'] [data-dwc='toast'],
+[data-motion='essential'] [data-dwc='update-banner'],
+[data-motion='essential'] [data-dwc='offline-ready'],
 [data-motion='essential'] [data-dwc='sheet-panel'],
 [data-motion='essential'] [data-dwc='confirm-panel'] {
   animation-duration: 0.01ms;
