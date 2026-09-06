@@ -47,16 +47,16 @@ Le serveur de développement écoute sur le port 5236 (configuration
 
 ## Vérifier
 
-| Commande                          | Ce qu'elle vérifie                                    | État au 05/09/2026        |
-| --------------------------------- | ----------------------------------------------------- | ------------------------- |
-| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement |
-| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                    |
-| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 44 tests verts            |
-| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 118 tests verts           |
-| `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes      |
-| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 39 assertions vertes      |
-| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 243,2 kB gzip             |
-| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette         |
+| Commande                          | Ce qu'elle vérifie                                    | État au 06/09/2026                 |
+| --------------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement          |
+| `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                             |
+| `npm test`                        | Vitest — cœur métier, adaptateur Supabase, accueil    | 69 tests verts                     |
+| `npm run test:edge`               | Deno — pipeline d'import et catalogue                 | 118 tests verts                    |
+| `npm run test:rls:remote`         | pgTAP — politiques RLS, contre la base liée           | 22 assertions vertes               |
+| `npm run test:publication:remote` | pgTAP — publication et retour arrière                 | 39 assertions vertes               |
+| `npm run build`                   | `tsc -b`, Vite, budget de bundle (260 kB gzip)        | 252,5 kB gzip                      |
+| `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 1 dette (`version.json`) |
 
 ## Licence, et ce que le projet stocke
 
@@ -97,11 +97,12 @@ src/
   domain/        métier PUR, sans React : référentiel (zod), anti-spoiler,
                  statistiques (zéro ≠ inconnu), règles de saison
   backend/       sélection du backend, port du référentiel, démonstration
-  store/         zustand — référentiel + données personnelles (magasin versionné)
+  store/         zustand — référentiel + données personnelles (magasin versionné) ;
+                 un rechargement en échec garde la dernière lecture réussie
   animations/    registre de rôles → AppAnimation (socle react/rive, repli garanti),
                  niveaux de mouvement (`data-motion` sur <html>)
   hooks/         useSpoilerLimit, useSession (compte courant), useHaptics,
-                 useRefreshReferential (recharger et le dire)
+                 useRefreshReferential (recharger et le dire — l'échec aussi)
   components/    Layout, SpoilerGuard, Provenance, FavoriteButton, PullToRefresh
   features/      accueil, tableau de bord, candidats, épisodes, notes, compte,
                  réglages, hors-ligne

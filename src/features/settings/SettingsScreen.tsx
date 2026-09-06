@@ -62,6 +62,7 @@ export function SettingsScreen() {
   const referential = useAppStore(s => s.referential);
   const origin = useAppStore(s => s.origin);
   const notice = useAppStore(s => s.notice);
+  const error = useAppStore(s => s.error);
   const loading = useAppStore(s => s.loading);
   const refresh = useRefreshReferential();
 
@@ -178,6 +179,15 @@ export function SettingsScreen() {
         {notice && (
           <p role="status" className="notice">
             {notice}
+          </p>
+        )}
+        {/* Un rechargement en échec ne remplace pas l'écran (App) : le toast
+            l'a dit sur le moment, et cet avis le redit tant qu'une lecture
+            n'a pas abouti — sous la provenance de ce qui reste affiché. */}
+        {error && (
+          <p role="status" className="notice">
+            Le rechargement a échoué : {error}. Les données affichées sont
+            celles de la lecture précédente.
           </p>
         )}
         <dl className="stats">

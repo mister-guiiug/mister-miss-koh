@@ -70,6 +70,7 @@ export function App() {
   const init = useAppStore(s => s.init);
   const ready = useAppStore(s => s.ready);
   const error = useAppStore(s => s.error);
+  const referential = useAppStore(s => s.referential);
   // `data-motion` sur <html>, avant la première peinture : les deux réglages
   // pilotent enfin ce qui bouge, écran d'attente compris.
   useMotionLevel();
@@ -109,7 +110,11 @@ export function App() {
                   />
                   <SkeletonGroup label="Chargement du référentiel" lines={3} />
                 </div>
-              ) : error ? (
+              ) : error && !referential ? (
+                /* Le PREMIER chargement a échoué : rien à montrer, l'écran
+                   bloque. Un rechargement en échec ne passe jamais ici — la
+                   lecture précédente reste en place, et l'échec se dit
+                   (toast de useRefreshReferential, avis des Réglages). */
                 <EmptyState title="Référentiel illisible" description={error} />
               ) : (
                 <RoutedApp />
