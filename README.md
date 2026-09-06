@@ -101,20 +101,21 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh) | 0 erreur, 0 avertissement    |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                           | propre                       |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 281 tests verts              |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants  | 292 tests verts              |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage | 133 tests verts              |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée          | 33 assertions vertes         |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière           | 43 assertions vertes         |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, annulation             | 17 assertions **non jouées** |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,7 kB gzip, index 103 kB  |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)  | 281,8 kB gzip, index 104 kB  |
 | `npm run doctor`                  | `pwa-doctor` du socle                                 | 0 défaut, 0 dette, 0 info    |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
 > `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et
 > rendait 0 : la borne existait, personne ne la contrôlait. C'est le job
-> **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*`, et son chunk
-> d'entrée pèse **104,04 Kio** contre 103,11 pour celui de la CI. La borne se
-> dérive sur lui, jamais sur un build local nu.
+> **`deploy`** qui fait foi — il inline les `VITE_SUPABASE_*`, ce qui lui coûte
+> **environ 1 Kio de plus** qu'un build nu (104,04 contre 103,11 Kio, mesurés
+> côte à côte le 06/09). La borne se dérive sur lui, jamais sur le build local,
+> qui pèse aujourd'hui 103,67 Kio.
 
 ## Licence, et ce que le projet stocke
 
@@ -175,7 +176,10 @@ src/
                  au serveur et non à la table), suivi du compte
                  (`personal.ts` — favoris et épisodes vus, une union jamais un
                  écrasement)
-  store/         zustand — référentiel + données personnelles (magasin versionné) ;
+  store/         zustand — référentiel + données personnelles (magasin versionné :
+                 anti-spoiler, animations, épisodes vus, favoris, duos supposés,
+                 filtre des candidats — défaut « En jeu », calculé À LA LIMITE
+                 anti-spoiler, donc il ne révèle aucun départ) ;
                  un rechargement en échec garde la dernière lecture réussie ;
                  notes du compte (useNotesStore), portraits (usePhotosStore :
                  URL d'objet, révoquées dès qu'elles sont remplacées)
