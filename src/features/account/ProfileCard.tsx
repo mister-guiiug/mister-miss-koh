@@ -293,7 +293,7 @@ function ProfileForm() {
           <ShareLinkPanel
             link={profileUrl(currentAppUrl(), profile.handle)}
             title={`Le profil de ${profile.pseudonym}`}
-            qrLabel={`QR code du lien vers le profil de ${profile.pseudonym}`}
+            qrTarget={`le profil de ${profile.pseudonym}`}
             note={
               <p className="muted qr-note">
                 Cette adresse ne porte aucun jeton et ne se révoque pas : elle

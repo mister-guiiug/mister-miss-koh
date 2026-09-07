@@ -97,7 +97,7 @@ function SharePanel({ contestant }: { contestant: Contestant }) {
       <ShareLinkPanel
         link={link}
         title={title}
-        qrLabel={`QR code du lien vers la fiche de ${contestant.displayName}`}
+        qrTarget={`la fiche de ${contestant.displayName}`}
         note={
           <p className="muted qr-note">
             Ce QR code ouvre la fiche de {contestant.displayName} sur un autre

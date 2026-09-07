@@ -60,6 +60,27 @@ export function PortraitsQueue() {
 
   const avecPortrait = Object.keys(urls);
 
+  // Une panne déjà annoncée l'est restée : sans cette mémoire, un serveur muet
+  // ferait sonner le toast toutes les quinze secondes, indéfiniment.
+  const enPanne = useRef(false);
+
+  /** Une panne se dit — celle d'un geste, toujours. */
+  const dire = useCallback(
+    (cause: unknown) => {
+      enPanne.current = true;
+      toast.error(cause instanceof Error ? cause.message : String(cause));
+    },
+    [toast]
+  );
+
+  /** Celle du relevé, qui tourne tout seul, ne se répète pas. */
+  const direUneFois = useCallback(
+    (cause: unknown) => {
+      if (!enPanne.current) dire(cause);
+    },
+    [dire]
+  );
+
   /**
    * Remplit les places libres, puis relit. Le serveur est l'arbitre du nombre
    * de places : on ne se fie jamais à notre propre compte.
@@ -110,6 +131,8 @@ export function PortraitsQueue() {
       if (partis.length > 0) {
         setFile(fileNettoyee(enFile, partis, photos));
       }
+      // Un tour complet : la prochaine panne sera une nouvelle, et se dira.
+      enPanne.current = false;
     } finally {
       pompeEnCours.current = false;
     }
@@ -118,22 +141,24 @@ export function PortraitsQueue() {
   // Premier relevé dès qu'un compte existe : l'écran doit montrer ce que le
   // serveur porte déjà, pas une ardoise vierge.
   useEffect(() => {
-    if (account) void pomper();
-  }, [account, pomper]);
+    if (account) pomper().catch(direUneFois);
+  }, [account, pomper, direUneFois]);
 
   useEffect(() => {
     if (!account || file.length === 0) return;
-    const t = setInterval(() => void pomper(), RELEVE_MS);
+    const t = setInterval(() => pomper().catch(direUneFois), RELEVE_MS);
     return () => clearInterval(t);
-  }, [account, file.length, pomper]);
+  }, [account, file.length, pomper, direUneFois]);
 
   if (!available || account === undefined) return null;
 
   if (account === null) {
     return (
       <p className="muted ephemeral-invite">
-        <Flame size={16} aria-hidden /> <Link to="/compte">Connectez-vous</Link>{' '}
-        pour confier les portraits un par un, cinq à la fois.
+        <Flame size={16} aria-hidden />
+        {'\u00A0'}
+        <Link to="/compte">Connectez-vous</Link> pour confier les portraits un
+        par un, cinq à la fois.
       </p>
     );
   }
@@ -147,14 +172,19 @@ export function PortraitsQueue() {
       actifs.map(a => a.contestantId ?? '')
     );
     setFile(suite);
-    void pomper().finally(() => {
-      setBusy(false);
-      toast.success(
-        suite.length > PARALLELE_MAX
-          ? `${PARALLELE_MAX} liens partent ; les ${suite.length - PARALLELE_MAX} autres attendent une place.`
-          : `${suite.length} lien${suite.length > 1 ? 's' : ''} en cours.`
-      );
-    });
+    // `finally` ANNONÇAIT LE SUCCÈS MÊME EN CAS D'ÉCHEC, et le rejet de la
+    // pompe ne rencontrait aucun `catch` — un serveur muet donnait donc un
+    // « 5 liens en cours » radieux et une promesse non gérée dans la console.
+    pomper()
+      .then(() => {
+        toast.success(
+          suite.length > PARALLELE_MAX
+            ? `${PARALLELE_MAX} liens partent ; les ${suite.length - PARALLELE_MAX} autres attendent une place.`
+            : `${suite.length} lien${suite.length > 1 ? 's' : ''} en cours.`
+        );
+      })
+      .catch(dire)
+      .finally(() => setBusy(false));
   };
 
   const eteindre = (partage: PhotoShare) => {
@@ -162,15 +192,46 @@ export function PortraitsQueue() {
     photoShareRepository
       .revoke(partage)
       .then(() => pomper())
-      .catch((cause: unknown) => {
-        toast.error(cause instanceof Error ? cause.message : String(cause));
+      .catch(dire)
+      .finally(() => setBusy(false));
+  };
+
+  /**
+   * Tout rendre d'un coup.
+   *
+   * SANS ÇA, SE TROMPER COÛTE CINQ CLICS. « Lancer la tournée » part sur toute
+   * la saison ; s'en dédire demandait d'éteindre les liens un par un, et la
+   * file continuait de repousser un remplaçant à chaque place libérée.
+   */
+  const toutEteindre = () => {
+    setBusy(true);
+    // La file d'abord : éteindre sans elle relancerait la pompe, qui
+    // remplirait aussitôt les places qu'on vient de libérer.
+    setFile([]);
+    Promise.all(actifs.map(a => photoShareRepository.revoke(a)))
+      .then(() => {
+        setActifs([]);
+        toast.success('Tous les liens sont éteints ; rien ne reste en ligne.');
       })
+      .catch(dire)
       .finally(() => setBusy(false));
   };
 
   const nomDe = (id: string | null) =>
     referential?.contestants.find(c => c.id === id)?.displayName ??
     'un portrait';
+
+  // Ce qu'il resterait à enfiler MAINTENANT. Le bouton ne se montrait que
+  // tournée vide et file vide : déposer un portrait de plus pendant que cinq
+  // liens vivaient n'offrait donc aucun moyen de l'ajouter, sinon en
+  // éteignant les autres.
+  const aEnfiler = referential
+    ? fileDesPortraits(
+        referential,
+        avecPortrait,
+        actifs.map(a => a.contestantId ?? '')
+      )
+    : [];
 
   return (
     <section className="ephemeral-share">
@@ -185,39 +246,61 @@ export function PortraitsQueue() {
         tour ici, même si vous fermez l’application.
       </p>
 
-      {actifs.length === 0 && file.length === 0 && (
-        <Button
-          size="sm"
-          disabled={busy || avecPortrait.length === 0 || !referential}
-          onClick={lancer}
-        >
+      {file.length === 0 && aEnfiler.length > 0 && (
+        <Button size="sm" disabled={busy || !referential} onClick={lancer}>
           <Flame size={16} aria-hidden />
-          Lancer la tournée
+          {actifs.length === 0
+            ? 'Lancer la tournée'
+            : `Enfiler les ${aEnfiler.length} portraits restants`}
         </Button>
       )}
 
-      {file.length > 0 && (
+      {/* OÙ EN EST-ON, en une ligne : ce qui est en ligne, ce qui attend, et
+          le fait que ça avance sans qu'on y touche. La ligne d'avant ne
+          comptait que l'attente — on ne savait donc pas combien de places
+          étaient prises, alors que c'est le nombre qui décide de tout ici. */}
+      {(actifs.length > 0 || file.length > 0) && (
         <p className="muted ephemeral-quota" role="status">
-          {file.length} portrait{file.length > 1 ? 's' : ''} en attente d’une
-          place. Le relevé se fait tout seul, toutes les quinze secondes.
+          {actifs.length} lien{actifs.length > 1 ? 's' : ''} en cours sur{' '}
+          {PARALLELE_MAX}
+          {file.length > 0
+            ? ` · ${file.length} portrait${file.length > 1 ? 's' : ''} en attente d’une place. Le relevé se fait tout seul, toutes les quinze secondes.`
+            : ' · plus personne n’attend : ce sont les derniers.'}
         </p>
       )}
 
       {actifs.map(partage => {
         const nom = nomDe(partage.contestantId);
         const reste = remainingLabel(partage.expiresAt);
+        const vignette = urls[partage.contestantId ?? ''];
         return (
           <div key={partage.id} className="queue-row">
+            {/* LA VIGNETTE DIT QUEL PORTRAIT ON EST EN TRAIN DE MONTRER. Un
+                nom ne suffit pas quand on a déposé deux images de la même
+                personne, ni quand on s'est trompé de fiche — et c'est
+                justement avant de donner le lien qu'on veut le voir.
+                Décorative : le nom est juste à côté, et il porte déjà. */}
             <p className="queue-name">
-              <strong>{nom}</strong>{' '}
-              <span className="muted">
-                {reste ? `encore ${reste}` : 'expiré'}
+              {vignette && (
+                <img className="queue-vignette" src={vignette} alt="" />
+              )}
+              {/* LE TEXTE EN UN SEUL ENFANT. La rangée est un `flex` : sans ce
+                  span, le nom et la durée deviendraient deux colonnes et
+                  l'espace entre eux disparaîtrait — c'est exactement ce qui
+                  cassait l'invitation « Connectez-vous » juste au-dessus. */}
+              <span>
+                <strong>{nom}</strong>{' '}
+                <span className="muted">
+                  {reste ? `encore ${reste}` : 'expiré'}
+                </span>
               </span>
             </p>
             <ShareLinkPanel
+              lead
+              compact
               link={photoShareUrl(currentAppUrl(), partage.token)}
               title={`Portrait de ${nom}`}
-              qrLabel={`QR code du lien éphémère vers le portrait de ${nom}`}
+              qrTarget={`le portrait de ${nom}, une seule fois`}
               note={
                 <p className="muted qr-note">
                   Ce QR code ouvre CE portrait, une seule fois. Une fois scanné,
@@ -225,8 +308,11 @@ export function PortraitsQueue() {
                 </p>
               }
             >
+              {/* `ghost` ET NON `outline` : détruire ne doit pas peser autant
+                  que donner. Les deux se ressemblaient trait pour trait, et le
+                  geste qu'on vient faire est le premier. */}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 disabled={busy}
                 onClick={() => eteindre(partage)}
@@ -240,10 +326,16 @@ export function PortraitsQueue() {
         );
       })}
 
-      {actifs.length > 0 && file.length === 0 && (
-        <p className="muted ephemeral-quota">
-          Plus personne n’attend : ce sont les derniers.
-        </p>
+      {actifs.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy}
+          onClick={toutEteindre}
+        >
+          <Trash2 size={16} aria-hidden />
+          {file.length > 0 ? 'Tout éteindre et vider la file' : 'Tout éteindre'}
+        </Button>
       )}
     </section>
   );

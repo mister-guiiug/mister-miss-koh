@@ -566,24 +566,44 @@ a.brand-link {
   margin-block: 0;
 }
 
-.ephemeral-title,
-.ephemeral-invite {
+.ephemeral-title {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.ephemeral-title {
   margin: 0;
   font-size: 0.9rem;
 }
 
+/* UNE PHRASE, PAS UNE RANGÉE. Elle partageait la règle ci-dessus : chacun de
+   ses morceaux devenait donc une colonne. Mesuré à 375 px : la flamme écrasée
+   à 9 px de large au lieu de 16, « Connectez-vous » coupé en deux au milieu du
+   mot dans une colonne de 81 px, et la fin de la phrase dans une troisième —
+   48 px de haut pour une ligne de texte. */
 .ephemeral-invite {
   margin: 0.9rem 0 0;
 }
 
+/* ET L'ICÔNE EST UN BLOC TANT QU'ON NE LUI DIT PAS LE CONTRAIRE. La remise à
+   plat de Tailwind pose `img, svg, video, … { display: block }` : rendue à un
+   paragraphe, la flamme prenait donc une ligne pour elle seule, au-dessus
+   d'une phrase qui recommençait plus bas. Le `flex` du titre voisin masquait
+   la règle — un enfant de conteneur flex est bloc de toute façon —, ce qui
+   explique qu'elle n'ait jamais gêné là. `-0.15em` la pose sur la ligne de
+   base du texte plutôt que sur son pied. */
+.ephemeral-invite > svg {
+  display: inline;
+  vertical-align: -0.15em;
+}
+
 .ephemeral-quota {
   font-size: 0.85rem;
+}
+
+/* Les cinq places sont prises : le prochain lien en tuera un. Ce n'est plus un
+   rappel de règle, c'est ce qui va se passer — la couleur d'avertissement le
+   dit avant qu'on ait fini de lire. */
+.ephemeral-quota-plein {
+  color: var(--warn);
 }
 
 /* L'écran d'arrivée. Le bouton qui consomme n'est pas noyé dans le texte :
@@ -1731,6 +1751,24 @@ a.brand-link {
 }
 
 .queue-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
+}
+
+/* LA VIGNETTE, ET LE NOM NE SUFFISAIT PAS. Le commentaire ci-dessus promettait
+   qu'on saurait toujours quel portrait on montre ; le nom seul ne le dit pas
+   quand on a remplacé une image ou visé la mauvaise fiche. `object-fit: cover`
+   pour qu'un portrait large ne s'étire pas, et un fond sous l'image pour ne
+   pas laisser un trou blanc le temps du décodage. */
+.queue-vignette {
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: calc(var(--radius) * 0.6);
+  border: 1px solid var(--border);
+  background-color: var(--surface-2);
 }

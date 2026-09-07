@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
@@ -81,8 +81,70 @@ describe('confier un portrait pour un jour', () => {
     // Le plafond glissant se dit aussi : un quota qui claque au visage sans
     // prévenir se lit comme une panne.
     expect(
-      screen.getByText(/Au-delà de 5 liens en cours, le plus ancien/)
+      await screen.findByText(/0 lien en cours sur 5/)
     ).toBeInTheDocument();
+  });
+
+  it('au plafond, il annonce CE QUI VA SE PASSER, pas la règle', async () => {
+    // « Au-delà de cinq, le plus ancien s'éteint » se lit comme une
+    // éventualité lointaine, et le serveur ne refuse pas le sixième : il
+    // chasse le plus ancien, en silence. On pouvait donc tuer un lien donné la
+    // veille sans jamais apprendre qu'on était au plafond — alors que le
+    // compte était DÉJÀ dans la réponse que ce panneau venait de lire.
+    depot.list.mockResolvedValue([
+      vivant({ id: 'p-1', contestantId: 'c-1' }),
+      vivant({ id: 'p-2', contestantId: 'c-2' }),
+      vivant({ id: 'p-3', contestantId: 'c-3' }),
+      vivant({ id: 'p-4', contestantId: 'c-4' }),
+      vivant({ id: 'p-5', contestantId: 'c-5' }),
+    ]);
+    renderPanel();
+
+    const avis = await screen.findByText(/Les 5 places sont prises/);
+    expect(avis).toHaveTextContent(/éteindra le plus ancien/);
+    expect(avis).toHaveClass('ephemeral-quota-plein');
+    // Aucun des cinq n'est celui de CE portrait : on peut toujours en créer un.
+    expect(
+      screen.getByRole('button', { name: 'Créer un lien d’un jour' })
+    ).toBeInTheDocument();
+  });
+
+  it('un lien ouvert pendant qu’on était ailleurs le DIT au retour', async () => {
+    // Un lien s'éteint à la première ouverture, donc pendant qu'on est dans la
+    // messagerie où on vient de le coller. Le panneau ne relisait qu'au
+    // montage : il montrait encore comme vivant un lien déjà consommé, et
+    // « Éteindre » sur celui-là échouait.
+    depot.list.mockResolvedValue([vivant()]);
+    renderPanel();
+    await screen.findByRole('button', { name: 'Éteindre maintenant' });
+
+    depot.list.mockResolvedValue([]);
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(
+      await screen.findByText(/Le lien de ce portrait n’existe plus/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Éteindre maintenant' })
+    ).toBeNull();
+  });
+
+  it('le lien qu’on vient de créer se DONNE, sans déplier le QR', async () => {
+    // C'est ce qu'on est venu faire. « Partager le lien » était caché dans le
+    // panneau du QR, et le premier bouton de la rangée était « Éteindre ».
+    depot.list.mockResolvedValue([vivant()]);
+    renderPanel();
+
+    const rangee = await screen.findByRole('button', {
+      name: 'Partager le lien',
+    });
+    const boutons = [...rangee.parentElement!.querySelectorAll('button')].map(
+      b => b.textContent
+    );
+    expect(boutons[0]).toBe('Partager le lien');
+    expect(boutons.at(-1)).toContain('QR code du lien');
   });
 
   it('sans compte, propose de se connecter — et ne demande RIEN au serveur', () => {

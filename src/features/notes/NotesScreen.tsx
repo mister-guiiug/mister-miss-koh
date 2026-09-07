@@ -311,7 +311,7 @@ export function NotesScreen() {
           <ShareLinkPanel
             link={sharedUrl(currentAppUrl(), 'notes', collection.token)}
             title={heading}
-            qrLabel="QR code du lien vers vos notes partagées"
+            qrTarget="vos notes partagées"
             note={
               <p className="muted qr-note">
                 Ce lien montre les notes marquées « partagée », telles qu’elles
