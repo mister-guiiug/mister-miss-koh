@@ -32,18 +32,30 @@ sa carte « Source de vérité » dans les **Réglages** — on l'y consulte, il
 s'impose plus à chaque ouverture de l'accueil, où le sous-titre de la saison
 dit déjà s'il s'agit d'une démonstration.
 
-L'identité visuelle est **originale** — terre, feu, océan, jungle. Aucun logo,
-totem, photographie, extrait ou élément graphique de l'émission n'est reproduit.
+L'identité visuelle ne doit **rien à l'émission** — terre, feu, océan, jungle.
+Aucun logo, totem, photographie, extrait ou élément graphique n'est reproduit.
 
-**Un seul logo, un seul fichier.** `public/favicon.svg` — une flamme sur une
-vague, dans une pastille — est la source unique : l'en-tête le sert tel quel,
-et `npm run icons` en tire tous les PNG du manifeste. L'en-tête portait
-auparavant une flamme de `lucide`, contour générique sans vague ni pastille,
-d'où trois marques différentes selon qu'on regardait le site, l'onglet ou
-l'application installée. Le fond du `--maskable` reprend la couleur de la
-pastille (`18,32,28`) et non le défaut du socle (`12,18,34`), sans quoi
-l'icône installée montrait un cadre bleu-noir autour d'une pastille
-vert-noir.
+**Un seul logo, un seul fichier.** `public/favicon.svg` — une flamme pleine,
+de la braise à l'ambre, dans une pastille vert sombre — est la source unique :
+l'en-tête le sert tel quel, et `npm run icons` en tire tous les PNG du
+manifeste. Trois détails qui font tenir l'ensemble :
+
+- **la silhouette vient de Lucide** (icône `flame`, licence ISC), le jeu
+  d'icônes dont l'interface entière est faite : la marque parle la même langue
+  que les cinquante icônes de l'application ;
+- **elle est remplie, pas tracée.** Lucide dessine au trait ; vérifié dans le
+  navigateur, la remplir donne la même silhouette sous `nonzero` et sous
+  `evenodd` et fait disparaître la boucle intérieure. Au trait, la marque
+  pesait moins que les icônes voisines sur un écran d'accueil ;
+- **la tuile reste unie, le dégradé est sur la flamme.** Le maskable est
+  fabriqué en comblant le pourtour d'une **couleur unie** — l'option `bg`, à
+  `18,32,28`, la teinte exacte de la pastille, et non le défaut du socle
+  (`12,18,34`) qui posait un cadre bleu-noir autour d'un vert-noir. Une tuile
+  en dégradé rendrait ce raccord impossible.
+
+Mesuré sur les PNG engendrés : haut de flamme `250,169,32`, bas `216,85,16`,
+coin du maskable `18,32,28` — le dégradé survit à la rastérisation, et le
+raccord est exact.
 
 **Les portraits des candidats ne font pas exception.** L'application n'en
 distribue aucun et n'en télécharge aucun : chaque candidat porte une vignette
