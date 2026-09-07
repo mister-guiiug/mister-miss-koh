@@ -23,32 +23,64 @@ interface Props {
   link: string;
   /** Le titre proposé à la feuille de partage du système. */
   title: string;
-  /** Ce que le QR ouvre, dit au lecteur d'écran. */
-  qrLabel: string;
+  /**
+   * CE QUE CE LIEN OUVRE, en toutes lettres : « la fiche de Camille »,
+   * « l'application », « le portrait de Camille, une seule fois ».
+   *
+   * LE PANNEAU EN COMPOSE LE NOM DU BOUTON, et pas seulement l'alternative de
+   * l'image. Ce bouton s'appelait « QR code du lien » pour tout le monde : un
+   * écran des Réglages en portait SIX du même nom — celui de l'application et
+   * les cinq de la tournée —, une fiche en portait deux. Au lecteur d'écran,
+   * six boutons identiques qui ouvrent six choses différentes ; à la souris,
+   * deux QR dépliés côte à côte sans rien pour les distinguer.
+   *
+   * Le texte visible reste « QR code du lien » et le nom accessible le
+   * PROLONGE — jamais ne le remplace : une commande vocale qui dit ce qu'on
+   * lit à l'écran doit atteindre son bouton.
+   */
+  qrTarget: string;
   /** Ce que ce lien emporte — et ce qu'il n'emporte pas. */
   note?: ReactNode;
-  /** Les boutons propres à l'appelant, avant celui du QR. */
+  /** Les boutons propres à l'appelant. */
   children?: ReactNode;
   /**
-   * Remonte « Partager le lien » dans la rangée de boutons, au lieu de le
-   * laisser dans le panneau du QR.
+   * LE LIEN EST L'OBJET : « Partager le lien » ouvre la rangée, en bouton
+   * principal, et les boutons de l'appelant suivent.
    *
    * Le défaut convient quand le lien est SECONDAIRE — sur une fiche, ce qu'on
    * veut donner c'est l'image, et le lien n'est qu'un repli qu'on découvre en
-   * dépliant le QR. Il ne convient plus quand le lien EST l'objet : une carte
-   * « Partager l'application » dont le seul bouton visible dirait « QR code »
-   * ferait chercher le partage derrière le code-barres.
+   * dépliant le QR. Il ne convient plus quand le lien EST ce qu'on est venu
+   * donner : le lien d'un jour qu'on vient de créer n'avait AUCUN bouton pour
+   * l'envoyer, il fallait déplier le QR pour trouver « Partager le lien » —
+   * et le premier bouton de la rangée était « Éteindre », c'est-à-dire
+   * l'inverse de ce qu'on venait faire.
    */
-  shareFirst?: boolean;
+  lead?: boolean;
+  /**
+   * CE PANNEAU EST UNE RANGÉE PARMI SES PAREILLES, pas l'action d'une carte.
+   *
+   * Deux conséquences, et c'est la même raison qui les porte. Le QR se réduit à
+   * son icône : répété cinq fois, « QR code du lien » faisait passer chaque
+   * rangée sur deux lignes — trois boutons ne tiennent pas dans 317 px — et une
+   * tournée de cinq portraits couvrait deux écrans. Et « Partager le lien »
+   * cesse d'être un bouton plein : cinq boutons pleins l'un sous l'autre ne
+   * hiérarchisent plus rien, et volent la vedette au seul geste qui engage
+   * vraiment la carte — lancer la tournée.
+   *
+   * Le nom accessible, lui, ne se réduit jamais : c'est celui qui nomme la
+   * cible, et c'est tout ce qui distingue cinq boutons les uns des autres.
+   */
+  compact?: boolean;
 }
 
 export function ShareLinkPanel({
   link,
   title,
-  qrLabel,
+  qrTarget,
   note,
   children,
-  shareFirst = false,
+  lead = false,
+  compact = false,
 }: Props) {
   const toast = useToast();
   const [qr, setQr] = useState<string | null>(null);
@@ -74,10 +106,19 @@ export function ShareLinkPanel({
     }
   };
 
+  // Le bouton et l'image du QR disent la MÊME chose, depuis la même source :
+  // deux formulations séparées finiraient par diverger, et c'est justement
+  // celle qui nomme la cible qui distingue six boutons les uns des autres.
+  const nomDuQr = `QR code du lien vers ${qrTarget}`;
+
   // Un seul bouton, posé à un endroit ou à l'autre : le dupliquer donnerait
   // deux fois la même action à l'écran, et deux fois la même chose à lire.
   const boutonPartage = (
-    <Button variant="outline" size="sm" onClick={() => void sendLink()}>
+    <Button
+      variant={lead && !compact ? 'primary' : 'outline'}
+      size="sm"
+      onClick={() => void sendLink()}
+    >
       <Link2 size={16} aria-hidden />
       Partager le lien
     </Button>
@@ -86,18 +127,35 @@ export function ShareLinkPanel({
   return (
     <>
       <div className="photo-share-actions">
+        {/* L'ORDRE EST CELUI DU GESTE : donner d'abord, montrer ensuite,
+            défaire en dernier. */}
+        {lead && boutonPartage}
         {children}
-        {shareFirst && boutonPartage}
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={toggleQr}
-        >
-          <QrCode size={16} aria-hidden />
-          QR code du lien
-        </Button>
+        {compact ? (
+          <Button
+            iconOnly
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={nomDuQr}
+            onClick={toggleQr}
+          >
+            <QrCode size={16} aria-hidden />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={nomDuQr}
+            onClick={toggleQr}
+          >
+            <QrCode size={16} aria-hidden />
+            QR code du lien
+          </Button>
+        )}
       </div>
 
       {/* Toujours dans le document, pour que `aria-controls` désigne quelque
@@ -109,14 +167,14 @@ export function ShareLinkPanel({
             src={qr}
             width={192}
             height={192}
-            alt={qrLabel}
+            alt={nomDuQr}
           />
         ) : (
           <p className="muted">Création du QR code…</p>
         )}
         {note}
         <p className="share-link">{link}</p>
-        {!shareFirst && boutonPartage}
+        {!lead && boutonPartage}
       </div>
     </>
   );

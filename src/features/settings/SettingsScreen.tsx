@@ -198,22 +198,26 @@ export function SettingsScreen() {
           côte à côte — on montre l'écran, l'autre scanne. */}
       <Card>
         <CardHeader title="Partager l’application" />
+        {/* CE QU'ON DONNE, PUIS LE GESTE. La phrase était SOUS les boutons :
+            on partageait avant d'avoir lu ce qui part — et la carte voisine,
+            « Portraits », fait l'inverse. Deux cartes du même écran ne
+            peuvent pas se lire dans deux ordres. */}
+        <p className="muted">
+          Rien de personnel ne part avec : ni vos notes, ni vos favoris, ni les
+          épisodes que vous avez vus. C’est l’adresse publique du site, la même
+          pour tout le monde.
+        </p>
         <ShareLinkPanel
           link={currentAppUrl()}
           title="Mister & miss Koh"
-          qrLabel="QR code vers l’application"
-          shareFirst
+          qrTarget="l’application"
+          lead
           note={
             <p className="muted qr-note">
               Ce lien ouvre l’application, sans compte et sans installation.
             </p>
           }
         />
-        <p className="muted">
-          Rien de personnel ne part avec : ni vos notes, ni vos favoris, ni les
-          épisodes que vous avez vus. C’est l’adresse publique du site, la même
-          pour tout le monde.
-        </p>
       </Card>
 
       {/* L'EXPORT EN MASSE, à côté du partage : les deux sortent quelque chose

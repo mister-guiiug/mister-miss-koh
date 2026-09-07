@@ -99,7 +99,7 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Partager l’application');
 
-    // `shareFirst` : le partage est visible d'emblée, pas derrière le QR.
+    // `lead` : le partage est visible d'emblée, pas derrière le QR.
     await user.click(screen.getByRole('button', { name: 'Partager le lien' }));
 
     const [charge] = vi.mocked(shareOrCopy).mock.calls.at(-1) ?? [];

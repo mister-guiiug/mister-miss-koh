@@ -159,14 +159,99 @@ describe('la tournée des portraits', () => {
     const second = DEMO_REFERENTIAL.contestants[1]!.displayName;
     expect(await screen.findByText(premier)).toBeInTheDocument();
     expect(screen.getByText(second)).toBeInTheDocument();
-    // Un QR par image, donc un bouton par ligne — pas un pour l'ensemble.
+    // UN QR PAR IMAGE, ET CHACUN DIT LEQUEL. Les boutons s'appelaient tous
+    // « QR code du lien » : cinq lignes ici, plus celui de « Partager
+    // l'application » sur le même écran, faisaient six boutons du même nom
+    // ouvrant six choses différentes.
     expect(
-      screen.getAllByRole('button', { name: 'QR code du lien' })
-    ).toHaveLength(2);
+      screen.getByRole('button', {
+        name: `QR code du lien vers le portrait de ${premier}, une seule fois`,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: `QR code du lien vers le portrait de ${second}, une seule fois`,
+      })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
         name: `Éteindre le lien du portrait de ${premier}`,
       })
     ).toBeInTheDocument();
+  });
+
+  it('chaque rangée se DONNE d’un clic, et tient sur une ligne', async () => {
+    // Ce qu'on est venu faire est envoyer le lien : il était caché dans le
+    // panneau du QR. Et « QR code du lien » écrit cinq fois faisait passer
+    // chaque rangée sur deux lignes — l'icône seule garde son nom accessible.
+    depot.list.mockResolvedValue([vivant(ids[0]!)]);
+    rendre();
+
+    const premier = DEMO_REFERENTIAL.contestants[0]!.displayName;
+    const partager = await screen.findByRole('button', {
+      name: 'Partager le lien',
+    });
+    const rangee = [...partager.parentElement!.querySelectorAll('button')];
+    expect(rangee.map(b => b.textContent)).toEqual([
+      'Partager le lien',
+      'Éteindre',
+      // L'icône ne porte aucun texte : c'est `aria-label` qui la nomme.
+      '',
+    ]);
+    expect(rangee[2]).toHaveAccessibleName(
+      `QR code du lien vers le portrait de ${premier}, une seule fois`
+    );
+  });
+
+  it('montre la VIGNETTE du portrait qu’on est en train de confier', async () => {
+    // Un nom ne dit pas quelle image part : on a pu remplacer le portrait, ou
+    // viser la mauvaise fiche. C'est avant de donner le lien qu'on veut voir.
+    depot.list.mockResolvedValue([vivant(ids[0]!)]);
+    const { container } = rendre();
+
+    await screen.findByText(DEMO_REFERENTIAL.contestants[0]!.displayName);
+    const vignette = container.querySelector<HTMLImageElement>(
+      '.queue-row .queue-vignette'
+    );
+    expect(vignette?.getAttribute('src')).toBe(`blob:${ids[0]!}`);
+    // Décorative : le nom est juste à côté et porte déjà l'information.
+    expect(vignette).toHaveAttribute('alt', '');
+  });
+
+  it('« Tout éteindre » rend TOUT et vide la file', async () => {
+    // Se dédire coûtait cinq clics — et à chaque place libérée, la file
+    // poussait aussitôt un remplaçant.
+    // Cinq vivants : aucune place libre, donc la file attend vraiment — c'est
+    // le seul état où l'on a à la fois des liens en ligne et une file.
+    useAppStore.setState({ portraitQueue: [ids[7]!, ids[8]!] });
+    depot.list.mockResolvedValue(ids.slice(0, 5).map(vivant));
+    depot.revoke.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    rendre();
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Tout éteindre et vider la file',
+      })
+    );
+
+    await waitFor(() => expect(depot.revoke).toHaveBeenCalledTimes(5));
+    expect(useAppStore.getState().portraitQueue).toEqual([]);
+    // Et surtout : aucun remplaçant n'est parti pour les places libérées.
+    expect(depot.share).not.toHaveBeenCalled();
+  });
+
+  it('une pompe en ÉCHEC ne s’annonce pas comme un succès', async () => {
+    // `void pomper().finally(succès)` disait « 5 liens en cours » quoi qu'il
+    // arrive, et le rejet ne rencontrait aucun `catch` : promesse non gérée.
+    depot.list.mockResolvedValue([]);
+    depot.share.mockRejectedValue(new Error('partage : serveur muet'));
+    const user = userEvent.setup();
+    rendre();
+
+    await user.click(screen.getByRole('button', { name: 'Lancer la tournée' }));
+
+    expect(await screen.findByText(/serveur muet/)).toBeInTheDocument();
+    expect(screen.queryByText(/liens? en cours\.$/)).toBeNull();
   });
 });

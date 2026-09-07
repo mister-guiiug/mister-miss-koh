@@ -120,7 +120,7 @@ export function NoteShare({ note, about, heading }: Props) {
         <ShareLinkPanel
           link={sharedUrl(currentAppUrl(), 'note', link.token)}
           title={`Ma note sur ${about}`}
-          qrLabel={`QR code du lien vers ma note sur ${about}`}
+          qrTarget={`ma note sur ${about}`}
           note={
             <p className="muted qr-note">
               {note.visibility === 'private'
