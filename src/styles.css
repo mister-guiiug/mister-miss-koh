@@ -1722,3 +1722,15 @@ a.brand-link {
     outline-offset: -2px;
   }
 }
+
+/* Une ligne de la tournée : le nom au-dessus de son QR, pour qu'on sache
+   toujours QUEL portrait on est en train de montrer. */
+.queue-row {
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+}
+
+.queue-name {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}

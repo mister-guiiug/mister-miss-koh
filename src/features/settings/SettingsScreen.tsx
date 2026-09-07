@@ -11,6 +11,7 @@ import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button'
 import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
 import { PhotosExport } from '../../components/PhotosExport';
+import { PortraitsQueue } from '../../components/PortraitsQueue';
 import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -220,6 +221,11 @@ export function SettingsScreen() {
       <Card>
         <CardHeader title="Portraits" />
         <PhotosExport />
+        {/* DEUX SORTIES, ET ELLES NE FONT PAS LA MÊME CHOSE. L'archive vous
+            rend vos images ; la tournée les CONFIE, une par une, à d'autres.
+            La seconde publie, la première non — d'où le trait qui les sépare
+            et la teinte d'avertissement de `ephemeral-share`. */}
+        <PortraitsQueue />
       </Card>
 
       <Card>
