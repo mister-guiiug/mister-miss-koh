@@ -62,6 +62,15 @@ const PersonalSchema = z.object({
   contestantFilter: z
     .enum(CONTESTANT_FILTERS)
     .default(DEFAULT_CONTESTANT_FILTER),
+  /**
+   * Les portraits qui ATTENDENT leur tour d'être confiés pour un jour.
+   *
+   * Le serveur ne porte que cinq liens vivants par compte : le reste attend
+   * ici, et repart à la place suivante qui se libère. La file doit donc
+   * survivre à un rechargement — sans elle, fermer l'onglet perdrait la suite
+   * de la tournée et il faudrait tout recommencer.
+   */
+  portraitQueue: z.array(z.string()).default([]),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -94,6 +103,7 @@ const personalStore = createVersionedStore<Personal>({
     favorites: [],
     pairGuesses: [],
     contestantFilter: DEFAULT_CONTESTANT_FILTER,
+    portraitQueue: [],
   }),
 });
 
@@ -125,12 +135,15 @@ interface AppState {
   pairGuesses: readonly PairGuess[];
   /** Le filtre de la liste des candidats, retenu d'une visite à l'autre. */
   contestantFilter: ContestantFilter;
+  /** Les portraits qui attendent une place libre pour être confiés. */
+  portraitQueue: readonly string[];
   init(): Promise<void>;
   reload(): Promise<void>;
   setSpoiler(mode: SpoilerMode): void;
   setAnimations(enabled: boolean): void;
   setReduceMotion(enabled: boolean): void;
   setContestantFilter(filter: ContestantFilter): void;
+  setPortraitQueue(ids: readonly string[]): void;
   toggleWatched(episodeNumber: number): void;
   toggleFavorite(contestantId: string): void;
   /**
@@ -177,6 +190,7 @@ export const useAppStore = create<AppState>((set, get) => {
       favorites,
       pairGuesses,
       contestantFilter,
+      portraitQueue,
     } = get();
     personalStore.save({
       spoiler,
@@ -186,6 +200,7 @@ export const useAppStore = create<AppState>((set, get) => {
       favorites: [...favorites],
       pairGuesses: [...pairGuesses],
       contestantFilter,
+      portraitQueue: [...portraitQueue],
     });
   };
 
@@ -245,6 +260,10 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     setContestantFilter(filter) {
       set({ contestantFilter: filter });
+      persist();
+    },
+    setPortraitQueue(ids) {
+      set({ portraitQueue: [...ids] });
       persist();
     },
     toggleWatched(episodeNumber) {
