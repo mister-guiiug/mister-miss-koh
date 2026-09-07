@@ -3,8 +3,8 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import {
   ArrowLeft,
   Coffee,
+  Compass,
   ExternalLink,
-  Flame,
   Monitor,
   Moon,
   Sun,
@@ -180,13 +180,22 @@ export function App() {
             >
               {!ready ? (
                 <div className="loading">
-                  {/* La flamme est le REPLI du rôle de chargement : le jour où
-                      un `.riv` le porte, Rive la remplace. En attendant, elle
-                      vacille en CSS, et le squelette esquisse la forme du
-                      contenu à venir — c'est lui qui annonce l'attente. */}
+                  {/* LA BOUSSOLE EST LE REPLI du rôle de chargement : le jour
+                      où un `.riv` le porte, Rive la remplace. En attendant,
+                      elle bat en CSS, et le squelette esquisse la forme du
+                      contenu à venir — c'est lui qui annonce l'attente.
+
+                      C'ÉTAIT UNE FLAMME, et c'est précisément l'image dont la
+                      marque vient de se défaire : la laisser sur le premier
+                      écran d'un démarrage à froid aurait gardé vivante
+                      l'association qu'on voulait rompre. La flamme reste là où
+                      elle veut dire quelque chose — un partage qui s'éteint —,
+                      pas là où elle ne faisait que signer. */}
                   <AppAnimation
                     name="referential-loading"
-                    fallback={<Flame className="flame" size={44} aria-hidden />}
+                    fallback={
+                      <Compass className="loading-mark" size={44} aria-hidden />
+                    }
                   />
                   <SkeletonGroup label="Chargement du référentiel" lines={3} />
                 </div>

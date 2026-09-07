@@ -1097,29 +1097,24 @@ a.brand-link {
   width: min(80vw, 20rem);
 }
 
-.flame {
+/* LE SIGNE DU CHARGEMENT, ET SON ORIGINE DE TRANSFORMATION. C'était une
+   flamme, donc un mouvement enraciné à sa base (`50% 90%`) : elle vacillait
+   comme un feu tenu par le bas. Une boussole n'a pas de pied — elle bat depuis
+   son centre, et l'origine par défaut est justement celle-là. */
+.loading-mark {
   color: var(--primary);
-  transform-origin: 50% 90%;
-  animation: koh-flicker 1.4s ease-in-out infinite;
+  animation: koh-pulse 1.6s ease-in-out infinite;
 }
 
-@keyframes koh-flicker {
+@keyframes koh-pulse {
   0%,
   100% {
-    transform: scale(1) rotate(0);
+    transform: scale(1);
     opacity: 1;
   }
-  30% {
-    transform: scale(1.06) rotate(-3deg);
-    opacity: 0.85;
-  }
-  60% {
-    transform: scale(0.97) rotate(2deg);
-    opacity: 1;
-  }
-  80% {
-    transform: scale(1.04) rotate(-1deg);
-    opacity: 0.9;
+  50% {
+    transform: scale(1.08);
+    opacity: 0.75;
   }
 }
 
@@ -1687,7 +1682,7 @@ a.brand-link {
 [data-motion='essential'] .screen,
 [data-motion='essential'] .reveal,
 [data-motion='essential'] .fav[data-pop] svg,
-[data-motion='essential'] .flame,
+[data-motion='essential'] .loading-mark,
 [data-motion='essential'] .map-halo,
 [data-motion='essential'] [data-dwc='toast'],
 [data-motion='essential'] [data-dwc='update-banner'],

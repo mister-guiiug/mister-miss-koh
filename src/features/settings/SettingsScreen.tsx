@@ -43,7 +43,7 @@ const MOTION_OPTIONS = [
   {
     key: 'animations',
     label: 'Animations',
-    hint: 'Entrées d’écran, éclat de l’étoile, flamme du chargement, vibration. Décochée, une case ou un bouton répond encore.',
+    hint: 'Entrées d’écran, éclat de l’étoile, battement du chargement, vibration. Décochée, une case ou un bouton répond encore.',
   },
   {
     key: 'reduceMotion',
