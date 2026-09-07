@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { downloadBlob } from '@mister-guiiug/dev-pwa-config/download';
@@ -66,6 +66,13 @@ describe('l’export des portraits', () => {
       screen.getByRole('button', { name: 'Exporter les portraits' })
     );
 
+    // IL FAUT ATTENDRE L'APPEL, PAS LE SUPPOSER. `user.click` rend la main dès
+    // que React a vidé ses microtâches, or l'export est `async` et `arrayBuffer`
+    // est ici simulé par un `FileReader` — dont l'événement `load` est une
+    // TÂCHE, pas une microtâche. Sous charge (52 fichiers en parallèle), elle
+    // arrivait après l'assertion : deux tests sur quatre tombaient une fois sur
+    // plusieurs, sans qu'une ligne ait changé.
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledOnce());
     const [fichier, nom] = vi.mocked(downloadBlob).mock.calls[0] ?? [];
     expect(nom).toMatch(
       /^portraits-saison-de-demonstration-\d{4}-\d{2}-\d{2}\.zip$/
@@ -94,6 +101,7 @@ describe('l’export des portraits', () => {
       screen.getByRole('button', { name: 'Exporter les portraits' })
     );
 
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledOnce());
     const [fichier] = vi.mocked(downloadBlob).mock.calls[0] ?? [];
     const bytes = new Uint8Array(await fichier!.arrayBuffer());
     expect(
@@ -111,9 +119,13 @@ describe('l’export des portraits', () => {
       screen.getByRole('button', { name: 'Exporter les portraits' })
     );
 
-    expect(downloadBlob).not.toHaveBeenCalled();
+    // L'AVIS D'ABORD, LE « rien n'est parti » ENSUITE. Vérifier tout de suite
+    // qu'on n'a pas téléchargé ne prouve rien : à cet instant le composant n'a
+    // encore rien pu faire. C'est après qu'il a fini — donc après son avis —
+    // que l'absence d'appel devient une affirmation.
     expect(
       await screen.findByText('Aucun portrait n’a pu être relu.')
     ).toBeInTheDocument();
+    expect(downloadBlob).not.toHaveBeenCalled();
   });
 });

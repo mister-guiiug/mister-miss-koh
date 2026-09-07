@@ -1,34 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t">
-  <title id="t">Mister &amp; miss Koh — une flamme, de la braise à l’ambre</title>
+  <title id="t">Mister &amp; miss Koh — le K évidé dans une pastille de braise</title>
   <!--
     LA SOURCE UNIQUE DE LA MARQUE. Ce fichier est servi tel quel par l'en-tête
     de l'application, il fait le favicon, et `npm run icons` en tire les six
     PNG du manifeste plus l'icône maskable. Le modifier suffit à changer les
     trois surfaces ; il n'existe aucune autre copie du logo.
 
-    LA SILHOUETTE VIENT DE LUCIDE (icône `flame`, licence ISC), le jeu d'icônes
-    dont l'interface entière est faite : la marque parle donc la même langue
-    que les cinquante icônes de l'application. Aucun élément de l'émission
-    n'est repris — ni totem, ni logo, ni typographie.
+    POURQUOI PLUS DE FLAMME. La marque précédente était une flamme pleine, en
+    dégradé de la braise à l'ambre, dans une tuile arrondie : c'est-à-dire, au
+    dégradé près, celle de Tinder. Une application qu'on installe se reconnaît
+    à sa silhouette sur un écran d'accueil, et celle-là appartenait déjà à
+    quelqu'un d'autre. Le K reprend l'initiale du nom, que rien ne peut
+    confondre.
 
-    ELLE EST REMPLIE, PAS TRACÉE. Lucide dessine au trait ; vérifié dans le
-    navigateur, le remplir donne la même silhouette pleine sous `nonzero` et
-    sous `evenodd`, mais fait disparaître la boucle intérieure. C'est voulu :
-    au trait, la marque pesait moins que les icônes installées qui l'entourent
-    sur un écran d'accueil.
+    UNE PASTILLE PLEINE, ET LE K ÉVIDÉ DEDANS. C'était déjà l'argument de la
+    flamme remplie plutôt que tracée : parmi les icônes installées qui
+    l'entourent, une silhouette découpée pèse moins qu'une masse. La lettre est
+    donc creusée dans la couleur de la tuile, et non posée par-dessus.
 
     LA TUILE RESTE UNIE. Le maskable est fabriqué en réduisant cette image puis
     en comblant le pourtour d'une couleur unie : l'option « bg » de
     `package.json`, réglée sur 18,32,28, la teinte exacte du rectangle
     ci-dessous. Une tuile en dégradé rendrait ce raccord impossible et poserait
-    un liseré autour de l'icône installée. Le dégradé est donc sur la FLAMME,
+    un liseré autour de l'icône installée. Le dégradé est donc sur la PASTILLE,
     pas sur le fond.
 
     (Et l'option ne peut pas s'écrire ici avec ses deux tirets : XML interdit
     le double tiret dans un commentaire, et le rasteriseur refuse le fichier.)
   -->
   <defs>
-    <linearGradient id="feu" x1="0" y1="1" x2="0" y2="0">
+    <linearGradient id="braise" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0" stop-color="#c2410c" />
       <stop offset=".55" stop-color="#f97316" />
       <stop offset="1" stop-color="#fbbf24" />
@@ -36,15 +37,28 @@
   </defs>
   <rect width="64" height="64" rx="14" fill="#12201c" />
   <!--
-    `translate(11 11) scale(1.75)` : la grille de Lucide fait 24 unités, et une
-    icône y est centrée sur (12, 12). Le facteur porte la marque à 42 unités,
-    soit 65 % de la tuile — sous les 80 % de la zone de sécurité du masque
-    circulaire, donc rien n'est rogné à l'installation.
+    r = 21 sur une tuile de 64 : la pastille occupe 65 % de la largeur, sous
+    les 80 % de la zone de sécurité du masque circulaire, donc rien n'est rogné
+    à l'installation.
   -->
-  <g transform="translate(11 11) scale(1.75)">
-    <path
-      d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"
-      fill="url(#feu)"
-    />
+  <circle cx="32" cy="32" r="21" fill="url(#braise)" />
+  <!--
+    Le K tient dans un rectangle centré sur (32,5 ; 32) — la demi épaisseur du
+    trait comprise. Ses points les plus excentrés, les deux pointes de bras,
+    restent à 4,7 unités du bord de la pastille : c'est l'anneau de braise qui
+    fait tenir la lettre, et le rogner la ferait toucher le vide.
+  -->
+  <!--
+    LES BRAS PARTENT DU BORD DU FÛT, PAS DE SON AXE. Rendue à 16 px puis
+    agrandie sans lissage, la lettre se bouchait : les deux coins de braise
+    entre le fût et ses bras se refermaient, et il ne restait qu'une tache. Les
+    faire naître 2 unités plus à droite élargit ces deux creux d'autant sans
+    rien changer à la silhouette, puisque les traits se recouvrent encore
+    largement au point de jonction.
+  -->
+  <g stroke="#12201c" stroke-width="6.5" stroke-linecap="round">
+    <path d="M26 21v22" />
+    <path d="M28 32 39 21" />
+    <path d="M28 32 39 43" />
   </g>
 </svg>
