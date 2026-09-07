@@ -151,13 +151,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 335 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 336 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
 | `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 26 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 287,1 kB gzip, index 90 kB |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 287,2 kB gzip, index 90 kB |
 | `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
