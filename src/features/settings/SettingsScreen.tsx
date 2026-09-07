@@ -10,6 +10,7 @@ import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button';
 import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
+import { PhotosExport } from '../../components/PhotosExport';
 import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -212,6 +213,13 @@ export function SettingsScreen() {
           épisodes que vous avez vus. C’est l’adresse publique du site, la même
           pour tout le monde.
         </p>
+      </Card>
+
+      {/* L'EXPORT EN MASSE, à côté du partage : les deux sortent quelque chose
+          de l'application, et aucun des deux n'envoie quoi que ce soit. */}
+      <Card>
+        <CardHeader title="Portraits" />
+        <PhotosExport />
       </Card>
 
       <Card>

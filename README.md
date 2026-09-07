@@ -70,6 +70,15 @@ appareil, sans toucher à un serveur. Le QR code, lui, porte le **lien de la
 fiche**, jamais l'image — un QR code contient au plus 2,9 ko, et l'écran
 affiche les deux tailles côte à côte plutôt que de le laisser croire.
 
+**Et vous pouvez les reprendre tous d'un coup.** « Exporter les portraits »,
+dans les Réglages, rassemble ceux que vous avez déposés dans une **archive
+ZIP** — le même geste qu'« Enregistrer l'image » sur une fiche, mais pour tous.
+Rien n'est envoyé nulle part : les octets viennent du dépôt local. L'archive
+est « stored », sans compression : des images déjà encodées ne se compressent
+pas, et une bibliothèque de plus coûterait du bundle pour rien. Deux candidats
+homonymes reçoivent des noms distincts, sans quoi l'extraction n'en garderait
+qu'un — en silence.
+
 **Sauf si vous le demandez, une fois, et pour un jour.** Le **partage
 éphémère** est la seule route de l'application qui dépose une image sur un
 serveur : elle y meurt à la première ouverture, ou au bout d'un jour — la
@@ -151,13 +160,13 @@ Le serveur de développement écoute sur le port 5236 (configuration
 | --------------------------------- | ------------------------------------------------------ | -------------------------- |
 | `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
 | `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 338 tests verts            |
+| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 353 tests verts            |
 | `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
 | `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
 | `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
 | `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
 | `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 26 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 287,2 kB gzip, index 90 kB |
+| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 288,6 kB gzip, index 90 kB |
 | `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
