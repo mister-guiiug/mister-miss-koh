@@ -4,6 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { backend } from './backend/referentialRepository';
 import { useAppStore } from './store/useAppStore';
+import { shareOrCopy } from '@mister-guiiug/dev-pwa-config/share';
+
+// `currentAppUrl` reste le vrai : c'est lui qu'on éprouve — il doit rendre la
+// base du déploiement, sans le fragment de l'écran courant.
+vi.mock('@mister-guiiug/dev-pwa-config/share', async importer => ({
+  ...(await importer<typeof import('@mister-guiiug/dev-pwa-config/share')>()),
+  shareOrCopy: vi.fn(() => Promise.resolve('shared')),
+}));
 
 // Le magasin est un module : chaque test repart d'un référentiel non chargé,
 // sinon `init()` — qui ne recharge pas une fois prêt — ne ferait rien.
@@ -80,6 +88,24 @@ describe('App', () => {
     expect(pied).not.toBeNull();
     expect(pied!.textContent).not.toMatch(/\d+\.\d+\.\d+/);
     expect(pied!.textContent).toContain('Code source');
+  });
+
+  it('partager l’application donne la RACINE, pas l’écran où l’on se trouve', async () => {
+    // Le piège de cette carte : elle vit dans les Réglages, et un lien qui
+    // emporterait le fragment courant ferait atterrir le destinataire sur les
+    // Réglages de quelqu'un d'autre.
+    const user = userEvent.setup();
+    window.location.hash = '#/reglages';
+    render(<App />);
+    await screen.findByText('Partager l’application');
+
+    // `shareFirst` : le partage est visible d'emblée, pas derrière le QR.
+    await user.click(screen.getByRole('button', { name: 'Partager le lien' }));
+
+    const [charge] = vi.mocked(shareOrCopy).mock.calls.at(-1) ?? [];
+    expect(charge?.title).toBe('Mister & miss Koh');
+    expect(charge?.url).not.toContain('#');
+    expect(charge?.url).toBe(`${window.location.origin}/`);
   });
 
   it('la carte de version dit QUEL build tourne, et de quoi il est fait', async () => {

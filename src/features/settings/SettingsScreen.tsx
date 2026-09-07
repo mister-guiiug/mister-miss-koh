@@ -8,6 +8,8 @@ import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provi
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button';
+import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
+import { ShareLinkPanel } from '../../components/ShareLinkPanel';
 import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
@@ -186,6 +188,30 @@ export function SettingsScreen() {
             Gérer le compte
           </Link>
         )}
+      </Card>
+
+      {/* PARTAGER L'APPLICATION, pas un écran. `currentAppUrl()` rend la base
+          du déploiement SANS le fragment : donner ce lien depuis les Réglages
+          ne fait pas atterrir sur les Réglages. Le QR sert le cas où l'on est
+          côte à côte — on montre l'écran, l'autre scanne. */}
+      <Card>
+        <CardHeader title="Partager l’application" />
+        <ShareLinkPanel
+          link={currentAppUrl()}
+          title="Mister & miss Koh"
+          qrLabel="QR code vers l’application"
+          shareFirst
+          note={
+            <p className="muted qr-note">
+              Ce lien ouvre l’application, sans compte et sans installation.
+            </p>
+          }
+        />
+        <p className="muted">
+          Rien de personnel ne part avec : ni vos notes, ni vos favoris, ni les
+          épisodes que vous avez vus. C’est l’adresse publique du site, la même
+          pour tout le monde.
+        </p>
       </Card>
 
       <Card>

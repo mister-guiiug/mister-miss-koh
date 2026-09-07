@@ -29,6 +29,17 @@ interface Props {
   note?: ReactNode;
   /** Les boutons propres à l'appelant, avant celui du QR. */
   children?: ReactNode;
+  /**
+   * Remonte « Partager le lien » dans la rangée de boutons, au lieu de le
+   * laisser dans le panneau du QR.
+   *
+   * Le défaut convient quand le lien est SECONDAIRE — sur une fiche, ce qu'on
+   * veut donner c'est l'image, et le lien n'est qu'un repli qu'on découvre en
+   * dépliant le QR. Il ne convient plus quand le lien EST l'objet : une carte
+   * « Partager l'application » dont le seul bouton visible dirait « QR code »
+   * ferait chercher le partage derrière le code-barres.
+   */
+  shareFirst?: boolean;
 }
 
 export function ShareLinkPanel({
@@ -37,6 +48,7 @@ export function ShareLinkPanel({
   qrLabel,
   note,
   children,
+  shareFirst = false,
 }: Props) {
   const toast = useToast();
   const [qr, setQr] = useState<string | null>(null);
@@ -62,10 +74,20 @@ export function ShareLinkPanel({
     }
   };
 
+  // Un seul bouton, posé à un endroit ou à l'autre : le dupliquer donnerait
+  // deux fois la même action à l'écran, et deux fois la même chose à lire.
+  const boutonPartage = (
+    <Button variant="outline" size="sm" onClick={() => void sendLink()}>
+      <Link2 size={16} aria-hidden />
+      Partager le lien
+    </Button>
+  );
+
   return (
     <>
       <div className="photo-share-actions">
         {children}
+        {shareFirst && boutonPartage}
         <Button
           variant="ghost"
           size="sm"
@@ -94,10 +116,7 @@ export function ShareLinkPanel({
         )}
         {note}
         <p className="share-link">{link}</p>
-        <Button variant="outline" size="sm" onClick={() => void sendLink()}>
-          <Link2 size={16} aria-hidden />
-          Partager le lien
-        </Button>
+        {!shareFirst && boutonPartage}
       </div>
     </>
   );
