@@ -21,14 +21,14 @@ describe('le nom de l’application', () => {
     // annoncé « Mister & miss » — le nom amputé de ce qui l'identifie —
     // pendant toute la vie du dépôt. Un nom court n'a d'intérêt que s'il
     // reste un nom.
-    expect(valeur('short_name')).toBe('Mister & miss Koh');
+    expect(valeur('short_name')).toBe('Mister & Miss Koh');
     expect(valeur('short_name')).toBe(valeur('name'));
   });
 
   it('et l’en-tête de page dit la même chose à iOS', () => {
     // iOS ignore le manifeste et lit cette balise : deux sources, un seul nom.
     expect(html).toContain(
-      '<meta name="apple-mobile-web-app-title" content="Mister & miss Koh" />'
+      '<meta name="apple-mobile-web-app-title" content="Mister & Miss Koh" />'
     );
   });
 });
