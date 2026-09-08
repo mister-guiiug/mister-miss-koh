@@ -75,7 +75,7 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByText('Source de vérité')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: 'Mister & miss Koh' }));
+    await user.click(screen.getByRole('link', { name: 'Mister & Miss Koh' }));
 
     expect(
       await screen.findByText('Saison de démonstration')
@@ -109,7 +109,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Partager le lien' }));
 
     const [charge] = vi.mocked(shareOrCopy).mock.calls.at(-1) ?? [];
-    expect(charge?.title).toBe('Mister & miss Koh');
+    expect(charge?.title).toBe('Mister & Miss Koh');
     expect(charge?.url).not.toContain('#');
     expect(charge?.url).toBe(`${window.location.origin}/`);
   });

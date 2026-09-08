@@ -209,7 +209,7 @@ export function SettingsScreen() {
         </p>
         <ShareLinkPanel
           link={currentAppUrl()}
-          title="Mister & miss Koh"
+          title="Mister & Miss Koh"
           qrTarget="l’application"
           lead
           note={
@@ -431,7 +431,7 @@ export function SettingsScreen() {
       <Card>
         <CardHeader title="À propos" />
         <p className="muted">
-          Mister &amp; miss Koh est une application non officielle, sans lien
+          Mister &amp; Miss Koh est une application non officielle, sans lien
           avec les ayants droit de l’émission. Les données référentielles sont
           des faits relevés sur une source collaborative — chacun porte sa page,
           sa révision et sa date de lecture — et ne sont jamais présentés comme
