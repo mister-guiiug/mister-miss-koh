@@ -174,13 +174,13 @@ export default defineConfig(({ command }) => {
         },
         manifest: {
           id: basePath,
-          name: 'Mister & miss Koh',
+          name: 'Mister & Miss Koh',
           // LE RACCOURCI DE L'ÉCRAN D'ACCUEIL LIT `short_name`, pas `name` :
           // il annonçait « Mister & miss », c'est-à-dire le nom AMPUTÉ de ce
           // qui l'identifie. Un nom court n'a d'intérêt que s'il reste un nom.
           // Les deux sont désormais identiques ; le lanceur tronquera s'il le
           // faut, mais il tronquera un nom entier, pas un nom déjà coupé.
-          short_name: 'Mister & miss Koh',
+          short_name: 'Mister & Miss Koh',
           description:
             'Suivez une saison d’aventure : candidats, épisodes, épreuves, conseils et votes — avec vos notes privées et vos favoris. Non officiel.',
           theme_color: '#c2410c',
