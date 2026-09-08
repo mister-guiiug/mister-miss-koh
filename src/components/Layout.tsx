@@ -79,7 +79,7 @@ export function Layout() {
            `a { color: var(--primary) }` de l'app le peindrait en orange. */
         title={
           <Link className="brand-link" to="/">
-            Mister &amp; miss Koh
+            Mister &amp; Miss Koh
           </Link>
         }
         leading={
