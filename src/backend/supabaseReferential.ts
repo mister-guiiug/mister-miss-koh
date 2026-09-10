@@ -611,15 +611,80 @@ export interface SupabaseRepositoryDeps {
   today?: () => string;
 }
 
+/**
+ * COMBIEN DE TEMPS ON ACCEPTE D'ATTENDRE LE SERVEUR AVANT DE SERVIR LE CACHE.
+ *
+ * Le repli sur la dernière version enregistrée existait déjà, mais il
+ * n'arrivait qu'après un ÉCHEC — et l'échec, lui, prenait son temps : la
+ * première requête PostgREST demande le jeton d'accès, ce qui déclenche
+ * `auth.getSession()`, lequel part RENOUVELER un jeton périmé contre le
+ * réseau avec des reprises à intervalle croissant. Mesuré sur la production le
+ * 2026-09-10 : **33 secondes de « Chargement du référentiel »** avant que
+ * l'application n'apparaisse — sur des données qu'elle avait dès la première
+ * milliseconde.
+ */
+const ATTENTE_SERVEUR_MS = 5_000;
+
+/** Marqueur d'attente dépassée, distinct d'une erreur. */
+const TROP_LONG = Symbol('attente dépassée');
+
+/**
+ * Le navigateur affirme-t-il être HORS LIGNE ?
+ *
+ * `=== false` et non `!onLine` : hors navigateur la propriété n'existe pas, et
+ * `!undefined` ferait croire à une coupure permanente. L'inverse n'est pas
+ * fiable non plus — `onLine` est vrai derrière un portail captif comme sur un
+ * Wi-Fi qui ne route rien. D'où l'attente bornée, en plus de ce test.
+ */
+function horsLigne(): boolean {
+  return globalThis.navigator?.onLine === false;
+}
+
 export function createSupabaseRepository(
   deps: SupabaseRepositoryDeps
 ): ReferentialRepository {
   const today = deps.today ?? (() => new Date().toISOString().slice(0, 10));
+
+  /** La dernière version enregistrée, annoncée comme telle. */
+  const depuisLeCache = (): LoadResult | null => {
+    const cached = deps.readCache();
+    return cached
+      ? {
+          referential: cached,
+          origin: 'cache',
+          notice: 'Serveur injoignable : dernière version enregistrée.',
+        }
+      : null;
+  };
+
   return {
     async load(): Promise<LoadResult> {
+      // Hors ligne : ne rien tenter. Le serveur n'a que le réseau pour
+      // répondre, et Supabase met une demi-minute à l'admettre.
+      if (horsLigne()) {
+        const cache = depuisLeCache();
+        if (cache) return cache;
+      }
+      let minuteur: ReturnType<typeof setTimeout> | undefined;
       try {
         const client = await deps.getClient();
-        const referential = mapReferential(await fetchRows(client), today());
+        const issue = await Promise.race([
+          fetchRows(client),
+          new Promise<typeof TROP_LONG>(resoudre => {
+            minuteur = setTimeout(
+              () => resoudre(TROP_LONG),
+              ATTENTE_SERVEUR_MS
+            );
+          }),
+        ]);
+        if (issue === TROP_LONG) {
+          // Réseau présent mais mort : le cache maintenant vaut mieux que le
+          // serveur dans trente secondes.
+          const cache = depuisLeCache();
+          if (cache) return cache;
+          throw new Error('serveur injoignable');
+        }
+        const referential = mapReferential(issue, today());
         deps.writeCache(referential);
         return { referential, origin: 'server' };
       } catch (error) {
@@ -634,15 +699,11 @@ export function createSupabaseRepository(
         // Réseau absent, serveur injoignable, RLS qui refuse : la dernière
         // version enregistrée vaut mieux qu'un écran vide — et elle est
         // annoncée comme telle.
-        const cached = deps.readCache();
-        if (cached) {
-          return {
-            referential: cached,
-            origin: 'cache',
-            notice: 'Serveur injoignable : dernière version enregistrée.',
-          };
-        }
+        const cache = depuisLeCache();
+        if (cache) return cache;
         throw error;
+      } finally {
+        clearTimeout(minuteur);
       }
     },
   };
