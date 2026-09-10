@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createSupabaseRepository,
   mapReferential,
@@ -462,6 +462,89 @@ describe('createSupabaseRepository — les trois origines', () => {
       getClient: () => Promise.reject(new Error('réseau')),
     });
     await expect(repo.load()).rejects.toThrow('réseau');
+  });
+
+  /**
+   * LE REPLI SUR CACHE EXISTAIT ; C'EST SON DÉLAI QUI NE VA PAS. La première
+   * requête PostgREST demande le jeton d'accès, ce qui déclenche
+   * `auth.getSession()` — lequel part renouveler un jeton périmé contre le
+   * réseau, avec des reprises à intervalle croissant. Mesuré sur la production
+   * le 2026-09-10 : 33 secondes de « Chargement du référentiel » avant que
+   * l'application n'apparaisse, sur des données déjà en cache.
+   */
+  const avecReseau = (onLine: boolean | undefined) => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => onLine,
+    });
+    return () => {
+      if (original) Object.defineProperty(navigator, 'onLine', original);
+    };
+  };
+
+  it('hors ligne : le cache tout de suite, sans même appeler le serveur', async () => {
+    const rendre = avecReseau(false);
+    try {
+      const cached = mapReferential(rows, TODAY);
+      let appele = false;
+      const repo = createSupabaseRepository({
+        ...noop,
+        getClient: () => {
+          appele = true;
+          return Promise.resolve(fakeClient(rows) as never);
+        },
+        readCache: () => cached,
+      });
+      const result = await repo.load();
+      expect(result.origin).toBe('cache');
+      // Le point du correctif : on ne tente rien.
+      expect(appele).toBe(false);
+    } finally {
+      rendre();
+    }
+  });
+
+  it('hors ligne SANS cache : on tente quand même, plutôt que d’échouer d’office', async () => {
+    // `navigator.onLine` peut mentir dans les deux sens. Sans rien à servir,
+    // une tentative reste préférable à un refus.
+    const rendre = avecReseau(false);
+    try {
+      const repo = createSupabaseRepository({
+        ...noop,
+        getClient: () => Promise.resolve(fakeClient(rows) as never),
+      });
+      expect((await repo.load()).origin).toBe('server');
+    } finally {
+      rendre();
+    }
+  });
+
+  it('réseau qui ment : l’attente est bornée, le cache prend le relais', async () => {
+    // Portail captif, Wi-Fi qui ne route rien : `onLine` est vrai et la
+    // requête ne revient jamais.
+    const rendre = avecReseau(true);
+    vi.useFakeTimers();
+    try {
+      const cached = mapReferential(rows, TODAY);
+      const repo = createSupabaseRepository({
+        ...noop,
+        getClient: () =>
+          Promise.resolve({
+            from: () => ({
+              select: () => new Promise(() => {}),
+            }),
+          } as never),
+        readCache: () => cached,
+      });
+      const promesse = repo.load();
+      await vi.advanceTimersByTimeAsync(6_000);
+      const result = await promesse;
+      expect(result.origin).toBe('cache');
+    } finally {
+      vi.useRealTimers();
+      rendre();
+    }
   });
 });
 
