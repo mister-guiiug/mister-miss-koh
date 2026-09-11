@@ -279,11 +279,20 @@ export async function fetchCoordinates(
 /** Retrouve une section par son titre, insensible à la casse et aux accents. */
 export function findSection(
   sections: readonly SectionInfo[],
-  wanted: string,
+  ...wanted: readonly string[]
 ): SectionInfo | null {
   const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-  const target = fold(wanted);
-  return sections.find((s) => fold(s.line) === target) ?? null;
+  // PLUSIEURS TITRES POUR UN MÊME RÔLE, dans l'ordre de préférence. Le même
+  // tableau de votes s'intitule « Détails des votes » sur les saisons
+  // récentes, « Détail des votes » sur une, et « Détail des éliminations » sur
+  // quatre anciennes — relevé du 11/09/2026 sur les 18 pages. Le premier titre
+  // trouvé gagne, ce qui rend l'ordre de la liste significatif.
+  for (const title of wanted) {
+    const target = fold(title);
+    const found = sections.find((s) => fold(s.line) === target);
+    if (found) return found;
+  }
+  return null;
 }
 
 /** Empreinte stable du modèle intermédiaire — pas de la page. */

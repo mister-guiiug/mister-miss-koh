@@ -559,6 +559,59 @@ supabase functions deploy import-wikipedia --project-ref oqldfzrsandcguajyxbh --
 une ligne de commande, et vit en local dans `.env.supabase.local`, ignoré par
 git.
 
+## Les saisons anciennes : trois hypothèses tacites, onze pages perdues
+
+La planification a fait ce qu'aucune exécution manuelle n'avait fait — appeler
+les **dix-huit** pages. Onze ont échoué d'un coup, pour des défauts qui
+dormaient depuis le premier jour : l'extracteur n'avait jamais lu que les
+saisons récentes, et avait pris leurs habitudes pour la structure de
+l'encyclopédie.
+
+**1. Un rôle, un seul titre.** La matrice des votes s'intitule « Détails des
+votes » sur dix saisons, « Détail des votes » sur une, et « Détail des
+éliminations » sur quatre anciennes — pour un tableau rigoureusement
+identique. `findSection` accepte désormais plusieurs titres par rôle, dans un
+ordre de préférence.
+
+**2. Le bon tableau est le premier de sa section.** Faux deux fois : « Les
+4 Terres » et « La Revanche des 4 Terres » ouvrent leur « Déroulement » par un
+récapitulatif des épreuves — mêmes colonnes « Épisode » et « Diffusion »,
+aucun conseil — et le vrai tableau vient en second. Le tableau se choisit
+maintenant par sa FORME (`looksLikeProgress`, `looksLikeVotes`,
+`looksLikeContestants`), pas par son rang. Le tableau des candidats garde un
+repli sur le premier : s'il est là mais méconnaissable, c'est une structure qui
+a changé, et le message doit le dire.
+
+**3. L'en-tête s'écrit d'une seule façon.** Six orthographes pour le même
+libellé : « ► Épisode » et « ►Épisode », « ► Éliminé », « ► Éliminés »,
+« ► Éliminé ou abandon » et « ►Éliminéou abandon » — cette dernière née d'un
+`<br>` aplati. Le marqueur et son espace sont maintenant retirés avant
+comparaison, et le préfixe suffit.
+
+### Les trois tableaux ne sont plus exigés ensemble
+
+Seule la liste des candidats l'est. « Malaisie » et « La Légende » n'ont aucun
+tableau épisode par épisode, « Le Retour des héros » n'a que ses candidats :
+Wikipédia ne les a jamais écrits. Exiger les trois, c'était jeter ce que la
+page DONNE pour ce qu'elle n'a pas.
+
+⚠️ **Mais une absence n'est pas l'autre**, et c'est là qu'était le danger. Si la
+page de « Fidji » perdait demain sa matrice des votes, la même extraction
+partielle proposerait d'effacer tous les conseils publiés. Ce qui sépare les
+deux cas n'est pas sur la page : c'est ce que le référentiel tient déjà. Rien
+de publié pour ce que la section alimente, l'absence est de naissance et
+l'import continue en le disant (`section_absente`) ; quelque chose de publié,
+la page a régressé et l'import s'arrête sans rien proposer.
+
+### Le relevé du 11/09/2026, sur les dix-huit pages réelles
+
+**Seize produisent un modèle**, contre sept avant. Les deux restantes —
+« Pacifique » et « Les Aventuriers de Koh-Lanta », les saisons 5 et 1 — ne
+portent que trois tableaux : l'infobox, les audiences et le pied de
+navigation. Aucune liste de candidats, aucun déroulement, aucun vote. Il n'y a
+rien à en extraire, et l'import le dit en clair plutôt que de laisser croire à
+un défaut d'outil.
+
 ## Ce qui reste à écrire
 
 1. les **duos non révélés** : la source ne les liste nulle part, un duo n'est

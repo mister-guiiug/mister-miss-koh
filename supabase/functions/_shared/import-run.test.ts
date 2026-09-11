@@ -222,10 +222,18 @@ Deno.test("nouvelle révision sans changement utile : arrêt sur l'empreinte", a
   assertEquals(calls.differences, [], "rien ne part en relecture");
 });
 
-Deno.test("SECTION DISPARUE : arrêt, et AUCUNE différence proposée", async () => {
-  // Le dégât qu'on empêche : sans cet arrêt, l'extraction rendrait zéro
-  // enregistrement et le diff proposerait d'effacer le référentiel entier.
-  const { port, calls } = fakePort({ published: [] });
+Deno.test("SECTION PERDUE : le référentiel en tient déjà, donc arrêt", async () => {
+  // Le dégât qu'on empêche : la page perd sa section, l'extraction ne rend
+  // plus un seul épisode, et le diff propose d'effacer ceux qui sont publiés.
+  const published: StoredRecord[] = [
+    {
+      entity: "episode",
+      naturalKey: "all-stars-2026:e1",
+      payload: { number: 1 },
+      published: true,
+    },
+  ];
+  const { port, calls } = fakePort({ published });
   const outcome = await runImport(port, {
     ...baseOptions,
     fetchImpl: fakeFetch({
@@ -235,9 +243,30 @@ Deno.test("SECTION DISPARUE : arrêt, et AUCUNE différence proposée", async ()
 
   assertEquals(outcome.status, "failed");
   assert(outcome.message.includes("Déroulement"));
+  assert(outcome.message.includes("déjà"), "le motif dit POURQUOI on s'arrête");
   assertEquals(calls.differences, []);
   assertEquals(calls.records, []);
   assertEquals(calls.logs[0].action, "import.failed");
+});
+
+Deno.test("SECTION JAMAIS EUE : import partiel, et l'absence est dite", async () => {
+  // Cinq saisons anciennes n'ont ni « Déroulement » ni matrice des votes :
+  // Wikipédia ne les a jamais écrits. Leur refuser la porte, c'était perdre
+  // les candidats que la page DONNE pour ce qu'elle ne donne pas.
+  const { port, calls } = fakePort({ published: [] });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      sections: [{ index: "4", line: "Candidats" }],
+    }),
+  });
+
+  assertEquals(outcome.status, "diffed");
+  assert(calls.records.length > 0, "les candidats, eux, sont extraits");
+  assert(
+    outcome.anomalies?.some((a) => a.code === "section_absente"),
+    "le relecteur est prévenu de ce qui manque",
+  );
 });
 
 Deno.test("STRUCTURE INCOMPRISE : arrêt avant le diff, référentiel intact", async () => {
@@ -274,16 +303,41 @@ Deno.test("STRUCTURE INCOMPRISE : arrêt avant le diff, référentiel intact", a
   assertEquals(calls.differences, [], "aucune suppression n'est même proposée");
 });
 
-Deno.test("un tableau absent de la page arrête aussi l'exécution", async () => {
-  const { port, calls } = fakePort();
+Deno.test("TABLEAU DE VOTES DISPARU alors que des conseils sont publiés : arrêt", async () => {
+  const published: StoredRecord[] = [
+    {
+      entity: "council_vote",
+      naturalKey: "all-stars-2026:e1:camille>maxime",
+      payload: { voter: "Camille" },
+      published: true,
+    },
+  ];
+  const { port, calls } = fakePort({ published });
   const outcome = await runImport(port, {
     ...baseOptions,
     fetchImpl: fakeFetch({
-      html: { "4": CANDIDATS, "5": DEROULEMENT, "7": "<p>rien</p>" },
+      html: { "0": INTRODUCTION, "4": CANDIDATS, "5": DEROULEMENT, "7": "<p>rien</p>" },
     }),
   });
   assertEquals(outcome.status, "failed");
+  assert(outcome.message.includes("votes"));
   assertEquals(calls.differences, []);
+});
+
+Deno.test("TABLEAU DE VOTES ABSENT et rien de publié : on garde le reste", async () => {
+  const { port, calls } = fakePort({ published: [] });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      html: { "0": INTRODUCTION, "4": CANDIDATS, "5": DEROULEMENT, "7": "<p>rien</p>" },
+    }),
+  });
+  assertEquals(outcome.status, "diffed");
+  assert(
+    calls.records.some((r) => r.entity === "episode"),
+    "le déroulement, lui, est bien extrait",
+  );
+  assert(outcome.anomalies?.some((a) => a.code === "section_absente"));
 });
 
 Deno.test("une panne réseau termine l'exécution en échec, proprement", async () => {

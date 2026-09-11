@@ -147,6 +147,36 @@ Deno.test("une section se cherche par son TITRE, jamais par son rang", () => {
   assertEquals(findSection(sections, "Audiences"), null);
 });
 
+Deno.test("plusieurs titres pour un même tableau : le premier trouvé gagne", () => {
+  // « Détails des votes » sur dix saisons, « Détail des votes » sur une,
+  // « Détail des éliminations » sur quatre anciennes — et strictement le même
+  // tableau dessous (relevé du 11/09/2026 sur les dix-huit pages).
+  const anciennes = [
+    { index: "3", number: "2", line: "Candidats" },
+    { index: "6", number: "4.3", line: "Détail des éliminations" },
+  ];
+  assertEquals(
+    findSection(anciennes, "Détails des votes", "Détail des éliminations")?.index,
+    "6",
+  );
+  assertEquals(
+    findSection(anciennes, "Détails des votes"),
+    null,
+    "sans le synonyme, la section reste introuvable",
+  );
+
+  // L'ORDRE COMPTE : une page qui porterait les deux titres donne le premier
+  // de la liste, pas le premier de la page.
+  const lesDeux = [
+    { index: "6", number: "4.2", line: "Détail des éliminations" },
+    { index: "8", number: "4.4", line: "Détails des votes" },
+  ];
+  assertEquals(
+    findSection(lesDeux, "Détails des votes", "Détail des éliminations")?.index,
+    "8",
+  );
+});
+
 Deno.test("l'empreinte ignore l'ordre des clés", async () => {
   const a = await extractHash({ b: 2, a: [1, { y: 1, x: 0 }] });
   const b = await extractHash({ a: [1, { x: 0, y: 1 }], b: 2 });

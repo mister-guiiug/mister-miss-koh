@@ -3,7 +3,11 @@
  */
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import { parseTables } from "./html-table.ts";
-import { extractContestants, extractProgress } from "./extract-season.ts";
+import {
+  extractContestants,
+  extractProgress,
+  looksLikeProgress,
+} from "./extract-season.ts";
 import {
   parseAge,
   parseDay,
@@ -329,5 +333,31 @@ Deno.test("saison passée : le sous-titre « Vote » au singulier est reconnu", 
   assert(
     gdcProgress.episodes.some((e) => e.rawTally !== ""),
     "sans le singulier, la colonne des décomptes reste introuvable et tout rawTally est vide",
+  );
+});
+
+Deno.test("LES 4 TERRES : le déroulement n'est pas le premier tableau", async () => {
+  // LA SECTION EN PORTE QUATRE. Elle s'ouvre sur un récapitulatif des épreuves
+  // qui a bien les colonnes « Épisode » et « Diffusion » — mais aucun conseil.
+  // Prendre le premier venu, c'était lire le mauvais tableau et conclure que
+  // la page avait changé de structure. Capture du 11/09/2026.
+  const html = await Deno.readTextFile(
+    new URL("./fixtures/les-4-terres-deroulement-section.html", import.meta.url),
+  );
+  const tables = parseTables(html);
+  assertEquals(
+    tables.map((t) => looksLikeProgress(t.grid)),
+    [false, true, false, false],
+    "un seul des quatre est le déroulement",
+  );
+
+  const out = extractProgress(tables[1].grid, "les-4-terres-2020");
+  assertEquals(out.episodes.length, 17);
+  assertEquals(out.episodes[0].airDate, "2020-08-28");
+  assertEquals(out.episodes[0].eliminated, ["Marie-France"]);
+  assertEquals(out.episodes[0].immunityWinners, ["Tokalo"]);
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "structure_inconnue"),
+    [],
   );
 });

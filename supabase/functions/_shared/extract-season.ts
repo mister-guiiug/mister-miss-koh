@@ -128,6 +128,17 @@ function headerSpan(grid: Grid, row: number, from: number): [number, number] {
   return [from, end];
 }
 
+/**
+ * Cette grille est-elle le tableau des candidats ?
+ *
+ * Sert à CHOISIR parmi les tableaux d'une section. Sur « La Revanche des
+ * héros », la section « Candidats » en porte deux : la liste, puis la matrice
+ * des votes d'une sous-section. Prendre le premier venu marchait par chance.
+ */
+export function looksLikeContestants(grid: Grid): boolean {
+  return columnByHeader(grid, 0, "Candidat", "Candidats") !== -1;
+}
+
 export function extractContestants(
   grid: Grid,
   seasonSlug: string,
@@ -285,6 +296,23 @@ function columnByPair(grid: Grid, top: string, ...subs: string[]): number {
     if (t === wantTop && wantSubs.includes(s)) return c;
   }
   return -1;
+}
+
+/**
+ * Cette grille est-elle le tableau du déroulement ?
+ *
+ * IL N'EST PAS TOUJOURS LE PREMIER DE SA SECTION. « Les 4 Terres » et « La
+ * Revanche des 4 Terres » ouvrent leur « Déroulement » par un récapitulatif
+ * des épreuves — mêmes colonnes « Épisode » et « Diffusion », aucun conseil —
+ * et le vrai tableau vient ensuite. « Malaisie » et « La Légende », elles, n'en
+ * ont aucun : leur « Déroulement » ne contient que la matrice des votes.
+ *
+ * La colonne du conseil est donc le seul discriminant fiable : c'est ce que le
+ * déroulement apporte et que les autres tableaux n'ont pas.
+ */
+export function looksLikeProgress(grid: Grid): boolean {
+  return columnByHeader(grid, 0, "Épisode") !== -1 &&
+    columnByPair(grid, "Conseil", "Éliminé(s)") !== -1;
 }
 
 export function extractProgress(grid: Grid, seasonSlug: string): ProgressExtraction {
