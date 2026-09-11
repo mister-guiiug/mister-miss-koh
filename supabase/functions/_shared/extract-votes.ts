@@ -134,18 +134,50 @@ export const STATUS_WORDS = new Set([
   "defaite",
 ]);
 
-const LABEL_EPISODE = "► Épisode";
-const LABEL_ELIMINATED = "► Éliminé";
-const LABEL_VOTES = "► Votes";
-const LABEL_CONTESTANTS = "▼ Candidats";
+const LABEL_EPISODE = "Épisode";
+const LABEL_ELIMINATED = "Éliminé";
+const LABEL_VOTES = "Votes";
+const LABEL_CONTESTANTS = "Candidats";
 
-/** Repère une ligne d'en-tête par son libellé de première colonne. */
+/**
+ * Le libellé, débarrassé de ce qui n'est pas une donnée.
+ *
+ * LE MARQUEUR ET SON ESPACE NE SONT PAS DU CONTENU. Les quinze pages qui
+ * portent cette matrice écrivent le même en-tête de six façons — « ► Épisode »
+ * et « ►Épisode », « ► Éliminé », « ► Éliminés », « ► Éliminé ou abandon » et
+ * « ►Éliminéou abandon », cette dernière née d'un `<br>` aplati. Comparer la
+ * chaîne entière, c'était faire dépendre la lecture d'une espace : quatre
+ * saisons sur dix-huit tombaient là-dessus.
+ */
+function labelOf(text: string): string {
+  return fold(text.replace(/^[►▼]\s*/u, ""));
+}
+
+/**
+ * Repère une ligne d'en-tête par son libellé de première colonne.
+ *
+ * Le PRÉFIXE suffit : « Éliminé ou abandon » désigne la même ligne
+ * qu'« Éliminé ». Aucun nom de candidat ne commence par « épisode », « votes »
+ * ou « candidats » — le risque de confusion est nul, et une correspondance
+ * exacte perdrait un tiers des pages.
+ */
 function findRow(grid: Grid, label: string): number {
+  const wanted = fold(label);
   for (let r = 0; r < grid.length; r += 1) {
-    const first = grid[r][0]?.text ?? "";
-    if (first.startsWith(label)) return r;
+    if (labelOf(grid[r][0]?.text ?? "").startsWith(wanted)) return r;
   }
   return -1;
+}
+
+/**
+ * Cette grille est-elle la matrice des votes ?
+ *
+ * Sert à CHOISIR le bon tableau dans une section qui en porte plusieurs, au
+ * lieu de prendre le premier venu. Deux lignes suffisent à la reconnaître sans
+ * l'extraire.
+ */
+export function looksLikeVotes(grid: Grid): boolean {
+  return findRow(grid, LABEL_EPISODE) !== -1 && findRow(grid, LABEL_CONTESTANTS) !== -1;
 }
 
 /** « 11/18 » → { for: 11, total: 18 } ; « 0 » → { for: 0, total: null }. */

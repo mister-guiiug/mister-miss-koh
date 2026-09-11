@@ -7,7 +7,7 @@
  */
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import { parseTables } from "./html-table.ts";
-import { extractVotes } from "./extract-votes.ts";
+import { extractVotes, looksLikeVotes } from "./extract-votes.ts";
 
 const SEASON = "all-stars-2026";
 
@@ -37,7 +37,7 @@ Deno.test("un en-tête manquant arrête l'extraction au lieu de deviner", () => 
   const out = extractVotes(grid, SEASON);
   assertEquals(out.rounds.length, 0);
   assertEquals(out.anomalies[0].code, "structure_inconnue");
-  assert(out.anomalies[0].message.includes("► Éliminé"));
+  assert(out.anomalies[0].message.includes("Éliminé"));
 });
 
 Deno.test("une colonne vide EN FIN de tableau n'est pas une anomalie", () => {
@@ -283,4 +283,26 @@ Deno.test("un départ lié sans vote dans sa soirée ne nomme personne", () => {
   const lie = out.rounds.find((r) => r.kind === "linked");
   assert(lie);
   assertEquals(lie.causedBy, null);
+});
+
+Deno.test("L'ÎLE DES HÉROS : une espace en moins ne sort pas une saison", async () => {
+  // CETTE PAGE ÉCRIT « ►Épisode » ET « ►Éliminé ou abandon ». D'autres
+  // écrivent « ► Épisode » et « ► Éliminé », une autre encore « ► Éliminés ».
+  // Le même tableau, six orthographes d'en-tête — et l'égalité de chaîne en
+  // écartait quatre saisons sur dix-huit. Capture du 11/09/2026.
+  const html = await Deno.readTextFile(
+    new URL("./fixtures/ile-des-heros-votes-section.html", import.meta.url),
+  );
+  const table = parseTables(html).find((t) => looksLikeVotes(t.grid));
+  assert(table, "la matrice est reconnue malgré le marqueur collé");
+
+  const out = extractVotes(table.grid, "ile-des-heros-2020");
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "structure_inconnue"),
+    [],
+    "plus aucune structure incomprise",
+  );
+  assertEquals(out.contestants.length, 23);
+  assertEquals(out.rounds.length, 24);
+  assertEquals(out.votes.length, 137);
 });

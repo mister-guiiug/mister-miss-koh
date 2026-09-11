@@ -33,9 +33,14 @@ import {
   findSection,
   type WikiConfig,
 } from "./mediawiki.ts";
-import { parseTables } from "./html-table.ts";
-import { extractVotes } from "./extract-votes.ts";
-import { extractContestants, extractProgress } from "./extract-season.ts";
+import { type Grid, type ParsedTable, parseTables } from "./html-table.ts";
+import { extractVotes, looksLikeVotes } from "./extract-votes.ts";
+import {
+  extractContestants,
+  extractProgress,
+  looksLikeContestants,
+  looksLikeProgress,
+} from "./extract-season.ts";
 import { extractAdvantages } from "./extract-advantages.ts";
 import { extractLocation, findInfobox, type SeasonLocation } from "./extract-location.ts";
 import { crossCheck } from "./cross-check.ts";
@@ -72,8 +77,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  5 — + le lieu de tournage (infobox de l'introduction) et ses coordonnées
  *  6 — les ordinaux gardent leur exposant (« 33e jour », et non plus
  *      « 33 jour ») : seuls les appels de note sortent des cellules
+ *  7 — les saisons anciennes entrent : titres de section synonymes, tableau
+ *      choisi par sa forme et non par son rang, marqueur « ► » ignoré dans
+ *      les en-têtes. Neuf pages qui échouaient produisent désormais un modèle
  */
-export const EXTRACTOR_VERSION = "6";
+export const EXTRACTOR_VERSION = "7";
 
 export interface SourceDocument {
   readonly id: string;
@@ -153,11 +161,52 @@ const ENTITIES = [
   "advantage",
 ] as const;
 
+/**
+ * Les titres qui désignent chaque tableau, par ordre de préférence.
+ *
+ * UN MÊME CONTENU, PLUSIEURS TITRES. Relevé du 11/09/2026 sur les dix-huit
+ * pages : la matrice des votes s'appelle « Détails des votes » sur dix
+ * saisons, « Détail des votes » sur une, et « Détail des éliminations » sur
+ * quatre anciennes — pour un tableau rigoureusement identique. Exiger un seul
+ * libellé écartait donc cinq saisons sans qu'aucune donnée ne manque.
+ */
 const SECTIONS = {
-  contestants: "Candidats",
-  progress: "Déroulement",
-  votes: "Détails des votes",
+  contestants: ["Candidats", "Candidat"],
+  progress: ["Déroulement"],
+  votes: [
+    "Détails des votes",
+    "Détail des votes",
+    "Détails des éliminations",
+    "Détail des éliminations",
+  ],
 } as const;
+
+/**
+ * Ce que chaque section facultative alimente dans le référentiel.
+ *
+ * Sert à répondre à UNE question, au moment où une section manque : est-ce que
+ * la page ne l'a jamais eue, ou est-ce qu'elle vient de la perdre ?
+ */
+const ENTITIES_BY_SECTION = {
+  progress: ["episode"],
+  votes: ["council_round", "council_vote"],
+} as const;
+
+/**
+ * Le tableau de la section qui a la FORME attendue.
+ *
+ * Prendre le premier tableau venu était une hypothèse tacite, vraie sur les
+ * saisons récentes et fausse ailleurs : « Les 4 Terres » ouvre son
+ * « Déroulement » par un récapitulatif des épreuves, et le vrai tableau vient
+ * en second. Demander sa forme plutôt que son rang lit les deux sans rien
+ * coder de particulier à une saison.
+ */
+function pickTable(
+  tables: readonly ParsedTable[],
+  looksRight: (grid: Grid) => boolean,
+): ParsedTable | null {
+  return tables.find((t) => looksRight(t.grid)) ?? null;
+}
 
 /** Facultative : 9 pages de saison sur 18 la portent (relevé du 05/09/2026). */
 const SECTION_ADVANTAGES = "Colliers d'immunité";
@@ -188,9 +237,24 @@ export async function runImport(
     fetchImpl: options.fetchImpl,
   };
 
+  // Toute sortie en échec passe par là : l'exécution est clôturée, le motif
+  // journalisé, et AUCUNE différence n'est proposée. Répéter ces cinq lignes à
+  // chaque garde, c'était risquer d'en oublier une le jour où l'on en ajoute.
+  let revisionId: string | undefined;
+  const stop = async (message: string): Promise<RunOutcome> => {
+    await port.finishRun(runId, {
+      status: "failed",
+      revision: revisionId,
+      error: message,
+    });
+    await port.log("import.failed", message, runId);
+    return { runId, status: "failed", revision: revisionId, message };
+  };
+
   try {
     // ── 1. Révision ───────────────────────────────────────────────────────
     const revision = await fetchRevision(wiki, document.title);
+    revisionId = revision.revId;
     const known = await port.lastImportedRevision(document.id);
     // « Déjà traitée » suppose que c'est le MÊME traitement. Une extraction
     // enrichie doit rejouer une page qui n'a pas bougé, sinon la correction
@@ -215,57 +279,123 @@ export async function runImport(
     }
 
     // ── 2. Sections, par leur titre ───────────────────────────────────────
+    //
+    // UNE SEULE EST INDISPENSABLE : celle des candidats. Le déroulement et la
+    // matrice des votes manquent pour de bon sur plusieurs saisons anciennes —
+    // « Malaisie » n'a aucun tableau épisode par épisode, « Le Retour des
+    // héros » n'a que sa liste de candidats. Les exiger toutes les trois
+    // revenait à jeter ce que la page A, faute de ce qu'elle n'a pas : cinq
+    // saisons perdues pour une absence que Wikipédia assume.
     const sections = await fetchSections(wiki, document.title);
-    const wanted: Record<keyof typeof SECTIONS, string> = {
-      contestants: "",
-      progress: "",
-      votes: "",
+    const section = {
+      contestants: findSection(sections, ...SECTIONS.contestants),
+      progress: findSection(sections, ...SECTIONS.progress),
+      votes: findSection(sections, ...SECTIONS.votes),
     };
-    const missing: string[] = [];
-    for (const [key, title] of Object.entries(SECTIONS)) {
-      const found = findSection(sections, title);
-      if (!found) missing.push(title);
-      else wanted[key as keyof typeof SECTIONS] = found.index;
-    }
-    if (missing.length > 0) {
-      const message = `sections introuvables : ${missing.join(", ")}`;
-      await port.finishRun(runId, {
-        status: "failed",
-        revision: revision.revId,
-        error: message,
-      });
-      await port.log("import.failed", message, runId);
-      return { runId, status: "failed", revision: revision.revId, message };
+
+    if (!section.contestants) {
+      const message = `section « ${
+        SECTIONS.contestants[0]
+      } » introuvable — la page ne porte aucune donnée exploitable`;
+      return await stop(message);
     }
 
     // ── 3. Extraction ─────────────────────────────────────────────────────
     const [contestantsHtml, progressHtml, votesHtml, introductionHtml] = await Promise
       .all([
-        fetchSectionHtml(wiki, document.title, wanted.contestants),
-        fetchSectionHtml(wiki, document.title, wanted.progress),
-        fetchSectionHtml(wiki, document.title, wanted.votes),
+        fetchSectionHtml(wiki, document.title, section.contestants.index),
+        section.progress
+          ? fetchSectionHtml(wiki, document.title, section.progress.index)
+          : Promise.resolve(""),
+        section.votes
+          ? fetchSectionHtml(wiki, document.title, section.votes.index)
+          : Promise.resolve(""),
         // La section 0 est l'introduction : elle porte l'infobox, donc le lieu.
         fetchSectionHtml(wiki, document.title, "0"),
       ]);
 
-    const contestantsTable = parseTables(contestantsHtml)[0];
-    const progressTable = parseTables(progressHtml)[0];
-    const votesTable = parseTables(votesHtml)[0];
+    // Par leur FORME, pas par leur rang — voir `pickTable`.
+    //
+    // POUR LES CANDIDATS, LE REPLI EST LE PREMIER TABLEAU. Aucun ne
+    // correspond, mais la section en porte un : c'est une structure qui a
+    // changé, pas une donnée qui manque. Le laisser passer à l'extracteur rend
+    // au relecteur le message précis — « en-tête Candidat introuvable » — au
+    // lieu d'un « absent » qui l'enverrait chercher une section pourtant là.
+    const contestantsTables = parseTables(contestantsHtml);
+    const contestantsTable = pickTable(contestantsTables, looksLikeContestants) ??
+      contestantsTables[0];
+    const progressTable = pickTable(parseTables(progressHtml), looksLikeProgress);
+    const votesTable = pickTable(parseTables(votesHtml), looksLikeVotes);
 
-    if (!contestantsTable || !progressTable || !votesTable) {
-      const message = "au moins un tableau attendu est absent de la page";
-      await port.finishRun(runId, {
-        status: "failed",
-        revision: revision.revId,
-        error: message,
-      });
-      await port.log("import.failed", message, runId);
-      return { runId, status: "failed", revision: revision.revId, message };
+    if (!contestantsTable) {
+      return await stop("la section des candidats ne porte aucun tableau");
     }
 
+    // UNE ABSENCE N'EST PAS L'AUTRE, et c'est toute la question.
+    //
+    // « Malaisie » n'a jamais eu de tableau épisode par épisode : n'extraire
+    // que ses candidats est exactement ce qu'il faut faire. Mais si la page de
+    // « Fidji » perdait demain sa matrice des votes, la même extraction
+    // partielle proposerait d'effacer tous les conseils déjà publiés — le
+    // dégât que ce garde existe pour empêcher.
+    //
+    // Ce qui sépare les deux cas n'est pas sur la page : c'est ce que le
+    // référentiel tient déjà. Rien de publié, l'absence est de naissance et on
+    // continue ; quelque chose de publié, la page a REGRESSÉ et on s'arrête
+    // sans rien proposer. La règle de couverture du diff, en aval, ne fait que
+    // signaler la suppression — ici, elle n'est même pas formulée.
+    let publishedCache: readonly StoredRecord[] | null = null;
+    const publishedRecords = async (): Promise<readonly StoredRecord[]> => {
+      publishedCache ??= await port.loadPublished(document.id, ENTITIES);
+      return publishedCache;
+    };
+    const dejaPublie = async (key: keyof typeof ENTITIES_BY_SECTION) => {
+      const entities: readonly string[] = ENTITIES_BY_SECTION[key];
+      return (await publishedRecords()).some(
+        (r) => r.published && entities.includes(r.entity),
+      );
+    };
+    const regression = async (key: keyof typeof ENTITIES_BY_SECTION, quoi: string) => {
+      if (!await dejaPublie(key)) return null;
+      return `${quoi} — or le référentiel en tient déjà de publiés : arrêt avant toute suppression`;
+    };
+
+    const absences: Anomaly[] = [];
     const contestants = extractContestants(contestantsTable.grid, document.seasonSlug);
-    const progress = extractProgress(progressTable.grid, document.seasonSlug);
-    const votes = extractVotes(votesTable.grid, document.seasonSlug);
+
+    let progress: ReturnType<typeof extractProgress> = { episodes: [], anomalies: [] };
+    if (progressTable) {
+      progress = extractProgress(progressTable.grid, document.seasonSlug);
+    } else {
+      const quoi = section.progress
+        ? "la section « Déroulement » ne porte aucun tableau épisode par épisode"
+        : "la page n'a pas de section « Déroulement »";
+      const perdu = await regression("progress", quoi);
+      if (perdu) return await stop(perdu);
+      absences.push({
+        code: "section_absente",
+        message: `${quoi} : aucun épisode extrait`,
+      });
+    }
+
+    let votes: ReturnType<typeof extractVotes> = {
+      rounds: [],
+      votes: [],
+      statuses: [],
+      contestants: [],
+      anomalies: [],
+    };
+    if (votesTable) {
+      votes = extractVotes(votesTable.grid, document.seasonSlug);
+    } else {
+      const quoi = "aucune matrice des votes sur cette page";
+      const perdu = await regression("votes", quoi);
+      if (perdu) return await stop(perdu);
+      absences.push({
+        code: "section_absente",
+        message: `${quoi} : aucun conseil extrait`,
+      });
+    }
 
     // ── Les colliers, s'il y en a ────────────────────────────────────────
     //
@@ -290,6 +420,7 @@ export async function runImport(
     }
 
     const anomalies: Anomaly[] = [
+      ...absences,
       ...contestants.anomalies,
       ...progress.anomalies,
       ...votes.anomalies,
@@ -306,7 +437,7 @@ export async function runImport(
         votes: votesTable,
       })
     ) {
-      for (const row of table.raggedRows) {
+      for (const row of table?.raggedRows ?? []) {
         anomalies.push({
           code: "ligne_irreguliere",
           message:
@@ -319,13 +450,7 @@ export async function runImport(
     const fatal = anomalies.filter(isFatal);
     if (fatal.length > 0) {
       const message = `structure incomprise : ${fatal.map((a) => a.message).join(" ; ")}`;
-      await port.finishRun(runId, {
-        status: "failed",
-        revision: revision.revId,
-        error: message,
-      });
-      await port.log("import.failed", message, runId);
-      return { runId, status: "failed", revision: revision.revId, message, anomalies };
+      return { ...await stop(message), anomalies };
     }
 
     // ── 4 bis. Le lieu de tournage, et ses coordonnées ────────────────────
@@ -401,7 +526,9 @@ export async function runImport(
     await port.saveRecords(runId, records, anomaliesByKey);
 
     // ── 6. Diff contre le publié ──────────────────────────────────────────
-    const published = await port.loadPublished(document.id, ENTITIES);
+    // `publishedRecords` peut avoir déjà lu : une section absente pose la
+    // question plus tôt, et la réponse se garde.
+    const published = await publishedRecords();
     const result = diffRecords(published, records);
     await port.saveDifferences(runId, result.differences);
 
