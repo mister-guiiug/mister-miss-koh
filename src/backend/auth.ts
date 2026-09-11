@@ -16,6 +16,7 @@
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { supabaseFactory } from './supabaseReferential';
 import { BACKEND } from './config';
+import { compteCourant } from './sessionAccount';
 
 export interface Account {
   readonly id: string;
@@ -68,11 +69,26 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/**
+ * Le compte courant.
+ *
+ * Il passait par `auth.getUser()`, qui n'est PAS une lecture : cet appel
+ * commence par `getSession()`, lequel renouvelle le jeton périmé contre le
+ * réseau — une demi-minute d'attente sans connexion. L'application s'ouvrait
+ * bien pendant ce temps, le référentiel venant du cache, mais elle affichait
+ * « personne » à quelqu'un dont la session dormait sur l'appareil.
+ *
+ * `compteCourant` interroge toujours le serveur quand il y a du réseau — c'est
+ * lui qui fait foi. Il ne lit le stockage que hors ligne, quand l'attente
+ * dépasse cinq secondes, ou quand l'appel lève.
+ */
 export async function currentAccount(): Promise<Account | null> {
   if (!authAvailable) return null;
-  const supabase = await client();
-  const { data } = await supabase.auth.getUser();
-  return accountOf(data.user);
+  return compteCourant(async () => {
+    const supabase = await client();
+    const { data } = await supabase.auth.getUser();
+    return accountOf(data.user);
+  });
 }
 
 /**
