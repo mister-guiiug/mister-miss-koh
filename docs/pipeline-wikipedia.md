@@ -596,20 +596,29 @@ planification ouvre donc large, sur l'union des deux saisons, et
 `importer_saison_en_diffusion()` tranche sur l'heure locale. La bordure est
 exacte toute l'année, au prix d'un réveil par tour qui ne fait rien.
 
-**Trois secrets à poser dans le Vault**, une fois, à la main — ils n'entrent
-jamais dans git :
+**Trois secrets dans le Vault, posés par la CI** — ils n'entrent jamais dans
+git, et personne n'a à les taper : `supabase-migrate.yml` les écrit après chaque
+`db push`, par la fonction `definir_secret_planification` (migration `0027`),
+réservée à `service_role`.
 
-```sql
-select vault.create_secret('https://<ref>.supabase.co/functions/v1', 'koh_functions_url');
-select vault.create_secret('<clé anon>',                             'koh_anon_key');
-select vault.create_secret('<IMPORT_CRON_SECRET>',                   'koh_import_cron_secret');
-```
+| secret                   | d'où vient la valeur                    |
+| ------------------------ | --------------------------------------- |
+| `koh_functions_url`      | déduite de `SUPABASE_PROJECT_ID`        |
+| `koh_anon_key`           | demandée au CLI (`projects api-keys`)   |
+| `koh_import_cron_secret` | le secret de dépôt `IMPORT_CRON_SECRET` |
 
 Les trois, et pas seulement le dernier : la plateforme Supabase garde l'entrée
 de toute fonction Edge derrière un JWT valide. Sans `Authorization`, elle rend
 `UNAUTHORIZED_NO_AUTH_HEADER` et la fonction n'est même pas atteinte — la clé
 anon suffit à franchir cette porte-là, elle est publique et déjà dans le bundle
 du site. C'est ensuite que `x-import-secret` ouvre celle de la planification.
+
+**Le même passage pose `IMPORT_CRON_SECRET` sur la fonction Edge.** GitHub en
+est donc la source unique : la fonction et le Vault en reçoivent une copie au
+même moment, et une rotation se fait en changeant une valeur puis en relançant
+le workflow. Les clés d'API, elles, ne sont pas rangées en secret de dépôt —
+elles se demandent au CLI, si bien qu'une clé tournée côté Supabase est reprise
+toute seule au passage suivant.
 
 Un secret manquant ne fait pas un 401 toutes les demi-heures que personne ne
 lit : `declencher_import` s'arrête et écrit un `warning` nommant lequel manque.

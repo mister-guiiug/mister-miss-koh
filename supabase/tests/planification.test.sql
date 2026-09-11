@@ -11,7 +11,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(19);
+select plan(21);
 
 -- ── Les deux tâches sont posées ───────────────────────────────────────────
 
@@ -145,6 +145,21 @@ select ok(
 select ok(
   not has_function_privilege('authenticated', 'public.importer_saison_en_diffusion()', 'execute'),
   'un compte connecté ne peut pas lancer le passage de diffusion'
+);
+
+-- ── La porte par laquelle les secrets entrent ─────────────────────────────
+--
+-- Elle est réservée à `service_role`, et c'est la CI qui l'emprunte. Ouverte
+-- plus largement, elle laisserait un visiteur écrire dans le Vault.
+
+select ok(
+  not has_function_privilege('anon', 'public.definir_secret_planification(text, text)', 'execute'),
+  'anon ne peut pas écrire dans le Vault'
+);
+
+select ok(
+  has_function_privilege('service_role', 'public.definir_secret_planification(text, text)', 'execute'),
+  'service_role le peut — c''est par là que la CI pose les secrets'
 );
 
 select finish();
