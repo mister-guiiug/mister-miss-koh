@@ -37,27 +37,42 @@ dit déjà s'il s'agit d'une démonstration.
 L'identité visuelle ne doit **rien à l'émission** — terre, feu, océan, jungle.
 Aucun logo, totem, photographie, extrait ou élément graphique n'est reproduit.
 
-**Un seul logo, un seul fichier.** `public/favicon.svg` — une flamme pleine,
-de la braise à l'ambre, dans une pastille vert sombre — est la source unique :
-l'en-tête le sert tel quel, et `npm run icons` en tire tous les PNG du
-manifeste. Trois détails qui font tenir l'ensemble :
+**Un seul logo, un seul fichier.** `public/favicon.svg` — le **K** du nom,
+creusé dans une pastille de braise posée sur une tuile vert sombre — est la
+source unique : l'en-tête le sert tel quel, et `npm run icons` en tire tous les
+PNG du manifeste. Quatre détails qui font tenir l'ensemble :
 
-- **la silhouette vient de Lucide** (icône `flame`, licence ISC), le jeu
-  d'icônes dont l'interface entière est faite : la marque parle la même langue
-  que les cinquante icônes de l'application ;
-- **elle est remplie, pas tracée.** Lucide dessine au trait ; vérifié dans le
-  navigateur, la remplir donne la même silhouette sous `nonzero` et sous
-  `evenodd` et fait disparaître la boucle intérieure. Au trait, la marque
-  pesait moins que les icônes voisines sur un écran d'accueil ;
-- **la tuile reste unie, le dégradé est sur la flamme.** Le maskable est
+- **ce n'est plus une flamme, et c'est la raison du changement.** La marque
+  était une flamme pleine, en dégradé de la braise à l'ambre, dans une tuile
+  arrondie : c'est-à-dire, au dégradé près, celle de Tinder. Une application
+  installée se reconnaît à sa silhouette sur un écran d'accueil, et celle-là
+  appartenait déjà à quelqu'un d'autre ;
+- **la lettre est creusée, pas posée.** Parmi les icônes qui l'entourent, une
+  masse pèse plus qu'un contour — c'était déjà l'argument de la flamme remplie
+  plutôt que tracée. Le dessin ne vient donc plus de Lucide : c'est une
+  lettre, tracée pour cette application, et sa parenté avec les cinquante
+  icônes de l'interface tient à la palette, non au jeu d'icônes ;
+- **les bras du K partent du bord du fût, pas de son axe.** Rendue à 16 px puis
+  agrandie sans lissage, la lettre se bouchait : les deux coins de braise entre
+  le fût et ses bras se refermaient, et il ne restait qu'une tache. Les faire
+  naître deux unités plus à droite ouvre ces creux sans toucher à la
+  silhouette. Vérifié pixel par pixel à 16, 28 (la taille de l'en-tête) et
+  48 px ;
+- **la tuile reste unie, le dégradé est sur la pastille.** Le maskable est
   fabriqué en comblant le pourtour d'une **couleur unie** — l'option `bg`, à
-  `18,32,28`, la teinte exacte de la pastille, et non le défaut du socle
+  `18,32,28`, la teinte exacte de la tuile, et non le défaut du socle
   (`12,18,34`) qui posait un cadre bleu-noir autour d'un vert-noir. Une tuile
   en dégradé rendrait ce raccord impossible.
 
-Mesuré sur les PNG engendrés : haut de flamme `250,169,32`, bas `216,85,16`,
-coin du maskable `18,32,28` — le dégradé survit à la rastérisation, et le
-raccord est exact.
+La pastille occupe **65 % de la tuile**, sous les 80 % de la zone de sécurité
+du masque circulaire : rien n'est rogné à l'installation.
+
+**La flamme n'a pas disparu de l'application, seulement de sa signature.** Elle
+reste là où elle veut dire « ceci s'éteint » — le partage d'un jour, sur une
+fiche et dans la tournée des portraits. L'en-tête et le repli de l'écran
+d'attente, eux, ne faisaient que signer : le second porte désormais une
+boussole, qui bat depuis son centre au lieu de vaciller depuis un pied qu'elle
+n'a pas.
 
 **Les portraits des candidats ne font pas exception.** L'application n'en
 distribue aucun et n'en télécharge aucun : chaque candidat porte une vignette
@@ -553,5 +568,8 @@ Dans l'ordre :
    pas offerte ;
 6. animations Rive — les composants, les rôles et les replis existent ;
    **aucun fichier `.riv` n'est fourni**, et aucun ne sera inventé. En
-   attendant, la flamme de l'écran d'attente est le repli CSS du rôle
-   `referential-loading` : un `.riv` la remplacerait sans toucher à l'écran.
+   attendant, la boussole battante de l'écran d'attente est le repli CSS du
+   rôle `referential-loading` : un `.riv` la remplacerait sans toucher à
+   l'écran. Conséquence à connaître avant d'alléger le bundle : le runtime
+   Rive (~57 ko, un cinquième du total) n'est téléchargé par personne tant que
+   `animations/registry.ts` garde tous ses `src: null`.
