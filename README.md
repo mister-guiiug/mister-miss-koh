@@ -10,12 +10,14 @@ favoris et partage révocable.
 > pgTAP passent contre cette base — isolation (34), publication (43), suivi du
 > compte (21), partage éphémère (26) —, jouées le 07/09/2026.
 >
-> ⚠️ **Ce dépôt n'a AUCUN workflow qui applique les migrations.** Une CI verte
-> ne dit donc rien de l'état de la base : `0022` et `0023` y sont restées en
-> attente pendant que le site déployé répondait « Could not find the function ».
-> Après toute migration, pousser à la main — `supabase db push --linked` avec
-> `SUPABASE_ACCESS_TOKEN` — puis rejouer les suites `*:remote`, seules à mesurer
-> le RÉEL.
+> **Les migrations s'appliquent toutes seules** depuis le 11/09/2026
+> (`.github/workflows/supabase-migrate.yml`) : une poussée sur `main` qui touche
+> `supabase/migrations/**` ou `supabase/functions/**` joue `db push`, déploie les
+> fonctions Edge, puis pose les secrets de la planification. Ça n'a pas toujours
+> été le cas, et ça s'est payé : `0022` et `0023` sont restées en attente pendant
+> que le site déployé répondait « Could not find the function », CI verte pendant
+> tout ce temps. Les suites `*:remote` restent la seule mesure du RÉEL — elles
+> interrogent la base hébergée, pas une pile jetable.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
 > avec sa provenance et son anti-spoiler. Le retour arrière a servi pour de
