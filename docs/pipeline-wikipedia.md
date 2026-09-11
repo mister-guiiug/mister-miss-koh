@@ -568,3 +568,54 @@ git.
    une extraction de plus ;
 3. les **ordinaux** des saisons précédentes : « 33<sup>e</sup> jour » perd son
    « e » parce que tous les exposants sont retirés avec les appels de note.
+
+## La planification
+
+**Elle n'existait pas.** La fonction a toujours eu sa porte « planification »
+— un secret dans `x-import-secret`, comparé à temps constant — mais personne ne
+la franchissait : aucun `cron`, aucun workflow, aucune tâche en base. Relevé le
+11/09/2026 : la base en était à la révision **239179934**, lue le 06/09, quand
+Wikipédia en était à **239358298**. Cinq jours de retard sur une saison en
+cours de diffusion, sans le moindre signal — le site affichait simplement des
+données anciennes.
+
+C'est le genre de panne qu'une CI verte ne voit pas : tout le code marchait.
+
+**Deux tâches `pg_cron`** (migration `0026`) :
+
+| tâche                  | quand                    | quoi                     |
+| ---------------------- | ------------------------ | ------------------------ |
+| `koh-import-quotidien` | `17 4 * * *` UTC         | les 18 pages de saison   |
+| `koh-import-diffusion` | `*/30 14-22 * * 2,3` UTC | la seule saison `airing` |
+
+**L'heure de la fenêtre serrée est celle de PARIS**, pas celle du serveur.
+`pg_cron` lit ses expressions dans le fuseau de la base — UTC — et la France
+change d'heure deux fois par an : une fenêtre écrite en UTC déborderait d'une
+heure la moitié de l'année. En été, 22 h UTC est déjà minuit passé à Paris. La
+planification ouvre donc large, sur l'union des deux saisons, et
+`importer_saison_en_diffusion()` tranche sur l'heure locale. La bordure est
+exacte toute l'année, au prix d'un réveil par tour qui ne fait rien.
+
+**Trois secrets à poser dans le Vault**, une fois, à la main — ils n'entrent
+jamais dans git :
+
+```sql
+select vault.create_secret('https://<ref>.supabase.co/functions/v1', 'koh_functions_url');
+select vault.create_secret('<clé anon>',                             'koh_anon_key');
+select vault.create_secret('<IMPORT_CRON_SECRET>',                   'koh_import_cron_secret');
+```
+
+Les trois, et pas seulement le dernier : la plateforme Supabase garde l'entrée
+de toute fonction Edge derrière un JWT valide. Sans `Authorization`, elle rend
+`UNAUTHORIZED_NO_AUTH_HEADER` et la fonction n'est même pas atteinte — la clé
+anon suffit à franchir cette porte-là, elle est publique et déjà dans le bundle
+du site. C'est ensuite que `x-import-secret` ouvre celle de la planification.
+
+Un secret manquant ne fait pas un 401 toutes les demi-heures que personne ne
+lit : `declencher_import` s'arrête et écrit un `warning` nommant lequel manque.
+
+**Vérification** : `supabase/tests/planification.test.sql`, 19 assertions —
+les deux tâches et leurs expressions, et surtout la bordure de la fenêtre
+éprouvée sur des instants d'été ET d'hiver, dont le cas qui justifie tout le
+mécanisme : 22 h UTC un mardi de septembre, qui est minuit à Paris et doit
+rester dehors.
