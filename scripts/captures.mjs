@@ -9,14 +9,25 @@
  *
  * Prérequis : `npm run dev` sur le port 5236.
  * Lancement : `node scripts/captures.mjs`
+ *
+ * L'ADRESSE EST PARAMÉTRABLE, et il le fallait : le chemin de base vaut
+ * `/mister-miss-koh/` au build et `/` en développement (voir `vite.config.ts`).
+ * Le script visait la première sur un serveur qui sert la seconde — il ne
+ * pouvait donc plus tourner du tout. `CAPTURES_BASE` tranche, et le défaut
+ * reste ce que rend `npm run dev`.
  */
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const OUT = 'D:/Src/GithubMisterGuiiuG/mister-miss-koh/public/screenshots';
+const OUT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../public/screenshots'
+);
 mkdirSync(OUT, { recursive: true });
 
-const base = 'http://localhost:5236/mister-miss-koh/';
+const base = process.env.CAPTURES_BASE ?? 'http://localhost:5236/';
 const browser = await chromium.launch();
 
 /** Marque les épisodes vus PAR L'INTERFACE : aucune supposition sur le stockage. */

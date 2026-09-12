@@ -25,6 +25,7 @@ import {
 import { useReducedMotion } from '@mister-guiiug/dev-pwa-config/react/use-media-query';
 import { useAppStore } from '../store/useAppStore';
 import { ANIMATIONS, type AnimationRole } from './registry';
+import { MARKS } from './marks';
 
 const RiveAnimation = lazy(() =>
   import('@mister-guiiug/dev-pwa-config/react/rive').then(m => ({
@@ -60,10 +61,23 @@ export function AppAnimation({ name, fallback, className }: Props) {
     return () => observer.disconnect();
   }, []);
 
+  /**
+   * LE REPLI MONTRE QUELQUE CHOSE, désormais.
+   *
+   * Il rendait un `<span>` vide pour tout rôle sans texte : l'application
+   * réservait la place d'un dessin et n'en affichait aucun, puisque aucun
+   * `.riv` n'existe. Une marque maison (`./marks`) occupe cette place, et le
+   * texte du registre reste à côté pour le lecteur d'écran — le dessin, lui,
+   * est `aria-hidden`, sans quoi le sens serait annoncé deux fois.
+   */
+  const mark = MARKS[name];
   const staticFallback = fallback ?? (
-    <span className={spec.fallbackText ? 'sr-only' : undefined}>
-      {spec.fallbackText}
-    </span>
+    <>
+      {mark}
+      {spec.fallbackText && (
+        <span className="sr-only">{spec.fallbackText}</span>
+      )}
+    </>
   );
 
   // Rien à animer, ou personne ne veut d'animation : le repli, sans runtime.

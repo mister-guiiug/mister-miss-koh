@@ -6,5 +6,19 @@
  */
 export const THEME_STORAGE_KEY = 'dwc_theme';
 
-/** Couleur de la barre du navigateur, par schéma. */
-export const THEME_COLOR = { light: '#c2410c', dark: '#12201c' };
+/**
+ * Couleur de la barre du navigateur, par schéma — et LA SEULE SOURCE.
+ *
+ * Trois valeurs se disputaient cette barre : celle-ci, posée à l'exécution par
+ * `ThemeProvider` ; celle des balises `<meta>` du document, écrites au build
+ * par `pwaSeoPlugin` ; et le `theme_color` du manifeste, que le système lit
+ * une fois l'application installée. Elles ne disaient pas la même chose : la
+ * barre virait à l'orange dès que le JavaScript arrivait, alors que le
+ * document promettait le crème. `vite.config.ts` importe désormais cette
+ * constante pour les deux autres.
+ *
+ * LE FOND DE LA PAGE, PAS LA COULEUR D'ACCENT. Une barre orange au-dessus
+ * d'une page crème dessine une frontière là où il n'y en a pas ; les deux
+ * valeurs ci-dessous sont exactement `--bg` des deux thèmes.
+ */
+export const THEME_COLOR = { light: '#f4efe4', dark: '#12201c' };

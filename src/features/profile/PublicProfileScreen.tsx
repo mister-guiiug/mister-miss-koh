@@ -51,7 +51,11 @@ function Absent() {
       <EmptyState
         title="Aucun profil à cette adresse"
         description="Cette adresse n’existe pas, ou son profil n’est pas public."
-        action={<Link to="/">Aller à l’accueil</Link>}
+        action={
+          <Link data-dwc="button" data-variant="outline" data-size="sm" to="/">
+            Aller à l’accueil
+          </Link>
+        }
       />
     </div>
   );

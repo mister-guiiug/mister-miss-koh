@@ -4,5 +4,6 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
-  "include": ["vite.config.ts", "vitest.config.ts"]
+  "//": "`src/theme.ts` est le SEUL fichier applicatif listé ici, et il l'est parce que la configuration de build en a besoin : la couleur de la barre du navigateur doit être la même dans les balises du document, dans le manifeste et à l'exécution. C'est un module feuille, sans aucun import — l'ajouter n'entraîne pas le reste de `src/` dans ce projet TypeScript.",
+  "include": ["vite.config.ts", "vitest.config.ts", "src/theme.ts"]
 }

@@ -73,7 +73,16 @@ export function ContestantDetailScreen() {
     return (
       <EmptyState
         title="Candidat introuvable"
-        action={<Link to="/candidats">Retour à la liste</Link>}
+        action={
+          <Link
+            data-dwc="button"
+            data-variant="outline"
+            data-size="sm"
+            to="/candidats"
+          >
+            Retour à la liste
+          </Link>
+        }
       />
     );
   }
@@ -86,7 +95,19 @@ export function ContestantDetailScreen() {
 
   return (
     <div className="stack">
-      <Link to="/candidats">← Candidats</Link>
+      {/* LE RETOUR EST UNE COMMANDE, pas une ligne de texte. Mesuré à 24 px de
+          haut sur toute la largeur de l'écran : une cible étroite là où c'est
+          le geste le plus probable après avoir lu une fiche. En bouton fantôme,
+          il rejoint la famille des autres actions et tient ses 44 px. */}
+      <Link
+        data-dwc="button"
+        data-variant="ghost"
+        data-size="sm"
+        to="/candidats"
+        className="back-link"
+      >
+        ← Candidats
+      </Link>
       {/* `identity-card` porte le RYTHME VERTICAL de la fiche : ses blocs se
           suivaient sans respirer — trois écarts de 0 px d'affilée entre le
           dépôt d'une photo, le CV, le binôme et le lien source. Des blocs qui

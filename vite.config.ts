@@ -7,6 +7,11 @@ import { readFileSync } from 'node:fs';
 import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
+// LA COULEUR DE LA BARRE VIENT DE L'APPLICATION, pas d'un littéral recopié
+// ici. Trois endroits la déclaraient et ne disaient pas la même chose ; c'est
+// `src/theme.ts` qui tranche, et ce fichier s'y branche pour les deux autres
+// (les balises du document, et le manifeste).
+import { THEME_COLOR } from './src/theme';
 
 const analyze = process.env.ANALYZE === '1';
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
@@ -137,7 +142,7 @@ export default defineConfig(({ command }) => {
       pwaSeoPlugin({
         basePath,
         logoPath: '/icon-512.png',
-        themeColor: { light: '#f4efe4', dark: '#12201c' },
+        themeColor: THEME_COLOR,
       }),
       // CSP par hash (socle). connect-src : Supabase seulement — le
       // référentiel ne se lit jamais depuis Wikipédia côté navigateur, c'est
@@ -183,7 +188,8 @@ export default defineConfig(({ command }) => {
           short_name: 'Mister & Miss Koh',
           description:
             'Suivez une saison d’aventure : candidats, épisodes, épreuves, conseils et votes — avec vos notes privées et vos favoris. Non officiel.',
-          theme_color: '#c2410c',
+          // La même valeur que les balises du document : voir `src/theme.ts`.
+          theme_color: THEME_COLOR.light,
           background_color: '#f4efe4',
           display: 'standalone',
           orientation: 'portrait',
@@ -235,6 +241,36 @@ export default defineConfig(({ command }) => {
               sizes: 'any',
               type: 'image/svg+xml',
               purpose: 'any',
+            },
+          ],
+          /*
+            LES TROIS ÉCRANS QU'ON ROUVRE. Un appui long sur l'icône installée
+            propose ces raccourcis ; sans eux, toute visite repart de
+            l'accueil, y compris celle du soir de diffusion, où l'on ne vient
+            que pour cocher un épisode.
+
+            L'ADRESSE PORTE LE FRAGMENT, et il le faut : le routage est un
+            `HashRouter`, donc c'est le fragment QUI EST la route. Une URL sans
+            `#` atterrirait sur l'accueil et le raccourci ne servirait à rien.
+          */
+          shortcuts: [
+            {
+              name: 'Épisodes',
+              short_name: 'Épisodes',
+              description: 'Cocher un épisode vu, lire son conseil',
+              url: `${basePath}#/episodes`,
+            },
+            {
+              name: 'Candidats',
+              short_name: 'Candidats',
+              description: 'Qui est encore en jeu',
+              url: `${basePath}#/candidats`,
+            },
+            {
+              name: 'Mes notes',
+              short_name: 'Notes',
+              description: 'Écrire et relire vos notes',
+              url: `${basePath}#/notes`,
             },
           ],
         },

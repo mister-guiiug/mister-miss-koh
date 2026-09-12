@@ -72,122 +72,127 @@ export function EpisodesScreen() {
       <p className="muted">
         Cochez les épisodes vus : l’anti-spoiler masque ce qui vient après.
       </p>
-      {referential.episodes.map(e => {
-        const rounds = referential.rounds.filter(
-          r => r.episodeNumber === e.number
-        );
-        const seen = watched.includes(e.number);
-        return (
-          <Card key={e.id} as="article" data-seen={seen ? '' : undefined}>
-            <CardHeader
-              title={`Épisode ${e.number}`}
-              subtitle={
-                e.airDate
-                  ? formatDate(`${e.airDate}T00:00:00`, {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })
-                  : undefined
-              }
-              action={
-                e.aired ? (
-                  // Une pastille autour d'une VRAIE case : le clavier, le
-                  // lecteur d'écran et le script de captures la trouvent.
-                  <label className="seen">
-                    <input
-                      type="checkbox"
-                      checked={seen}
-                      onChange={() => {
-                        if (!seen) haptics('seen');
-                        toggleWatched(e.number);
-                      }}
-                    />
-                    <span>Vu</span>
-                  </label>
-                ) : (
-                  <Badge tone="muted">à venir</Badge>
-                )
-              }
-            />
-            {e.aired && (
-              <SpoilerGuard episodeNumber={e.number}>
-                <dl className="stats">
-                  <dt>Confort</dt>
-                  <dd>
-                    <Winners
-                      data={referential}
-                      contestantIds={e.comfortWinnerIds}
-                      teamIds={e.comfortWinnerTeamIds}
-                    />
-                  </dd>
-                  <dt>Immunité</dt>
-                  <dd>
-                    <Winners
-                      data={referential}
-                      contestantIds={e.immunityWinnerIds}
-                      teamIds={e.immunityWinnerTeamIds}
-                    />
-                  </dd>
-                  <dt>Conseil</dt>
-                  <dd>
-                    {rounds.length === 0
-                      ? '—'
-                      : rounds.map(r => (
-                          <div key={r.id}>
-                            {r.kind === 'annulled' && (
-                              <Badge tone="muted" size="xs">
-                                égalité, tour annulé
-                              </Badge>
-                            )}
-                            {r.kind === 'vote' && (
-                              <>
-                                <ContestantLink
-                                  data={referential}
-                                  id={r.eliminatedId}
-                                />{' '}
-                                éliminé·e
-                                {r.reportedVotesFor !== null && (
-                                  <>
-                                    {' '}
-                                    ({r.reportedVotesFor}
-                                    {r.reportedVotesTotal !== null &&
-                                      `/${r.reportedVotesTotal}`}{' '}
-                                    voix)
-                                  </>
-                                )}
-                              </>
-                            )}
-                            {r.kind === 'linked' && (
-                              <>
-                                <ContestantLink
-                                  data={referential}
-                                  id={r.eliminatedId}
-                                />{' '}
-                                part avec son binôme{' '}
-                                <Badge tone="muted" size="xs">
-                                  0 voix
-                                </Badge>
-                              </>
-                            )}
-                          </div>
-                        ))}
-                  </dd>
-                </dl>
-              </SpoilerGuard>
-            )}
-            {/* Vos notes sur l'épisode : à vous, donc hors du garde
-                anti-spoiler — vous savez ce que vous y avez écrit. */}
-            {e.aired && (
-              <TargetNotes
-                target="episode"
-                targetId={e.id}
-                label={`l’épisode ${e.number}`}
+      {/* Une enveloppe, et rien d'autre : elle met les cartes en grille quand
+          la fenêtre le permet. Sans elle, elles sont sœurs du titre d'écran et
+          la grille l'emporterait avec elles. */}
+      <div className="grid-cards">
+        {referential.episodes.map(e => {
+          const rounds = referential.rounds.filter(
+            r => r.episodeNumber === e.number
+          );
+          const seen = watched.includes(e.number);
+          return (
+            <Card key={e.id} as="article" data-seen={seen ? '' : undefined}>
+              <CardHeader
+                title={`Épisode ${e.number}`}
+                subtitle={
+                  e.airDate
+                    ? formatDate(`${e.airDate}T00:00:00`, {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : undefined
+                }
+                action={
+                  e.aired ? (
+                    // Une pastille autour d'une VRAIE case : le clavier, le
+                    // lecteur d'écran et le script de captures la trouvent.
+                    <label className="seen">
+                      <input
+                        type="checkbox"
+                        checked={seen}
+                        onChange={() => {
+                          if (!seen) haptics('seen');
+                          toggleWatched(e.number);
+                        }}
+                      />
+                      <span>Vu</span>
+                    </label>
+                  ) : (
+                    <Badge tone="muted">à venir</Badge>
+                  )
+                }
               />
-            )}
-          </Card>
-        );
-      })}
+              {e.aired && (
+                <SpoilerGuard episodeNumber={e.number}>
+                  <dl className="stats">
+                    <dt>Confort</dt>
+                    <dd>
+                      <Winners
+                        data={referential}
+                        contestantIds={e.comfortWinnerIds}
+                        teamIds={e.comfortWinnerTeamIds}
+                      />
+                    </dd>
+                    <dt>Immunité</dt>
+                    <dd>
+                      <Winners
+                        data={referential}
+                        contestantIds={e.immunityWinnerIds}
+                        teamIds={e.immunityWinnerTeamIds}
+                      />
+                    </dd>
+                    <dt>Conseil</dt>
+                    <dd>
+                      {rounds.length === 0
+                        ? '—'
+                        : rounds.map(r => (
+                            <div key={r.id}>
+                              {r.kind === 'annulled' && (
+                                <Badge tone="muted" size="xs">
+                                  égalité, tour annulé
+                                </Badge>
+                              )}
+                              {r.kind === 'vote' && (
+                                <>
+                                  <ContestantLink
+                                    data={referential}
+                                    id={r.eliminatedId}
+                                  />{' '}
+                                  éliminé·e
+                                  {r.reportedVotesFor !== null && (
+                                    <>
+                                      {' '}
+                                      ({r.reportedVotesFor}
+                                      {r.reportedVotesTotal !== null &&
+                                        `/${r.reportedVotesTotal}`}{' '}
+                                      voix)
+                                    </>
+                                  )}
+                                </>
+                              )}
+                              {r.kind === 'linked' && (
+                                <>
+                                  <ContestantLink
+                                    data={referential}
+                                    id={r.eliminatedId}
+                                  />{' '}
+                                  part avec son binôme{' '}
+                                  <Badge tone="muted" size="xs">
+                                    0 voix
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                    </dd>
+                  </dl>
+                </SpoilerGuard>
+              )}
+              {/* Vos notes sur l'épisode : à vous, donc hors du garde
+                anti-spoiler — vous savez ce que vous y avez écrit. */}
+              {e.aired && (
+                <TargetNotes
+                  target="episode"
+                  targetId={e.id}
+                  label={`l’épisode ${e.number}`}
+                />
+              )}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
