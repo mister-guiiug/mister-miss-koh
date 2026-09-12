@@ -39,7 +39,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@mister-guiiug/dev-pwa-config": "^4.10.0",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -51,11 +51,11 @@
     "@vitejs/plugin-react": "^6.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "cross-env": "^10.1.0",
-    "eslint": "^9.39.4",
+    "eslint": "^10.10.0",
     "husky": "^9.1.7",
     "jsdom": "^26.0.0",
     "lint-staged": "^16.4.0",
-    "prettier": "^3.6.2",
+    "prettier": "^3.9.6",
     "rollup-plugin-visualizer": "^7.0.1",
     "sharp": "^0.34.5",
     "typescript": "~6.0.3",
@@ -77,5 +77,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    }
   }
 }
