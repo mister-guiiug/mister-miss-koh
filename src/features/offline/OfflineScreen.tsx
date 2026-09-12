@@ -8,7 +8,11 @@ export function OfflineScreen() {
       icon={<AppAnimation name="went-offline" />}
       title="Hors connexion"
       description="La dernière version enregistrée du référentiel reste consultable ; vos notes et favoris se modifient normalement et seront synchronisés au retour du réseau."
-      action={<Link to="/">Retour à l’accueil</Link>}
+      action={
+        <Link data-dwc="button" data-variant="outline" data-size="sm" to="/">
+          Retour à l’accueil
+        </Link>
+      }
     />
   );
 }

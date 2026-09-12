@@ -50,7 +50,16 @@ export function SharedPhotoScreen() {
         <EmptyState
           title="Ce lien n’ouvre rien"
           description="Cette adresse n’est pas celle d’un partage."
-          action={<Link to="/">Aller à l’accueil</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              to="/"
+            >
+              Aller à l’accueil
+            </Link>
+          }
         />
       </div>
     );
@@ -175,7 +184,16 @@ function SharedPhoto({ token }: { token: string }) {
         <EmptyState
           title="Ce lien n’ouvre plus rien"
           description="Il a déjà été ouvert, ou il a plus d’un jour. Le serveur n’en garde aucune trace : il faut en demander un nouveau."
-          action={<Link to="/">Aller à l’accueil</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              to="/"
+            >
+              Aller à l’accueil
+            </Link>
+          }
         />
       )}
 

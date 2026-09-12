@@ -1,5 +1,6 @@
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { PwaInstallPrompt } from '@mister-guiiug/dev-pwa-config/react/pwa-install-prompt';
 import { useAppStore } from '../../store/useAppStore';
 import { PullToRefresh } from '../../components/PullToRefresh';
 import { HomeTiles } from '../../components/HomeTiles';
@@ -22,6 +23,21 @@ export function HomeScreen() {
           {notice}
         </p>
       )}
+      {/* UNE PWA QUI NE PROPOSAIT JAMAIS SON INSTALLATION. Tout était en place
+          — manifeste, icônes, maskable, service worker, hors-ligne — et rien
+          ne le disait : il fallait connaître le menu du navigateur. Le
+          composant du socle ne s'affiche que lorsque le navigateur a vraiment
+          proposé l'installation (`beforeinstallprompt`), et se tait
+          définitivement dès qu'on l'écarte. Il vit sur l'accueil, où l'on
+          arrive, et nulle part ailleurs : un bandeau rendu par la coquille
+          interromprait la lecture d'une fiche ou l'écriture d'une note. */}
+      <PwaInstallPrompt
+        dismissKey="koh_install"
+        title="Installer Mister & Miss Koh"
+        description="Elle s’ouvre depuis l’écran d’accueil, démarre hors connexion et ne prend que la place de ses données."
+        installLabel="Installer"
+        dismissLabel="Pas maintenant"
+      />
       <Card>
         <CardHeader
           as="h2"

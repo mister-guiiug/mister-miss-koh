@@ -129,7 +129,16 @@ export function NotesScreen() {
         <EmptyState
           title="Vos notes demandent un compte"
           description="Elles vivent sur le serveur, pour que vous les retrouviez d’un autre appareil et qu’un cache vidé ne les emporte pas. Vos favoris et vos épisodes vus, eux, restent sur cet appareil."
-          action={<Link to="/compte">Se connecter</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="primary"
+              data-size="sm"
+              to="/compte"
+            >
+              Se connecter
+            </Link>
+          }
         />
       </div>
     );

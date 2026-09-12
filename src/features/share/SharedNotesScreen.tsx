@@ -46,7 +46,16 @@ export function SharedNotesScreen() {
         <EmptyState
           title="Ce lien n’ouvre rien"
           description="Cette adresse n’est pas celle d’un partage."
-          action={<Link to="/">Aller à l’accueil</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              to="/"
+            >
+              Aller à l’accueil
+            </Link>
+          }
         />
       </div>
     );
@@ -104,7 +113,16 @@ function SharedNotes({
         <EmptyState
           title="Ce lien n’ouvre rien"
           description={state.message}
-          action={<Link to="/">Aller à l’accueil</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              to="/"
+            >
+              Aller à l’accueil
+            </Link>
+          }
         />
       )}
 
@@ -114,7 +132,16 @@ function SharedNotes({
         <EmptyState
           title="Rien à lire ici"
           description="Ce lien est encore valide, mais son auteur n’y a laissé aucune note ouverte à la lecture."
-          action={<Link to="/">Aller à l’accueil</Link>}
+          action={
+            <Link
+              data-dwc="button"
+              data-variant="outline"
+              data-size="sm"
+              to="/"
+            >
+              Aller à l’accueil
+            </Link>
+          }
         />
       )}
 

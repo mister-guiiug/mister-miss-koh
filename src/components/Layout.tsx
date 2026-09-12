@@ -108,7 +108,13 @@ export function Layout() {
           </p>
         )}
       </AppHeader>
-      <PageContainer as="main" width="md" reserve="bottom-nav">
+      {/* `lg` ET NON `md`. Mesuré sur un écran de 1 280 px : le contenu tenait
+          dans 576 px, avec 360 px de vide de chaque côté — un téléphone posé au
+          milieu d'une page. 48 rem laissent respirer les listes et permettent
+          aux tuiles et aux rangées de passer en colonnes. La lecture d'un
+          paragraphe reste bornée par la carte qui le porte, pas par la
+          fenêtre. */}
+      <PageContainer as="main" width="lg" reserve="bottom-nav">
         {/* La clé est le chemin : chaque écran se remonte et fait son entrée
             (`.screen`, image-clé `dwc-rise` du socle).
 

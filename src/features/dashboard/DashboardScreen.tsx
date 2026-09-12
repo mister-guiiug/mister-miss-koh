@@ -2,10 +2,14 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
+import { Stat } from '@mister-guiiug/dev-pwa-config/react/stat';
+import { BarChart } from '@mister-guiiug/dev-pwa-config/react/sparkline';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
 import { contestantById } from '../../domain/referential';
+import { AppAnimation } from '../../animations/AppAnimation';
 
 export function DashboardScreen() {
   const referential = useAppStore(s => s.referential);
@@ -21,10 +25,18 @@ export function DashboardScreen() {
     const out = referential.departures
       .filter(d => d.episodeNumber !== null && d.episodeNumber <= upTo)
       .sort((a, b) => (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0));
+    // Un départ par épisode, de 1 à `upTo` : c'est le RYTHME des éliminations,
+    // qu'aucun chiffre isolé ne raconte. Les épisodes sans départ valent zéro
+    // et doivent rester dans la suite — un creux fait partie de la forme.
+    const parEpisode = Array.from(
+      { length: Math.max(0, upTo) },
+      (_, i) => out.filter(d => d.episodeNumber === i + 1).length
+    );
     return {
       upTo,
       inGame: [...still],
       departures: out,
+      parEpisode,
       favoritesInGame: favorites.filter(id => still.has(id)),
       hidden: Number.isFinite(limit) && lastAiredEpisode(referential) > limit,
     };
@@ -37,12 +49,34 @@ export function DashboardScreen() {
       <h2>Tableau de bord</h2>
       <Card>
         <CardHeader title="Où en est la saison" />
-        <p>
-          Épisode {view.upTo} sur {referential.episodes.length} ·{' '}
-          <strong>{view.inGame.length}</strong> encore en jeu ·{' '}
-          <strong>{view.departures.length}</strong> parti
-          {view.departures.length > 1 ? 's' : ''}
-        </p>
+        {/* TROIS CHIFFRES, PAS UNE PHRASE À DÉCHIFFRER. « Épisode 0 sur 3 · 18
+            encore en jeu · 0 parti » demandait de lire une ligne pour en
+            extraire trois valeurs. `Stat` vient du socle : il pose le chiffre
+            au-dessus de son libellé, dans la taille qui convient à un tableau
+            de bord. */}
+        <div className="stat-row">
+          <Stat
+            label={`Épisode sur ${referential.episodes.length}`}
+            value={view.upTo}
+          />
+          <Stat label="Encore en jeu" value={view.inGame.length} />
+          <Stat
+            label={view.departures.length > 1 ? 'Parti·e·s' : 'Parti·e'}
+            value={view.departures.length}
+          />
+        </div>
+        {/* LE RYTHME DES DÉPARTS, que trois chiffres ne disent pas : deux
+            éliminations d'affilée puis un épisode sans conseil, ce n'est pas
+            la même saison qu'un départ par semaine. Le graphique n'apparaît
+            qu'à partir de deux épisodes révélés — sur un seul, il n'y a pas de
+            rythme, juste une barre. */}
+        {view.upTo >= 2 && (
+          <BarChart
+            values={view.parEpisode}
+            className="departures-chart"
+            aria-label={`Départs par épisode, de 1 à ${view.upTo}`}
+          />
+        )}
         {view.hidden && (
           <p className="muted">
             Des événements plus récents sont masqués par votre réglage
@@ -52,10 +86,24 @@ export function DashboardScreen() {
       </Card>
 
       <Card>
-        <CardHeader
-          title="Vos favoris"
-          subtitle={favorites.length === 0 ? 'Aucun pour l’instant' : undefined}
-        />
+        <CardHeader title="Vos favoris" />
+        {favorites.length === 0 && (
+          <EmptyState
+            icon={<AppAnimation name="empty" />}
+            title="Aucun favori"
+            description="L’étoile d’une fiche de candidat les ajoute ici. Ils restent sur cet appareil."
+            action={
+              <Link
+                data-dwc="button"
+                data-variant="outline"
+                data-size="sm"
+                to="/candidats"
+              >
+                Parcourir les candidats
+              </Link>
+            }
+          />
+        )}
         {favorites.length > 0 && (
           <ul className="chips">
             {favorites.map(id => {
@@ -78,7 +126,18 @@ export function DashboardScreen() {
       <Card>
         <CardHeader title="Chronologie des départs" />
         {view.departures.length === 0 ? (
-          <p className="muted">Aucun départ visible.</p>
+          /* LA BRAISE QUI S'ÉTEINT, ici et nulle part ailleurs : c'est
+             exactement ce que cette carte compte. Le rôle `torch-out` attendait
+             un `.riv` depuis le premier jour et n'affichait rien. */
+          <EmptyState
+            icon={<AppAnimation name="torch-out" />}
+            title="Aucun départ"
+            description={
+              view.upTo === 0
+                ? 'La saison n’a pas encore commencé — ou votre réglage anti-spoiler n’a encore rien révélé.'
+                : 'Personne n’est parti sur les épisodes que vous avez vus.'
+            }
+          />
         ) : (
           <ol className="timeline">
             {view.departures.map(d => {
