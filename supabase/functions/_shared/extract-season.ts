@@ -299,6 +299,53 @@ function columnByPair(grid: Grid, top: string, ...subs: string[]): number {
 }
 
 /**
+ * Les épisodes déduits de la matrice des votes, faute de mieux.
+ *
+ * POURQUOI FABRIQUER. « Malaisie », « La Légende » et « La Revanche des héros »
+ * n'ont aucun tableau épisode par épisode — Wikipédia ne l'a jamais écrit. Leur
+ * matrice des votes, elle, numérote ses colonnes par épisode et nomme les
+ * éliminés. Sans épisode dans le référentiel, un conseil n'a rien à quoi
+ * s'attacher et la publication s'arrête sur « épisode 1 absent du référentiel »
+ * — les 147 à 175 voix de ces saisons restaient donc inaccessibles.
+ *
+ * CE QU'UN ÉPISODE FABRIQUÉ CONTIENT, ET RIEN DE PLUS : son numéro et ses
+ * éliminés, les deux seuls faits que la matrice énonce. Pas de date, pas de
+ * vainqueur d'épreuve, pas de décompte — inventer l'un d'eux serait écrire à la
+ * place de la source. `aired` est vrai parce qu'un conseil s'y est tenu.
+ *
+ * Les éliminés viennent des tours, ce qui rend le recoupement muet PAR
+ * CONSTRUCTION : comparer une déduction à sa propre source n'apprend rien, et
+ * une contradiction fabriquée noierait les vraies.
+ */
+export function episodesFromRounds(
+  rounds: readonly { episodeNumber: number | null; eliminated: string | null }[],
+  seasonSlug: string,
+): ExtractedEpisode[] {
+  const parNumero = new Map<number, string[]>();
+  for (const round of rounds) {
+    if (round.episodeNumber === null) continue;
+    const elimines = parNumero.get(round.episodeNumber) ?? [];
+    if (round.eliminated) elimines.push(round.eliminated);
+    parNumero.set(round.episodeNumber, elimines);
+  }
+
+  return [...parNumero.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([number, eliminated]) => ({
+      naturalKey: `${seasonSlug}:e${number}`,
+      number,
+      airDate: null,
+      comfortWinners: [],
+      immunityWinners: [],
+      eliminated,
+      rawTally: "",
+      tallyRounds: [],
+      departureDay: null,
+      aired: true,
+    }));
+}
+
+/**
  * Cette grille est-elle le tableau du déroulement ?
  *
  * IL N'EST PAS TOUJOURS LE PREMIER DE SA SECTION. « Les 4 Terres » et « La

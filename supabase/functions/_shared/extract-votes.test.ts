@@ -378,3 +378,34 @@ Deno.test("un épisode illisible qui n'est PAS la finale est écarté sous son p
   assert(codes.includes("episode_illisible"), codes.join(", "));
   assert(!codes.includes("jury_final_non_importe"));
 });
+
+Deno.test("une ligne qui n'est pas au tableau des candidats n'est pas un votant", () => {
+  // RELEVÉ LE 13/09/2026 : « La Guerre des chefs » met une ligne « Pénalité »
+  // sous « ▼ Candidats », « Fidji » une ligne « Vote noir ». Prises pour des
+  // aventuriers, elles produisaient des voix que la publication refusait —
+  // « votant « Pénalité » inconnu de la saison » — et le lot entier tombait.
+  const grid = gridOf([
+    ["► Épisode", "1"],
+    ["► Éliminé", "Maxime"],
+    ["► Votes", "2/3"],
+    ["▼ Candidats", "Votes"],
+    ["Camille", "Maxime"],
+    ["Maxime", "Camille"],
+    ["Pénalité", "Maxime"],
+  ]);
+
+  const sans = extractVotes(grid, SEASON);
+  assertEquals(sans.contestants.length, 3, "sans la liste, l'ancien comportement tient");
+
+  const avec = extractVotes(grid, SEASON, ["Camille", "Maxime"]);
+  assertEquals(avec.contestants, ["Camille", "Maxime"]);
+  assertEquals(
+    avec.anomalies.filter((a) => a.code === "ligne_hors_liste").length,
+    1,
+    "la ligne écartée est DITE, pas tue",
+  );
+  assert(
+    avec.votes.every((v) => v.voter !== "Pénalité"),
+    "aucune voix ne vient de la ligne écartée",
+  );
+});
