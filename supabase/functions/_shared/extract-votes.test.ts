@@ -409,3 +409,33 @@ Deno.test("une ligne qui n'est pas au tableau des candidats n'est pas un votant"
     "aucune voix ne vient de la ligne écartée",
   );
 });
+
+Deno.test("un accent de différence ne fait pas deux personnes", () => {
+  // « La Revanche des héros » écrit « Teheiura » dans sa liste de candidats et
+  // « Téheiura » dans sa matrice des votes. La publication ne cherche qu'une
+  // graphie : l'accent seul faisait tomber le lot entier (relevé le
+  // 13/09/2026). C'est la LISTE qui fait autorité.
+  const grid = gridOf([
+    ["► Épisode", "1"],
+    ["► Éliminé", "Teheiura"],
+    ["► Votes", "2/2"],
+    ["▼ Candidats", "Votes"],
+    ["Téheiura", "Moussa"],
+    ["Moussa", "Téheiura"],
+  ]);
+
+  const out = extractVotes(grid, SEASON, ["Teheiura", "Moussa"]);
+  assertEquals(out.contestants, ["Teheiura", "Moussa"], "la graphie de la liste gagne");
+  assertEquals(
+    out.votes.map((v) => [v.voter, v.target]),
+    [["Teheiura", "Moussa"], ["Moussa", "Teheiura"]],
+    "votant ET cible portent la graphie de la liste",
+  );
+  assert(
+    out.votes.every((v) =>
+      v.naturalKey.includes("Teheiura") || v.naturalKey.includes("Moussa")
+    ),
+    "la clé naturelle aussi",
+  );
+  assertEquals(out.anomalies.filter((a) => a.code === "ligne_hors_liste"), []);
+});

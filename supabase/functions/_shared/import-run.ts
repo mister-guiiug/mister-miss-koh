@@ -87,8 +87,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  9 — la matrice des votes est confrontée au tableau des candidats (une ligne
  *      « Pénalité » n'est pas un votant), et les saisons sans déroulement
  *      reçoivent des épisodes déduits de cette même matrice
+ * 10 — la graphie des noms est celle du tableau des candidats : « Teheiura »
+ *      dans la liste et « Téheiura » dans la matrice désignent la même
+ *      personne, et la publication ne cherche qu'un seul des deux
  */
-export const EXTRACTOR_VERSION = "9";
+export const EXTRACTOR_VERSION = "10";
 
 export interface SourceDocument {
   readonly id: string;
