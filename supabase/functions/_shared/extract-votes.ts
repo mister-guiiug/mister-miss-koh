@@ -265,7 +265,15 @@ export function extractVotes(
   // ── Candidats ────────────────────────────────────────────────────────────
   const contestantRows: number[] = [];
   const contestants: string[] = [];
-  const inscrits = roster && roster.length > 0 ? new Set(roster.map(fold)) : null;
+  // LE TABLEAU DES CANDIDATS FAIT AUTORITÉ SUR L'ORTHOGRAPHE, pas seulement sur
+  // l'existence. « La Revanche des héros » écrit « Teheiura » dans sa liste et
+  // « Téheiura » dans sa matrice : l'accent seul suffisait à faire refuser la
+  // voix à la publication — « votant « Téheiura » inconnu de la saison ». On
+  // reconnaît sans les accents, puis on RETIENT la graphie de la liste.
+  const parNom = new Map<string, string>();
+  for (const nom of roster ?? []) parNom.set(fold(nom), nom);
+  const inscrits = parNom.size > 0 ? parNom : null;
+  const canonique = (valeur: string) => inscrits?.get(fold(valeur)) ?? valeur;
   for (let r = rowContestants + 1; r < grid.length; r += 1) {
     const name = grid[r][0]?.text ?? "";
     if (!name) continue;
@@ -282,7 +290,7 @@ export function extractVotes(
       continue;
     }
     contestantRows.push(r);
-    contestants.push(name);
+    contestants.push(canonique(name));
   }
   if (contestants.length === 0) {
     anomalies.push({
@@ -432,7 +440,7 @@ export function extractVotes(
         naturalKey: `${seasonSlug}:e${episodeKey}:r${roundNumber}:${contestants[i]}`,
         columnIndex: c,
         voter: contestants[i],
-        target: value,
+        target: canonique(value),
         struck: cell?.struck ?? false,
       });
     }
