@@ -216,6 +216,38 @@ function isFatal(anomaly: Anomaly): boolean {
   return anomaly.code === "structure_inconnue" || anomaly.code === "aucun_candidat";
 }
 
+/**
+ * Les clés `entité:clé_naturelle` que le lot répète.
+ *
+ * POURQUOI CE CONTRÔLE EXISTE. `import_records` porte
+ * `unique (run_id, entity, natural_key)`. Tous les enregistrements d'une
+ * exécution partagent `run_id` : une paire répétée DANS le lot est donc la
+ * seule façon de violer la contrainte, et elle fait échouer l'insertion des
+ * N enregistrements, pas seulement du doublon.
+ *
+ * Le 11/09/2026, quatre saisons — Les Reliques du destin, Les Armes secrètes,
+ * Le Feu sacré, L'Île des héros — ont ainsi terminé leur exécution en
+ * `diffed`, avec zéro enregistrement écrit. L'erreur d'insertion n'était pas
+ * regardée, et la panne ne se manifestait qu'à la PUBLICATION, très loin
+ * d'ici, sous la forme « tour absent du référentiel ».
+ *
+ * On nomme les clés plutôt que de rendre le `23505` de PostgreSQL, qui n'en
+ * cite qu'une : ce qu'il faut corriger est dans l'extraction, et il en faut la
+ * liste.
+ */
+export function duplicateRecordKeys(
+  records: readonly IncomingRecord[],
+): readonly string[] {
+  const vus = new Set<string>();
+  const doubles = new Set<string>();
+  for (const r of records) {
+    const cle = `${r.entity}:${r.naturalKey}`;
+    if (vus.has(cle)) doubles.add(cle);
+    else vus.add(cle);
+  }
+  return [...doubles];
+}
+
 export async function runImport(
   port: ImportPort,
   options: RunOptions,
@@ -521,6 +553,18 @@ export async function runImport(
         revision: revision.revId,
         message: "nouvelle révision, mais aucun changement utile",
       };
+    }
+
+    // Le contrôle est ICI, avant d'écrire, et non dans l'adaptateur : ce qui
+    // se décide — « une clé répétée arrête l'exécution, et on la nomme » — est
+    // une règle du domaine, et elle se prouve sans base.
+    const doublons = duplicateRecordKeys(records);
+    if (doublons.length > 0) {
+      throw new Error(
+        `${doublons.length} clé(s) répétée(s), aucun enregistrement écrit : ${
+          doublons.slice(0, 8).join(", ")
+        }${doublons.length > 8 ? "…" : ""}`,
+      );
     }
 
     await port.saveRecords(runId, records, anomaliesByKey);

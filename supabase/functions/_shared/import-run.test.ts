@@ -11,6 +11,7 @@ import {
   EXTRACTOR_VERSION,
   type ImportPolicy,
   type ImportPort,
+  duplicateRecordKeys,
   runImport,
   type SourceDocument,
 } from "./import-run.ts";
@@ -532,4 +533,82 @@ Deno.test("une page de lieu sans coordonnées : le nom reste, le point manque, e
   assertEquals(season?.payload.locationName, "Archipel des Perles (Panama)");
   assertEquals(season?.payload.locationLat, null);
   assertEquals(season?.anomalies, ["lieu_sans_coordonnees"]);
+});
+
+Deno.test("`duplicateRecordKeys` nomme les clés répétées, et elles seules", () => {
+  const r = (entity: string, naturalKey: string): IncomingRecord => ({
+    entity,
+    naturalKey,
+    payload: {},
+  });
+
+  assertEquals(duplicateRecordKeys([]), []);
+  assertEquals(duplicateRecordKeys([r("tour", "e1:r1"), r("tour", "e2:r1")]), []);
+  // La même clé naturelle sous une AUTRE entité n'est pas un doublon : la
+  // contrainte porte sur la paire.
+  assertEquals(duplicateRecordKeys([r("tour", "e1:r1"), r("vote", "e1:r1")]), []);
+  // Répétée, elle n'est nommée qu'une fois, même vue trois fois.
+  assertEquals(
+    duplicateRecordKeys([r("tour", "e1:r1"), r("tour", "e1:r1"), r("tour", "e1:r1")]),
+    ["tour:e1:r1"],
+  );
+  assertEquals(
+    duplicateRecordKeys([r("tour", "a"), r("vote", "b"), r("tour", "a"), r("vote", "b")]),
+    ["tour:a", "vote:b"],
+  );
+});
+
+Deno.test("un refus d'écriture TERMINE l'exécution en échec, et le dit", async () => {
+  // LE DÉFAUT QUE CE TEST REND IMPOSSIBLE À REPRODUIRE. `saveRecords` ignorait
+  // l'erreur rendue par `insert` : quatre lots sont partis sans un seul
+  // enregistrement le 11/09/2026, avec une exécution terminée en `diffed`.
+  // Personne ne pouvait le voir avant la publication, qui échouait alors sur
+  // « tour absent du référentiel » — un message qui ne désigne pas la cause.
+  const { port, calls } = fakePort({
+    saveRecords: () =>
+      Promise.reject(new Error("duplicate key value violates unique constraint")),
+  });
+  const outcome = await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
+
+  assertEquals(outcome.status, "failed");
+  assert(
+    outcome.message?.includes("duplicate key"),
+    `le message doit porter la cause : ${outcome.message}`,
+  );
+  assertEquals(calls.finished[0].patch.status, "failed");
+  assert(
+    String(calls.finished[0].patch.error).includes("duplicate key"),
+    "la cause doit être inscrite sur l'exécution",
+  );
+  assertEquals(calls.differences, [], "rien ne doit être comparé après l'échec");
+  assert(
+    calls.logs.some((l) => l.action === "import.failed"),
+    "l'échec doit être journalisé",
+  );
+});
+
+Deno.test("une clé répétée arrête l'exécution AVANT d'écrire, et nomme la clé", async () => {
+  // La dernière ligne du tableau des candidats est répétée : deux
+  // enregistrements portent alors la même clé naturelle, ce que
+  // `unique (run_id, entity, natural_key)` refuse — et l'insertion ENTIÈRE
+  // échoue, pas seulement le doublon.
+  const debut = CANDIDATS.lastIndexOf("<tr");
+  const fin = CANDIDATS.indexOf("</tr>", debut) + "</tr>".length;
+  const AVEC_DOUBLON = CANDIDATS.slice(0, fin) + CANDIDATS.slice(debut, fin) +
+    CANDIDATS.slice(fin);
+
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      html: { "0": INTRODUCTION, "4": AVEC_DOUBLON, "5": DEROULEMENT, "7": VOTES },
+    }),
+  });
+
+  assertEquals(outcome.status, "failed");
+  assert(
+    outcome.message?.includes("répétée"),
+    `le message doit nommer le doublon : ${outcome.message}`,
+  );
+  assertEquals(calls.records, [], "aucun enregistrement ne doit être écrit");
 });

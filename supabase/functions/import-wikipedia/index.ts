@@ -151,9 +151,17 @@ function makePort(admin: SupabaseClient): ImportPort {
         .eq("id", runId);
     },
 
+    // `insert` NE LÈVE PAS : il rend `{ error }`. Ne pas le regarder revient à
+    // traiter tout refus de la base comme un succès — c'est ce qui a fait
+    // partir quatre lots sans un seul enregistrement le 11/09/2026, pendant
+    // que l'exécution se terminait en `diffed`. La cause ne se voyait qu'à la
+    // publication, sous un message qui ne la désignait pas.
+    //
+    // Ce qui est jeté ici remonte à `runImport`, dont le `catch` marque
+    // l'exécution `failed` et inscrit le message dans `error_message`.
     async saveRecords(runId, records: readonly IncomingRecord[]) {
       if (records.length === 0) return;
-      await admin.from("import_records").insert(
+      const { error } = await admin.from("import_records").insert(
         records.map((r) => ({
           run_id: runId,
           entity: r.entity,
@@ -162,6 +170,11 @@ function makePort(admin: SupabaseClient): ImportPort {
           anomalies: r.anomalies ?? [],
         })),
       );
+      if (error) {
+        throw new Error(
+          `${records.length} enregistrement(s) non écrit(s) : ${error.message}`,
+        );
+      }
     },
 
     async loadPublished(documentId, entities) {
