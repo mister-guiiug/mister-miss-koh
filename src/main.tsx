@@ -13,7 +13,10 @@ if (el) {
           télécharge en fond, le bandeau du socle propose de recharger, et
           l'utilisateur choisit le moment — jamais en pleine rédaction d'une
           note. En développement, `registerSW` vaut `undefined` : aucun worker. */}
-      <AppUpdates registerSW={import.meta.env.PROD ? registerSW : undefined}>
+      <AppUpdates
+        checkEvery="1h"
+        registerSW={import.meta.env.PROD ? registerSW : undefined}
+      >
         <App />
       </AppUpdates>
     </StrictMode>
