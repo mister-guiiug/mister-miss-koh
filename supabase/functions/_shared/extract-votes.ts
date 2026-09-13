@@ -213,7 +213,22 @@ function parseTally(raw: string): { forCount: number | null; total: number | nul
   };
 }
 
-export function extractVotes(grid: Grid, seasonSlug: string): VotesExtraction {
+/**
+ * @param roster Les noms du TABLEAU DES CANDIDATS, quand on les a.
+ *
+ * POURQUOI LA MATRICE NE SUFFIT PAS À ELLE-MÊME. Sous « ▼ Candidats », la
+ * colonne de gauche ne porte pas que des aventuriers : « La Guerre des chefs »
+ * y met une ligne « Pénalité », « Fidji » une ligne « Vote noir ». Prises pour
+ * des votants, elles produisent des voix qu'aucune publication ne peut
+ * rattacher — « votant « Pénalité » inconnu de la saison », relevé le
+ * 13/09/2026. La liste des candidats est la seule autorité sur qui existe ;
+ * sans elle (tests unitaires, appel direct), on garde l'ancien comportement.
+ */
+export function extractVotes(
+  grid: Grid,
+  seasonSlug: string,
+  roster?: readonly string[],
+): VotesExtraction {
   const anomalies: Anomaly[] = [];
   const rowEpisode = findRow(grid, LABEL_EPISODE);
   const rowEliminated = findRow(grid, LABEL_ELIMINATED);
@@ -250,9 +265,22 @@ export function extractVotes(grid: Grid, seasonSlug: string): VotesExtraction {
   // ── Candidats ────────────────────────────────────────────────────────────
   const contestantRows: number[] = [];
   const contestants: string[] = [];
+  const inscrits = roster && roster.length > 0 ? new Set(roster.map(fold)) : null;
   for (let r = rowContestants + 1; r < grid.length; r += 1) {
     const name = grid[r][0]?.text ?? "";
     if (!name) continue;
+    if (inscrits && !inscrits.has(fold(name))) {
+      // ON NE DEVINE PAS CE QUE C'EST. Une ligne qui n'est pas au tableau des
+      // candidats n'est pas un votant : on l'écarte, on le DIT, et le relecteur
+      // tranche. La taire ferait entrer des voix fantômes.
+      anomalies.push({
+        code: "ligne_hors_liste",
+        message:
+          `« ${name} » a une ligne dans la matrice des votes mais ne figure pas au tableau des candidats : ligne ignorée`,
+        row: name,
+      });
+      continue;
+    }
     contestantRows.push(r);
     contestants.push(name);
   }

@@ -4,6 +4,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import { parseTables } from "./html-table.ts";
 import {
+  episodesFromRounds,
   extractContestants,
   extractProgress,
   looksLikeProgress,
@@ -360,4 +361,37 @@ Deno.test("LES 4 TERRES : le déroulement n'est pas le premier tableau", async (
     out.anomalies.filter((a) => a.code === "structure_inconnue"),
     [],
   );
+});
+
+Deno.test("sans tableau du déroulement, les épisodes se déduisent des tours", () => {
+  // « Malaisie », « La Légende » et « La Revanche des héros » n'ont aucun
+  // tableau épisode par épisode. Sans épisode, un conseil n'a rien à quoi
+  // s'attacher : leurs 147 à 175 voix restaient inaccessibles.
+  const episodes = episodesFromRounds([
+    { episodeNumber: 2, eliminated: "Sara" },
+    { episodeNumber: 1, eliminated: "Mélanie" },
+    { episodeNumber: 1, eliminated: "Mickaël" },
+    { episodeNumber: null, eliminated: "Vainqueur" },
+    { episodeNumber: 3, eliminated: null },
+  ], "koh-lanta-malaisie");
+
+  assertEquals(
+    episodes.map((e) => e.number),
+    [1, 2, 3],
+    "triés, et sans le tour sans épisode",
+  );
+  assertEquals(episodes[0].naturalKey, "koh-lanta-malaisie:e1");
+  assertEquals(
+    episodes[0].eliminated,
+    ["Mélanie", "Mickaël"],
+    "deux conseils dans le même épisode",
+  );
+  assertEquals(episodes[2].eliminated, [], "un tour sans éliminé n'en invente pas");
+
+  // CE QU'ON N'ÉCRIT PAS À LA PLACE DE LA SOURCE : la matrice ne dit ni la
+  // date, ni les épreuves, ni les décomptes.
+  assertEquals(episodes[0].airDate, null);
+  assertEquals(episodes[0].comfortWinners, []);
+  assertEquals(episodes[0].rawTally, "");
+  assertEquals(episodes[0].aired, true, "un conseil s'y est tenu");
 });

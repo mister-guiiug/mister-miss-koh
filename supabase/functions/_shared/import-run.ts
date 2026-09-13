@@ -36,6 +36,7 @@ import {
 import { type Grid, type ParsedTable, parseTables } from "./html-table.ts";
 import { extractVotes, looksLikeVotes } from "./extract-votes.ts";
 import {
+  episodesFromRounds,
   extractContestants,
   extractProgress,
   looksLikeContestants,
@@ -83,8 +84,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  8 — une colonne sans numéro d'épisode ne produit plus de tour. Douze
  *      colonnes du corpus — le jury final de six saisons — fabriquaient un
  *      `…:e?:rN` qu'aucune publication ne pouvait résoudre
+ *  9 — la matrice des votes est confrontée au tableau des candidats (une ligne
+ *      « Pénalité » n'est pas un votant), et les saisons sans déroulement
+ *      reçoivent des épisodes déduits de cette même matrice
  */
-export const EXTRACTOR_VERSION = "8";
+export const EXTRACTOR_VERSION = "9";
 
 export interface SourceDocument {
   readonly id: string;
@@ -421,7 +425,13 @@ export async function runImport(
       anomalies: [],
     };
     if (votesTable) {
-      votes = extractVotes(votesTable.grid, document.seasonSlug);
+      // La liste des candidats fait autorité sur qui existe : sans elle, une
+      // ligne « Pénalité » de la matrice devient un votant.
+      votes = extractVotes(
+        votesTable.grid,
+        document.seasonSlug,
+        contestants.contestants.map((c) => c.displayName),
+      );
     } else {
       const quoi = "aucune matrice des votes sur cette page";
       const perdu = await regression("votes", quoi);
@@ -452,6 +462,21 @@ export async function runImport(
       if (advantagesTable) {
         advantages = extractAdvantages(advantagesTable.grid, document.seasonSlug);
       }
+    }
+
+    // ── Les épisodes, quand la page n'en donne aucun ─────────────────────
+    //
+    // Un conseil a besoin d'un épisode auquel s'attacher. Trois saisons n'ont
+    // pas de tableau du déroulement mais numérotent leurs colonnes de votes :
+    // on en déduit des épisodes réduits à ce que la matrice énonce.
+    if (progress.episodes.length === 0 && votes.rounds.length > 0) {
+      const deduits = episodesFromRounds(votes.rounds, document.seasonSlug);
+      progress = { episodes: deduits, anomalies: progress.anomalies };
+      absences.push({
+        code: "episodes_deduits",
+        message:
+          `${deduits.length} épisode(s) déduits de la matrice des votes : numéro et éliminés seulement, ni date ni épreuve`,
+      });
     }
 
     const anomalies: Anomaly[] = [
