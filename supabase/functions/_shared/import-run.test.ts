@@ -8,10 +8,10 @@
  */
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import {
+  duplicateRecordKeys,
   EXTRACTOR_VERSION,
   type ImportPolicy,
   type ImportPort,
-  duplicateRecordKeys,
   runImport,
   type SourceDocument,
 } from "./import-run.ts";
