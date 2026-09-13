@@ -95,6 +95,19 @@ export interface VotesExtraction {
   readonly anomalies: readonly Anomaly[];
 }
 
+/**
+ * Libellés qui occupent la case « Épisode » à la place d'un numéro.
+ *
+ * Relevé sur les dix-huit pages du corpus le 13/09/2026 : six d'entre elles
+ * terminent leur tableau par deux colonnes ainsi intitulées — Fidji, L'Île des
+ * héros, La Guerre des chefs, La Revanche des héros, Le Combat des héros,
+ * Malaisie — et aucune autre colonne du corpus ne porte un épisode non
+ * numérique. La liste vaut donc ce que vaut ce relevé, et rien de plus : un
+ * libellé inconnu retombe sur `episode_illisible`, qui écarte la colonne de la
+ * même façon mais ne prétend pas savoir ce qu'elle est.
+ */
+const LIBELLES_FINALE = new Set(["finaliste", "vainqueur"]);
+
 /** Insensible à la casse et aux accents : « Bannie » ≡ « bannie ». */
 function fold(value: string): string {
   return value
@@ -332,15 +345,45 @@ export function extractVotes(grid: Grid, seasonSlug: string): VotesExtraction {
       continue;
     }
 
+    // SANS NUMÉRO D'ÉPISODE, LA COLONNE NE PRODUIT RIEN. Elle produisait un
+    // tour de clé `…:e?:rN`, et ce tour ne pouvait PAS être publié : un
+    // `council_rounds` pend à un `councils`, dont `episode_id` est `not null`.
+    // La publication s'arrêtait donc sur « tour … : épisode <NULL> absent du
+    // référentiel » — un message juste, mais rendu très loin de la cause, et
+    // qui emportait avec lui la publication de toute la saison (11/09/2026,
+    // « La Guerre des chefs »).
+    //
+    // Relevé sur les DIX-HUIT pages du corpus le 13/09/2026 : douze colonnes
+    // sont dans ce cas, exactement deux sur six pages, toujours les deux
+    // dernières, et le libellé n'est jamais un numéro abîmé — c'est
+    // « Finaliste » ou « Vainqueur ». Ce sont les deux colonnes du JURY FINAL,
+    // dont le décompte se lit « 6/13 » (voix sur jurés) et non « 6 ».
+    //
+    // ON NE LES RATTACHE PAS AU DERNIER ÉPISODE, et ce n'est pas par prudence :
+    // dans la colonne « Vainqueur », la ligne « éliminé » nomme le VAINQUEUR.
+    // Les importer comme des conseils inscrirait le gagnant parmi les éliminés
+    // — une donnée fausse ayant l'air d'avoir réussi, ce que ce module refuse
+    // ailleurs. Le jury final demande son propre modèle ; tant qu'il n'existe
+    // pas, la colonne est nommée et laissée de côté.
     const episodeNumber = Number.parseInt(episodeText, 10);
-    const episodeKey = Number.isFinite(episodeNumber) ? String(episodeNumber) : "?";
     if (!Number.isFinite(episodeNumber)) {
-      anomalies.push({
-        code: "episode_illisible",
-        message: `numéro d'épisode illisible en colonne ${c} : « ${episodeText} »`,
-        columnIndex: c,
-      });
+      anomalies.push(
+        LIBELLES_FINALE.has(fold(episodeText))
+          ? {
+            code: "jury_final_non_importe",
+            message:
+              `colonne ${c} « ${episodeText} » : le jury final n'entre pas au référentiel`,
+            columnIndex: c,
+          }
+          : {
+            code: "episode_illisible",
+            message: `numéro d'épisode illisible en colonne ${c} : « ${episodeText} »`,
+            columnIndex: c,
+          },
+      );
+      continue;
     }
+    const episodeKey = String(episodeNumber);
 
     const roundNumber = (roundsPerEpisode.get(episodeKey) ?? 0) + 1;
     roundsPerEpisode.set(episodeKey, roundNumber);
