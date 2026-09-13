@@ -80,8 +80,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *  7 — les saisons anciennes entrent : titres de section synonymes, tableau
  *      choisi par sa forme et non par son rang, marqueur « ► » ignoré dans
  *      les en-têtes. Neuf pages qui échouaient produisent désormais un modèle
+ *  8 — une colonne sans numéro d'épisode ne produit plus de tour. Douze
+ *      colonnes du corpus — le jury final de six saisons — fabriquaient un
+ *      `…:e?:rN` qu'aucune publication ne pouvait résoudre
  */
-export const EXTRACTOR_VERSION = "7";
+export const EXTRACTOR_VERSION = "8";
 
 export interface SourceDocument {
   readonly id: string;

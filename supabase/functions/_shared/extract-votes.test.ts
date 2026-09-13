@@ -303,6 +303,78 @@ Deno.test("L'ÎLE DES HÉROS : une espace en moins ne sort pas une saison", asyn
     "plus aucune structure incomprise",
   );
   assertEquals(out.contestants.length, 23);
-  assertEquals(out.rounds.length, 24);
-  assertEquals(out.votes.length, 137);
+  // 24 tours et 137 voix jusqu'au 13/09/2026. Les deux colonnes de jury final
+  // de cette page — « Finaliste » et « Vainqueur » — ne produisent plus de
+  // tour : elles fabriquaient des clés `…:e?:rN` impubliables. Les neuf voix
+  // perdues sont celles de ces deux colonnes. Ce que ce test éprouve — que
+  // l'en-tête « ►Épisode » collé est reconnu — n'est pas touché.
+  assertEquals(out.rounds.length, 22);
+  assertEquals(out.votes.length, 128);
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "jury_final_non_importe").length,
+    2,
+  );
+});
+
+Deno.test("JURY FINAL : les colonnes « Finaliste » et « Vainqueur » sont nommées, pas importées", () => {
+  // CE QUE CE TEST REND IMPOSSIBLE À REPRODUIRE. Ces deux colonnes
+  // fabriquaient des tours de clé `…:e?:rN`, qu'aucune publication ne peut
+  // résoudre — `councils.episode_id` est `not null`. Le 11/09/2026, la
+  // publication de « La Guerre des chefs » s'est arrêtée dessus, et le message
+  // rendu — « épisode <NULL> absent du référentiel » — ne désignait pas la
+  // cause. Relevé sur les dix-huit pages du corpus le 13/09 : douze colonnes,
+  // deux sur chacune de six pages, toujours les deux dernières.
+  //
+  // ON NE LES RATTACHE PAS AU DERNIER ÉPISODE : dans la colonne « Vainqueur »,
+  // la ligne « Éliminé » nomme le VAINQUEUR. Les importer inscrirait le
+  // gagnant parmi les éliminés.
+  const grid = gridOf([
+    ["► Épisode", "13", "14", "Finaliste", "Vainqueur"],
+    ["► Éliminé", "Steeve", "Cindy", "Cindy", "Maud"],
+    ["► Votes", "3/5", "1", "6/13", "7/13"],
+    ["▼ Candidats", "Votes", "Votes", "Votes", "Votes"],
+    ["Maud", "Steeve", "", "Jury final", "Jury final"],
+    ["Cindy", "Steeve", "Steeve", "Jury final", "Jury final"],
+    ["Aurélien", "Steeve", "", "Cindy", "Maud"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+
+  assertEquals(
+    out.rounds.map((r) => r.episodeNumber),
+    [13, 14],
+    "seules les colonnes numérotées produisent un tour",
+  );
+  for (const x of [...out.rounds, ...out.votes]) {
+    assert(!x.naturalKey.includes(":e?:"), `clé impubliable : ${x.naturalKey}`);
+  }
+
+  const jury = out.anomalies.filter((a) => a.code === "jury_final_non_importe");
+  assertEquals(jury.length, 2, "les deux colonnes doivent être NOMMÉES, pas tues");
+  assert(jury[0].message.includes("Finaliste"));
+  assert(jury[1].message.includes("Vainqueur"));
+
+  // Le vainqueur ne doit apparaître dans aucun tour, à aucun titre.
+  assert(
+    out.rounds.every((r) => r.eliminated !== "Maud"),
+    "le vainqueur ne doit jamais être enregistré comme éliminé",
+  );
+});
+
+Deno.test("un épisode illisible qui n'est PAS la finale est écarté sous son propre code", () => {
+  // Même conséquence — la colonne ne produit rien — mais l'anomalie ne
+  // prétend pas savoir ce qu'elle a lu. La liste des libellés de finale vaut
+  // ce que vaut le relevé du corpus, et rien de plus.
+  const grid = gridOf([
+    ["► Épisode", "1", "épiosde 2"],
+    ["► Éliminé", "Maxime", "Joana"],
+    ["► Votes", "11/18", "5/9"],
+    ["▼ Candidats", "Votes", "Votes"],
+    ["Camille", "Maxime", "Joana"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+
+  assertEquals(out.rounds.map((r) => r.episodeNumber), [1]);
+  const codes = out.anomalies.map((a) => a.code);
+  assert(codes.includes("episode_illisible"), codes.join(", "));
+  assert(!codes.includes("jury_final_non_importe"));
 });
