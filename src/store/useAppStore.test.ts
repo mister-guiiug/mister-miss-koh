@@ -248,3 +248,50 @@ describe('useAppStore — le suivi est un début de saison', () => {
     expect(useAppStore.getState().watched).toEqual([4]);
   });
 });
+
+describe('useAppStore — le suivi est propre à chaque saison', () => {
+  beforeEach(() =>
+    useAppStore.setState({
+      ...VIERGE,
+      season: 'all-stars-2026',
+      watched: [1, 2, 3],
+      watchedBySeason: {},
+      referential: DEMO_REFERENTIAL,
+    })
+  );
+
+  it('changer de saison met le suivi de côté, il ne le perd pas', () => {
+    vi.spyOn(backend.referential, 'load').mockResolvedValue({
+      referential: DEMO_REFERENTIAL,
+      origin: 'server',
+    });
+
+    useAppStore.getState().setSeason('koh-lanta-malaisie');
+    // LE DÉGÂT QU'ON EMPÊCHE : « vu jusqu'au 3 » d'All Stars deviendrait
+    // « vu jusqu'au 3 » de Malaisie, et la synchronisation le remonterait au
+    // serveur comme tel.
+    expect(useAppStore.getState().watched).toEqual([]);
+    expect(useAppStore.getState().season).toBe('koh-lanta-malaisie');
+
+    useAppStore.getState().setSeason('all-stars-2026');
+    expect(useAppStore.getState().watched).toEqual([1, 2, 3]);
+  });
+
+  it('choisir la saison déjà choisie ne recharge rien', () => {
+    const load = vi
+      .spyOn(backend.referential, 'load')
+      .mockResolvedValue({ referential: DEMO_REFERENTIAL, origin: 'server' });
+
+    useAppStore.getState().setSeason('all-stars-2026');
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('le référentiel est demandé POUR la saison choisie', async () => {
+    const load = vi
+      .spyOn(backend.referential, 'load')
+      .mockResolvedValue({ referential: DEMO_REFERENTIAL, origin: 'server' });
+
+    await useAppStore.getState().reload();
+    expect(load).toHaveBeenCalledWith('all-stars-2026');
+  });
+});

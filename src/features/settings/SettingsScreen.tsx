@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
@@ -75,7 +75,29 @@ export function SettingsScreen() {
   const notice = useAppStore(s => s.notice);
   const error = useAppStore(s => s.error);
   const loading = useAppStore(s => s.loading);
+  const season = useAppStore(s => s.season);
+  const seasons = useAppStore(s => s.seasons);
+  const setSeason = useAppStore(s => s.setSeason);
+  const loadSeasons = useAppStore(s => s.loadSeasons);
   const refresh = useRefreshReferential();
+
+  // La liste ne sert qu'ici : on la demande en arrivant, pas au démarrage de
+  // l'application. Un échec ne se dit pas — sans liste, il n'y a simplement
+  // pas de choix à offrir.
+  useEffect(() => {
+    void loadSeasons();
+  }, [loadSeasons]);
+
+  /**
+   * La saison choisie DOIT figurer dans la liste, même dépubliée : sans elle,
+   * le menu s'ouvrirait sur un blanc et le premier geste changerait de saison
+   * sans que personne l'ait demandé.
+   */
+  const choix = useMemo(() => {
+    const connue = seasons.some(o => o.slug === season);
+    if (connue || !referential) return seasons;
+    return [...seasons, { slug: season, name: referential.season.name }];
+  }, [seasons, season, referential]);
 
   const motion = {
     animations: { checked: animations, set: setAnimations },
@@ -246,6 +268,24 @@ export function SettingsScreen() {
             </Button>
           }
         />
+        <div className="stack">
+          {choix.length > 1 && (
+            <label className="field">
+              <span>Saison</span>
+              <select
+                value={season}
+                disabled={loading}
+                onChange={e => setSeason(e.target.value)}
+              >
+                {choix.map(o => (
+                  <option key={o.slug} value={o.slug}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
         {referential && (
           <div className="stack">
             <Provenance data={referential.provenance} />

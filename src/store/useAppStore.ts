@@ -31,7 +31,12 @@ import {
   PairGuessSchema,
   refuseGuess,
 } from '../domain/pairing';
-import { backend, type Origin } from '../backend/referentialRepository';
+import {
+  backend,
+  DEFAULT_SEASON_SLUG,
+  type Origin,
+  type SeasonOption,
+} from '../backend/referentialRepository';
 import {
   CONTESTANT_FILTERS,
   DEFAULT_CONTESTANT_FILTER,
@@ -42,7 +47,23 @@ const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
   animations: z.boolean(),
   reduceMotion: z.boolean(),
-  watched: z.array(z.number().int().positive()),
+  /**
+   * La saison regardée. Seize sont publiées ; celle-ci est celle que les
+   * écrans affichent, et elle survit à un rechargement.
+   */
+  season: z.string().default(DEFAULT_SEASON_SLUG),
+  /**
+   * LES ÉPISODES VUS, PAR SAISON.
+   *
+   * Une liste unique de NUMÉROS ne pouvait pas survivre au choix de la
+   * saison : « vu jusqu'au 5 » d'All Stars serait devenu « vu jusqu'au 5 » de
+   * Malaisie, et la synchronisation l'aurait remonté au serveur comme tel. Les
+   * favoris, eux, sont des identifiants — ils ne se confondent pas d'une
+   * saison à l'autre et n'ont rien à changer.
+   */
+  watchedBySeason: z
+    .record(z.string(), z.array(z.number().int().positive()))
+    .default({}),
   favorites: z.array(z.string()),
   /**
    * Les duos supposés par l'utilisateur — jamais ceux de la source.
@@ -89,22 +110,43 @@ export interface PersonalRemote {
   watched(episodeNumber: number, on: boolean): void;
 }
 
+const GRAINE: Personal = {
+  // Le défaut le plus sûr : ne rien révéler au-delà de ce qui est marqué vu.
+  spoiler: 'hide_unwatched',
+  animations: true,
+  reduceMotion: false,
+  season: DEFAULT_SEASON_SLUG,
+  watchedBySeason: {},
+  favorites: [],
+  pairGuesses: [],
+  contestantFilter: DEFAULT_CONTESTANT_FILTER,
+  portraitQueue: [],
+};
+
 const personalStore = createVersionedStore<Personal>({
   store: 'koh',
   key: 'personal',
-  version: 1,
+  version: 2,
+  migrations: {
+    /**
+     * 1 → 2 : le suivi devient propre à chaque saison.
+     *
+     * Ce qui était suivi l'a été sur la seule saison que l'application
+     * montrait — celle par défaut. On le lui attribue, plutôt que de le jeter
+     * ou de le rendre valable partout.
+     */
+    1: data => {
+      const avant = data as { watched?: number[] };
+      const { watched, ...reste } = { watched: [], ...avant };
+      return {
+        ...reste,
+        season: DEFAULT_SEASON_SLUG,
+        watchedBySeason: { [DEFAULT_SEASON_SLUG]: watched },
+      };
+    },
+  },
   validate: data => PersonalSchema.parse(data),
-  seed: () => ({
-    // Le défaut le plus sûr : ne rien révéler au-delà de ce qui est marqué vu.
-    spoiler: 'hide_unwatched',
-    animations: true,
-    reduceMotion: false,
-    watched: [],
-    favorites: [],
-    pairGuesses: [],
-    contestantFilter: DEFAULT_CONTESTANT_FILTER,
-    portraitQueue: [],
-  }),
+  seed: () => GRAINE,
 });
 
 interface AppState {
@@ -123,6 +165,10 @@ interface AppState {
   error: string | null;
   /** La dernière lecture réussie. Un échec ne l'efface jamais. */
   referential: Referential | null;
+  /** La saison regardée, et celles qu'on peut choisir. */
+  season: string;
+  watchedBySeason: Readonly<Record<string, readonly number[]>>;
+  seasons: readonly SeasonOption[];
   /** D'où vient `referential`, et ce qu'il faut en dire : de la même lecture. */
   origin: Origin | null;
   notice: string | null;
@@ -145,6 +191,13 @@ interface AppState {
   setContestantFilter(filter: ContestantFilter): void;
   setPortraitQueue(ids: readonly string[]): void;
   toggleWatched(episodeNumber: number): void;
+  /**
+   * Change de saison : le suivi de celle qu'on quitte est mis de côté, celui
+   * de celle qu'on prend revient, et le référentiel se recharge.
+   */
+  setSeason(slug: string): void;
+  /** Va chercher les saisons publiées. Silencieuse en cas d'échec. */
+  loadSeasons(): Promise<void>;
   toggleFavorite(contestantId: string): void;
   /**
    * Branche (ou débranche) le compte. `null` = cet appareil, seul — l'état par
@@ -181,12 +234,16 @@ export const useAppStore = create<AppState>((set, get) => {
    */
   let remote: PersonalRemote | null = null;
 
+  const initial: Personal = personalStore.load() ?? GRAINE;
+
   const persist = () => {
     const {
       spoiler,
       animations,
       reduceMotion,
+      season,
       watched,
+      watchedBySeason,
       favorites,
       pairGuesses,
       contestantFilter,
@@ -196,7 +253,14 @@ export const useAppStore = create<AppState>((set, get) => {
       spoiler,
       animations,
       reduceMotion,
-      watched: [...watched],
+      season,
+      // `watched` est le suivi de la saison COURANTE ; la carte porte les
+      // autres. On les réunit au moment d'écrire, pas avant.
+      watchedBySeason: Object.fromEntries(
+        Object.entries({ ...watchedBySeason, [season]: watched }).map(
+          ([saison, numeros]) => [saison, [...numeros]]
+        )
+      ),
       favorites: [...favorites],
       pairGuesses: [...pairGuesses],
       contestantFilter,
@@ -207,7 +271,9 @@ export const useAppStore = create<AppState>((set, get) => {
   const load = async () => {
     set({ loading: true });
     try {
-      const { referential, origin, notice } = await backend.referential.load();
+      const { referential, origin, notice } = await backend.referential.load(
+        get().season
+      );
       set({
         referential,
         origin,
@@ -237,7 +303,11 @@ export const useAppStore = create<AppState>((set, get) => {
     referential: null,
     origin: null,
     notice: null,
-    ...personalStore.load(),
+    ...initial,
+    // DÉRIVÉ, PAS PERSISTÉ : les écrans lisent `watched` sans savoir qu'il
+    // existe une carte derrière.
+    watched: initial.watchedBySeason[initial.season] ?? [],
+    seasons: [],
 
     async init() {
       if (get().ready) return;
@@ -291,6 +361,26 @@ export const useAppStore = create<AppState>((set, get) => {
       for (const n of next) if (!avant.has(n)) remote?.watched(n, true);
       for (const n of current) if (!retenus.has(n)) remote?.watched(n, false);
     },
+    setSeason(slug) {
+      const { season, watched, watchedBySeason } = get();
+      if (slug === season) return;
+      // LE SUIVI DE LA SAISON QU'ON QUITTE EST MIS DE CÔTÉ, pas perdu : on y
+      // revient souvent, et retrouver « vu jusqu'au 5 » est le moindre dû.
+      const carte = { ...watchedBySeason, [season]: [...watched] };
+      set({
+        season: slug,
+        watchedBySeason: carte,
+        watched: carte[slug] ?? [],
+      });
+      persist();
+      void load();
+    },
+
+    async loadSeasons() {
+      const seasons = await backend.referential.listSeasons();
+      set({ seasons });
+    },
+
     toggleFavorite(contestantId) {
       const current = get().favorites;
       const on = !current.includes(contestantId);
