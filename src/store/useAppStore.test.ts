@@ -189,3 +189,62 @@ describe('useAppStore — le suivi qui suit le compte', () => {
     expect(favorite).not.toHaveBeenCalled();
   });
 });
+
+describe('useAppStore — le suivi est un début de saison', () => {
+  /** Six épisodes, là où la démonstration n'en a que deux. */
+  const SAISON = {
+    ...DEMO_REFERENTIAL,
+    episodes: [1, 2, 3, 4, 5, 6].map(n => ({
+      id: `e${n}`,
+      number: n,
+      airDate: null,
+      aired: true,
+      comfortWinnerIds: [],
+      immunityWinnerIds: [],
+      comfortWinnerTeamIds: [],
+      immunityWinnerTeamIds: [],
+    })),
+  };
+
+  beforeEach(() =>
+    useAppStore.setState({ ...VIERGE, referential: SAISON, watched: [] })
+  );
+
+  it('cocher le cinquième, c’est en avoir vu cinq', () => {
+    useAppStore.getState().toggleWatched(5);
+    expect(useAppStore.getState().watched).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('décocher le troisième dit « j’en suis au deuxième »', () => {
+    useAppStore.getState().toggleWatched(5);
+    useAppStore.getState().toggleWatched(3);
+    // Et non pas « je n'ai rien vu » : les deux premiers restent.
+    expect(useAppStore.getState().watched).toEqual([1, 2]);
+  });
+
+  it('seul ce qui change part au serveur', () => {
+    const watched = vi.fn();
+    useAppStore.getState().attachPersonalRemote({ watched, favorite: vi.fn() });
+
+    useAppStore.getState().toggleWatched(3);
+    expect(watched.mock.calls).toEqual([
+      [1, true],
+      [2, true],
+      [3, true],
+    ]);
+
+    watched.mockClear();
+    useAppStore.getState().toggleWatched(2);
+    // Repasser au premier ne retire que le deuxième et le troisième.
+    expect(watched.mock.calls).toEqual([
+      [2, false],
+      [3, false],
+    ]);
+  });
+
+  it('sans référentiel, le geste vaut pour lui seul', () => {
+    useAppStore.setState({ referential: null, watched: [] });
+    useAppStore.getState().toggleWatched(4);
+    expect(useAppStore.getState().watched).toEqual([4]);
+  });
+});

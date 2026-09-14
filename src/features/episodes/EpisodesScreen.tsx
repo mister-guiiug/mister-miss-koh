@@ -9,6 +9,7 @@ import { TargetNotes } from '../../components/TargetNotes';
 import { useHaptics } from '../../hooks/useHaptics';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { contestantById } from '../../domain/referential';
+import { isWatched } from '../../domain/spoiler';
 
 type Ref = NonNullable<ReturnType<typeof useAppStore.getState>['referential']>;
 
@@ -80,7 +81,9 @@ export function EpisodesScreen() {
           const rounds = referential.rounds.filter(
             r => r.episodeNumber === e.number
           );
-          const seen = watched.includes(e.number);
+          // « Vu » suit la même règle que l'anti-spoiler : en être au 5,
+          // c'est avoir vu les quatre premiers.
+          const seen = isWatched(e.number, watched);
           return (
             <Card key={e.id} as="article" data-seen={seen ? '' : undefined}>
               <CardHeader

@@ -149,9 +149,18 @@ describe('usePersonalSync — le suivi qui suit le compte', () => {
     useAppStore.getState().toggleFavorite('c-celeste');
     useAppStore.getState().toggleWatched(3);
 
-    // Décocher n'est pas « ne rien envoyer » : la ligne est retirée côté
-    // serveur, sinon l'autre appareil remettrait l'épisode au prochain accord.
-    expect(gestures).toEqual(['vu e3 on', 'favori c-celeste on', 'vu e3 off']);
+    // COCHER LE TROISIÈME, C'EST EN AVOIR VU TROIS : les deux premiers partent
+    // avec lui. LE DÉCOCHER DIT « J'EN SUIS AU DEUXIÈME », pas « je n'ai rien
+    // vu » : seul le troisième est retiré. Et décocher n'est pas « ne rien
+    // envoyer » — la ligne part du serveur, sinon l'autre appareil la
+    // remettrait au prochain accord.
+    expect(gestures).toEqual([
+      'vu e1 on',
+      'vu e2 on',
+      'vu e3 on',
+      'favori c-celeste on',
+      'vu e3 off',
+    ]);
   });
 
   it('sur la démonstration, personne n’est appelé', async () => {

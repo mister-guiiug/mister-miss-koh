@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSpoiler, spoilerLimit } from './spoiler';
+import { isSpoiler, isWatched, lastWatched, spoilerLimit } from './spoiler';
 import type { Episode } from './referential';
 
 const ep = (
@@ -94,5 +94,28 @@ describe('isSpoiler', () => {
   it('un épisode inconnu est masqué dès que la limite est finie', () => {
     expect(isSpoiler(null, 2)).toBe(true);
     expect(isSpoiler(null, Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
+
+describe('« vu », c’est « j’en suis là »', () => {
+  it('en être au cinquième, c’est avoir vu les quatre premiers', () => {
+    const vus = [5];
+    expect(isWatched(1, vus)).toBe(true);
+    expect(isWatched(5, vus)).toBe(true);
+    expect(isWatched(6, vus)).toBe(false);
+  });
+
+  it('rien de coché, rien de vu', () => {
+    expect(isWatched(1, [])).toBe(false);
+    expect(lastWatched([])).toBe(0);
+  });
+
+  it('la limite anti-spoiler et le bouton disent la même chose', () => {
+    // C'ÉTAIT LE DÉFAUT : la limite prenait le maximum, le bouton lisait
+    // l'appartenance. Un épisode pouvait donc être « pas vu » à l'écran et
+    // traité comme vu par l'anti-spoiler.
+    const vus = [2, 5];
+    expect(lastWatched(vus)).toBe(5);
+    expect(isWatched(4, vus)).toBe(true);
   });
 });
