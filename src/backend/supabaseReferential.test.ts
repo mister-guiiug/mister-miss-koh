@@ -433,6 +433,25 @@ describe('createSupabaseRepository — les trois origines', () => {
     expect(written).toHaveLength(1);
   });
 
+  it('le cache est demandé POUR la saison choisie', async () => {
+    // UNE SEULE CLÉ DE CACHE RENDRAIT LA MAUVAISE SAISON : « All Stars » à qui
+    // vient de choisir « Malaisie », le temps d'un aller-retour réseau — et
+    // indéfiniment hors ligne.
+    const demandes: (string | undefined)[] = [];
+    const repo = createSupabaseRepository({
+      ...noop,
+      readCache: slug => {
+        demandes.push(slug);
+        return mapReferential(rows, TODAY);
+      },
+      getClient: () => Promise.reject(new Error('serveur injoignable')),
+    });
+
+    const result = await repo.load('koh-lanta-malaisie');
+    expect(result.origin).toBe('cache');
+    expect(demandes).toContain('koh-lanta-malaisie');
+  });
+
   it('aucune saison publiée : la démonstration, et un avis qui le dit', async () => {
     const repo = createSupabaseRepository({
       ...noop,

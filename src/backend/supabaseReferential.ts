@@ -35,6 +35,7 @@ import { DEMO_REFERENTIAL } from './demo';
 import type {
   LoadResult,
   ReferentialRepository,
+  SeasonOption,
 } from './referentialRepository';
 
 // ── Formes des lignes, telles que PostgREST les rend ────────────────────────
@@ -45,6 +46,10 @@ const RuleRow = z.object({
   from_episode_number: z.number().nullable(),
   to_episode_number: z.number().nullable(),
 });
+
+const SeasonOptionRows = z.array(
+  z.object({ slug: z.string(), name: z.string() })
+);
 
 const SeasonRow = z.object({
   id: z.string(),
@@ -507,16 +512,76 @@ export class NoPublishedSeason extends Error {
   }
 }
 
-export async function fetchRows(client: SupabaseClient): Promise<unknown> {
-  const { data: season, error: seasonError } = await client
+/**
+ * Les saisons publiées, pour le choix de l'utilisateur.
+ *
+ * Une requête à part, et légère : trois colonnes. La charger avec le
+ * référentiel ferait payer dix-huit lignes à chaque ouverture d'écran, pour
+ * une liste qui ne sert qu'aux Réglages.
+ */
+export async function fetchSeasonOptions(
+  client: SupabaseClient
+): Promise<SeasonOption[]> {
+  // ⚠️ `first_air_date` EST NUL SUR LES SEIZE SAISONS (relevé du 14/09/2026) :
+  // la source ne le donne pas, et le pipeline ne l'invente pas. L'ordre
+  // chronologique ne trie donc rien aujourd'hui — le nom, lui, rend une liste
+  // prévisible. On garde les deux : le jour où la date sera remplie, elle
+  // reprendra la main sans qu'on y revienne.
+  const { data, error } = await client
     .from('seasons')
-    .select(
-      'id, slug, name, edition_label, status, source_document_id, location_name, location_page_title, location_lat, location_lon, season_rules(kind, label, from_episode_number, to_episode_number)'
-    )
+    .select('slug, name')
     .order('first_air_date', { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  if (seasonError) throw new Error(`saisons : ${seasonError.message}`);
+    .order('name', { ascending: true });
+  if (error) throw new Error(`saisons : ${error.message}`);
+  return SeasonOptionRows.parse(data ?? []);
+}
+
+/**
+ * Les lignes d'UNE saison.
+ *
+ * @param slug La saison voulue. Absente du serveur — dépubliée, renommée — on
+ * retombe sur la plus récente plutôt que sur un écran vide : le choix de
+ * l'utilisateur ne doit pas pouvoir casser l'application.
+ */
+export async function fetchRows(
+  client: SupabaseClient,
+  slug?: string
+): Promise<unknown> {
+  const colonnes =
+    'id, slug, name, edition_label, status, source_document_id, location_name, location_page_title, location_lat, location_lon, season_rules(kind, label, from_episode_number, to_episode_number)';
+
+  // La ligne entière repart telle quelle : `SeasonRow` la valide plus loin,
+  // comme toutes les autres. Seuls les deux champs dont `fetchRows` se sert
+  // lui-même sont nommés ici.
+  type LigneSaison = {
+    id: string;
+    source_document_id: string | null;
+  } & Record<string, unknown>;
+
+  let season: LigneSaison | null = null;
+  if (slug) {
+    const { data, error } = await client
+      .from('seasons')
+      .select(colonnes)
+      .eq('slug', slug)
+      .maybeSingle();
+    if (error) throw new Error(`saisons : ${error.message}`);
+    season = data as LigneSaison | null;
+  }
+  if (!season) {
+    // LE REPLI EST ARBITRAIRE, et il faut le savoir : `first_air_date` est nul
+    // partout, donc « la plus récente » rend en réalité la première venue.
+    // C'est acceptable pour un repli — jamais pour un défaut, d'où
+    // `DEFAULT_SEASON_SLUG` côté magasin.
+    const { data, error } = await client
+      .from('seasons')
+      .select(colonnes)
+      .order('first_air_date', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`saisons : ${error.message}`);
+    season = data as LigneSaison | null;
+  }
   if (!season) throw new NoPublishedSeason();
 
   const [contestants, teams, pairs, episodes, advantages, version, provenance] =
@@ -606,7 +671,7 @@ export async function fetchRows(client: SupabaseClient): Promise<unknown> {
 export interface SupabaseRepositoryDeps {
   /** Injectable : les tests passent un client de fantaisie. */
   getClient: () => Promise<SupabaseClient>;
-  readCache: () => Referential | null;
+  readCache: (seasonSlug?: string) => Referential | null;
   writeCache: (referential: Referential) => void;
   today?: () => string;
 }
@@ -646,8 +711,8 @@ export function createSupabaseRepository(
   const today = deps.today ?? (() => new Date().toISOString().slice(0, 10));
 
   /** La dernière version enregistrée, annoncée comme telle. */
-  const depuisLeCache = (): LoadResult | null => {
-    const cached = deps.readCache();
+  const depuisLeCache = (seasonSlug?: string): LoadResult | null => {
+    const cached = deps.readCache(seasonSlug);
     return cached
       ? {
           referential: cached,
@@ -658,18 +723,29 @@ export function createSupabaseRepository(
   };
 
   return {
-    async load(): Promise<LoadResult> {
+    async listSeasons(): Promise<SeasonOption[]> {
+      // Injoignable, hors ligne, RLS qui refuse : pas de liste, pas de choix.
+      // L'écran retombe sur la seule saison qu'il a déjà — il ne s'excuse pas.
+      if (horsLigne()) return [];
+      try {
+        return await fetchSeasonOptions(await deps.getClient());
+      } catch {
+        return [];
+      }
+    },
+
+    async load(seasonSlug?: string): Promise<LoadResult> {
       // Hors ligne : ne rien tenter. Le serveur n'a que le réseau pour
       // répondre, et Supabase met une demi-minute à l'admettre.
       if (horsLigne()) {
-        const cache = depuisLeCache();
+        const cache = depuisLeCache(seasonSlug);
         if (cache) return cache;
       }
       let minuteur: ReturnType<typeof setTimeout> | undefined;
       try {
         const client = await deps.getClient();
         const issue = await Promise.race([
-          fetchRows(client),
+          fetchRows(client, seasonSlug),
           new Promise<typeof TROP_LONG>(resoudre => {
             minuteur = setTimeout(
               () => resoudre(TROP_LONG),
@@ -680,7 +756,7 @@ export function createSupabaseRepository(
         if (issue === TROP_LONG) {
           // Réseau présent mais mort : le cache maintenant vaut mieux que le
           // serveur dans trente secondes.
-          const cache = depuisLeCache();
+          const cache = depuisLeCache(seasonSlug);
           if (cache) return cache;
           throw new Error('serveur injoignable');
         }
@@ -699,7 +775,7 @@ export function createSupabaseRepository(
         // Réseau absent, serveur injoignable, RLS qui refuse : la dernière
         // version enregistrée vaut mieux qu'un écran vide — et elle est
         // annoncée comme telle.
-        const cache = depuisLeCache();
+        const cache = depuisLeCache(seasonSlug);
         if (cache) return cache;
         throw error;
       } finally {
