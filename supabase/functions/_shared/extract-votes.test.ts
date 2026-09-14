@@ -439,3 +439,31 @@ Deno.test("un accent de différence ne fait pas deux personnes", () => {
   );
   assertEquals(out.anomalies.filter((a) => a.code === "ligne_hors_liste"), []);
 });
+
+Deno.test("les voix d'un homonyme ne sont attribuées à personne", () => {
+  // La matrice distingue les deux par un appel de note — « Cécile[a] » et
+  // « Cécile[b] » — mais les appels de note sortent des cellules, à dessein,
+  // et la liste des candidats ne les distingue pas du tout. Deviner laquelle
+  // vote, ce serait prêter un bulletin à quelqu'un.
+  const grid = gridOf([
+    ["► Épisode", "1"],
+    ["► Éliminé", "Maxime"],
+    ["► Votes", "2/3"],
+    ["▼ Candidats", "Votes"],
+    ["Cécile", "Maxime"],
+    ["Cécile", "Maxime"],
+    ["Maxime", "Cécile"],
+  ]);
+
+  const out = extractVotes(grid, SEASON, ["Cécile", "Cécile", "Maxime"]);
+  assertEquals(out.contestants, ["Maxime"], "les deux homonymes sortent de la matrice");
+  assert(
+    out.votes.every((v) => v.voter !== "Cécile"),
+    "aucune voix ne leur est prêtée",
+  );
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "homonyme_indistinct").length,
+    2,
+    "les deux lignes écartées sont dites",
+  );
+});

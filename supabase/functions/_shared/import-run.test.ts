@@ -587,11 +587,11 @@ Deno.test("un refus d'écriture TERMINE l'exécution en échec, et le dit", asyn
   );
 });
 
-Deno.test("une clé répétée arrête l'exécution AVANT d'écrire, et nomme la clé", async () => {
-  // La dernière ligne du tableau des candidats est répétée : deux
-  // enregistrements portent alors la même clé naturelle, ce que
-  // `unique (run_id, entity, natural_key)` refuse — et l'insertion ENTIÈRE
-  // échoue, pas seulement le doublon.
+Deno.test("une ligne de candidat recopiée ne coule plus la saison", async () => {
+  // AVANT, ELLE LA COULAIT : deux enregistrements portaient la même clé
+  // naturelle, `unique (run_id, entity, natural_key)` refusait l'insertion
+  // ENTIÈRE, et le lot partait sans un seul enregistrement. Une ligne recopiée
+  // porte exactement les mêmes valeurs : on n'en retient qu'une, et on le dit.
   const debut = CANDIDATS.lastIndexOf("<tr");
   const fin = CANDIDATS.indexOf("</tr>", debut) + "</tr>".length;
   const AVEC_DOUBLON = CANDIDATS.slice(0, fin) + CANDIDATS.slice(debut, fin) +
@@ -605,10 +605,15 @@ Deno.test("une clé répétée arrête l'exécution AVANT d'écrire, et nomme la
     }),
   });
 
-  assertEquals(outcome.status, "failed");
+  assertEquals(outcome.status, "diffed");
   assert(
-    outcome.message?.includes("répétée"),
-    `le message doit nommer le doublon : ${outcome.message}`,
+    outcome.anomalies?.some((a) => a.code === "ligne_repetee"),
+    "la répétition est annoncée au relecteur",
   );
-  assertEquals(calls.records, [], "aucun enregistrement ne doit être écrit");
+  const candidats = calls.records.filter((r) => r.entity === "season_contestant");
+  assertEquals(
+    new Set(candidats.map((r) => r.naturalKey)).size,
+    candidats.length,
+    "aucune clé naturelle répétée ne part à l'écriture",
+  );
 });

@@ -271,12 +271,31 @@ export function extractVotes(
   // voix à la publication — « votant « Téheiura » inconnu de la saison ». On
   // reconnaît sans les accents, puis on RETIENT la graphie de la liste.
   const parNom = new Map<string, string>();
-  for (const nom of roster ?? []) parNom.set(fold(nom), nom);
+  const compte = new Map<string, number>();
+  for (const nom of roster ?? []) {
+    parNom.set(fold(nom), nom);
+    compte.set(fold(nom), (compte.get(fold(nom)) ?? 0) + 1);
+  }
   const inscrits = parNom.size > 0 ? parNom : null;
   const canonique = (valeur: string) => inscrits?.get(fold(valeur)) ?? valeur;
+  // DEUX AVENTURIERS DU MÊME PRÉNOM RENDENT LEURS VOIX INATTRIBUABLES. La
+  // matrice les distingue par un appel de note — « Cécile[a] » et
+  // « Cécile[b] » — mais les appels de note sortent des cellules, à dessein,
+  // et la liste des candidats, elle, ne les distingue pas du tout. Deviner
+  // laquelle des deux vote, c'est prêter un bulletin à quelqu'un.
+  const homonyme = (valeur: string) => (compte.get(fold(valeur)) ?? 0) > 1;
   for (let r = rowContestants + 1; r < grid.length; r += 1) {
     const name = grid[r][0]?.text ?? "";
     if (!name) continue;
+    if (inscrits && homonyme(name)) {
+      anomalies.push({
+        code: "homonyme_indistinct",
+        message:
+          `deux aventuriers s'appellent « ${name} » : ses voix ne sont pas attribuées, faute de savoir laquelle vote`,
+        row: name,
+      });
+      continue;
+    }
     if (inscrits && !inscrits.has(fold(name))) {
       // ON NE DEVINE PAS CE QUE C'EST. Une ligne qui n'est pas au tableau des
       // candidats n'est pas un votant : on l'écarte, on le DIT, et le relecteur

@@ -90,8 +90,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  * 10 — la graphie des noms est celle du tableau des candidats : « Teheiura »
  *      dans la liste et « Téheiura » dans la matrice désignent la même
  *      personne, et la publication ne cherche qu'un seul des deux
+ * 11 — plus aucune clé naturelle répétée : un épisode à plusieurs conseils
+ *      rassemble ses lignes, deux homonymes se distinguent par leur rang, et
+ *      une ligne recopiée à l'identique n'est retenue qu'une fois
  */
-export const EXTRACTOR_VERSION = "10";
+export const EXTRACTOR_VERSION = "11";
 
 export interface SourceDocument {
   readonly id: string;

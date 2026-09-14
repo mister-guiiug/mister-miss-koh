@@ -353,7 +353,19 @@ Deno.test("LES 4 TERRES : le déroulement n'est pas le premier tableau", async (
   );
 
   const out = extractProgress(tables[1].grid, "les-4-terres-2020");
-  assertEquals(out.episodes.length, 17);
+  // DIX-SEPT LIGNES, QUINZE ÉPISODES : la cellule « 4e épisode » porte
+  // `rowspan=3`, un épisode à trois conseils. Trois enregistrements de même
+  // clé faisaient échouer l'insertion ENTIÈRE des enregistrements.
+  assertEquals(out.episodes.length, 15);
+  const e4 = out.episodes.find((e) => e.number === 4);
+  assertEquals(e4?.eliminated, ["Diane", "Estelle", "Mathieu"]);
+  assertEquals(e4?.rawTally, "4-1 / 3-2 / 4-1", "les décomptes s'enchaînent");
+  assertEquals(e4?.airDate, "2020-09-18", "la date de l'épisode ne se répète pas");
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "episode_plusieurs_lignes").length,
+    1,
+    "le rassemblement est DIT, pour que le relecteur le voie",
+  );
   assertEquals(out.episodes[0].airDate, "2020-08-28");
   assertEquals(out.episodes[0].eliminated, ["Marie-France"]);
   assertEquals(out.episodes[0].immunityWinners, ["Tokalo"]);
@@ -394,4 +406,61 @@ Deno.test("sans tableau du déroulement, les épisodes se déduisent des tours",
   assertEquals(episodes[0].comfortWinners, []);
   assertEquals(episodes[0].rawTally, "");
   assertEquals(episodes[0].aired, true, "un conseil s'y est tenu");
+});
+
+/** Une grille écrite à la main, sans passer par le HTML. */
+function gridOf(rows: string[][]) {
+  return rows.map((row) =>
+    row.map((text) => ({
+      text,
+      html: text,
+      header: false,
+      colspan: 1,
+      rowspan: 1,
+      struck: false,
+    }))
+  );
+}
+
+Deno.test("deux aventuriers du même prénom ne se marchent pas dessus", () => {
+  // RELEVÉ LE 14/09/2026 : « La Tribu maudite » a deux Cécile (34 ans hôtesse
+  // de l'air, 41 ans professeur de Pilates), « Les Chasseurs d'immunité » deux
+  // Léa, « La Revanche des 4 Terres » deux Jérôme. La clé ne portait que le
+  // prénom : l'insertion des enregistrements échouait TOUT ENTIÈRE.
+  const grid = gridOf([
+    ["Candidat", "Candidat", "Profession", "Âge", "Tribu", "Jury final", "Départ"],
+    ["♀", "Cécile", "Hôtesse de l'air", "34 ans", "Pitogo", "", "Éliminée"],
+    ["♀", "Cécile", "Professeur de Pilates", "41 ans", "Pitogo", "", "Éliminée"],
+  ]);
+
+  const out = extractContestants(grid, "tribu-maudite");
+  assertEquals(out.contestants.length, 2, "deux personnes, pas une");
+  assertEquals(
+    out.contestants.map((c) => c.naturalKey),
+    ["tribu-maudite:Cécile", "tribu-maudite:Cécile~2"],
+    "le rang distingue, faute de mieux",
+  );
+  assertEquals(
+    out.contestants.map((c) => c.displayName),
+    ["Cécile", "Cécile"],
+    "le nom affiché reste celui de la source",
+  );
+  assert(out.anomalies.some((a) => a.code === "homonymes"));
+});
+
+Deno.test("une ligne recopiée à l'identique n'est pas un homonyme", () => {
+  // Deux personnes du même prénom DIFFÈRENT par l'âge ou le métier. Une ligne
+  // recopiée, elle, est identique en tout point : en faire deux aventuriers
+  // inventerait quelqu'un.
+  const ligne = ["♀", "Cécile", "Hôtesse de l'air", "34 ans", "Pitogo", "", "Éliminée"];
+  const grid = gridOf([
+    ["Candidat", "Candidat", "Profession", "Âge", "Tribu", "Jury final", "Départ"],
+    ligne,
+    [...ligne],
+  ]);
+
+  const out = extractContestants(grid, "tribu-maudite");
+  assertEquals(out.contestants.length, 1);
+  assert(out.anomalies.some((a) => a.code === "ligne_repetee"));
+  assert(!out.anomalies.some((a) => a.code === "homonymes"));
 });
