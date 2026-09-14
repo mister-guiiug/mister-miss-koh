@@ -23,7 +23,7 @@ import { create } from 'zustand';
 import { z } from 'zod';
 import { createVersionedStore } from '@mister-guiiug/dev-pwa-config/versioned-store';
 import type { Referential } from '../domain/referential';
-import type { SpoilerMode } from '../domain/spoiler';
+import { isWatched, type SpoilerMode } from '../domain/spoiler';
 import {
   type GuessRefusal,
   orderedMembers,
@@ -267,15 +267,29 @@ export const useAppStore = create<AppState>((set, get) => {
       persist();
     },
     toggleWatched(episodeNumber) {
+      // COCHER L'ÉPISODE 5, C'EST DIRE « J'EN SUIS LÀ » — donc les quatre
+      // premiers sont vus aussi. Décocher le 3 dit l'inverse : on n'en est plus
+      // qu'au 2, et ce qui vient après ne l'est plus. Le suivi reste un
+      // ENSEMBLE de numéros (c'est ce que le serveur stocke, une ligne par
+      // épisode), mais cet ensemble est désormais toujours un début de saison.
       const current = get().watched;
-      const on = !current.includes(episodeNumber);
-      set({
-        watched: on
-          ? [...current, episodeNumber].sort((a, b) => a - b)
-          : current.filter(n => n !== episodeNumber),
-      });
+      const on = !isWatched(episodeNumber, current);
+      const connus = get().referential?.episodes.map(e => e.number) ?? [];
+      const retenus = new Set(
+        connus.filter(n => (on ? n <= episodeNumber : n < episodeNumber))
+      );
+      // Un référentiel plus ancien que le geste ne doit pas avaler l'épisode
+      // qu'on vient de cocher.
+      if (on) retenus.add(episodeNumber);
+      const next = [...retenus].sort((a, b) => a - b);
+      set({ watched: next });
       persist();
-      remote?.watched(episodeNumber, on);
+
+      // SEUL CE QUI A CHANGÉ PART. Réémettre tout l'ensemble à chaque geste
+      // ferait autant d'écritures que d'épisodes, à chaque clic.
+      const avant = new Set(current);
+      for (const n of next) if (!avant.has(n)) remote?.watched(n, true);
+      for (const n of current) if (!retenus.has(n)) remote?.watched(n, false);
     },
     toggleFavorite(contestantId) {
       const current = get().favorites;

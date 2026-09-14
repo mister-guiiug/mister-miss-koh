@@ -19,6 +19,31 @@ export interface SpoilerContext {
 }
 
 /**
+ * Le plus grand épisode marqué vu ; `0` si aucun.
+ */
+export function lastWatched(watched: Iterable<number>): number {
+  let max = 0;
+  for (const n of watched) if (n > max) max = n;
+  return max;
+}
+
+/**
+ * A-t-on vu cet épisode ?
+ *
+ * VOIR L'ÉPISODE 5, C'EST AVOIR VU LES QUATRE PREMIERS. Personne ne regarde
+ * Koh-Lanta en commençant par le milieu, et l'anti-spoiler le savait déjà : sa
+ * limite est le MAXIMUM des épisodes cochés, pas leur liste. Le bouton, lui,
+ * lisait l'appartenance à l'ensemble — il affichait donc « pas vu » sur des
+ * épisodes que l'application traitait comme vus. Une même règle des deux côtés.
+ */
+export function isWatched(
+  episodeNumber: number,
+  watched: Iterable<number>
+): boolean {
+  return episodeNumber <= lastWatched(watched);
+}
+
+/**
  * Le plus grand numéro d'épisode dont les événements peuvent s'afficher.
  * `Infinity` = tout ; `0` = rien de ce qui s'est passé en jeu.
  */
@@ -26,11 +51,8 @@ export function spoilerLimit(ctx: SpoilerContext): number {
   switch (ctx.mode) {
     case 'reveal_all':
       return Number.POSITIVE_INFINITY;
-    case 'hide_unwatched': {
-      let max = 0;
-      for (const n of ctx.watched) if (n > max) max = n;
-      return max;
-    }
+    case 'hide_unwatched':
+      return lastWatched(ctx.watched);
     case 'hide_future': {
       // Un épisode diffusé AUJOURD'HUI est encore un spoiler pour la moitié
       // des spectateurs : la limite s'arrête à la veille.
