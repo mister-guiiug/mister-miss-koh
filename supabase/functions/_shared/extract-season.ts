@@ -252,7 +252,69 @@ export function extractContestants(
     });
   }
 
-  return { contestants, anomalies };
+  // ── DEUX AVENTURIERS, UN SEUL PRÉNOM ─────────────────────────────────────
+  //
+  // « La Tribu maudite » a deux Cécile (34 ans hôtesse de l'air, 41 ans
+  // professeur de Pilates), « Les Chasseurs d'immunité » deux Léa, « La
+  // Revanche des 4 Terres » deux Jérôme. La source ne donne que des prénoms :
+  // la clé naturelle en portait donc deux fois la même, et l'insertion des
+  // enregistrements échouait TOUT ENTIÈRE.
+  //
+  // On distingue par le RANG dans le tableau, seul repère que la source offre
+  // sans interprétation — et on le DIT, parce qu'un rang n'est pas une
+  // identité : si la page réordonne ses lignes, le second Cécile change de
+  // clé. Le nom affiché, lui, ne bouge pas : inventer « Cécile (2) » à l'écran
+  // serait écrire à la place de la source.
+  // DEUX FOIS LE MÊME PRÉNOM N'EST PAS TOUJOURS DEUX PERSONNES. Une ligne
+  // recopiée par erreur porte exactement les mêmes valeurs ; deux homonymes,
+  // eux, diffèrent par l'âge, le métier ou la tribu. On compare donc la ligne
+  // ENTIÈRE, et on ne traite comme deux personnes que ce qui se distingue.
+  const signature = (c: ExtractedContestant) => JSON.stringify({ ...c, naturalKey: "" });
+  const vus = new Map<string, number>();
+  const signatures = new Set<string>();
+  const uniques: ExtractedContestant[] = [];
+  const repetees = new Set<string>();
+  for (const c of contestants) {
+    const sig = signature(c);
+    if (signatures.has(sig)) {
+      repetees.add(c.displayName);
+      continue;
+    }
+    signatures.add(sig);
+    const cle = fold(c.displayName);
+    const rang = (vus.get(cle) ?? 0) + 1;
+    vus.set(cle, rang);
+    uniques.push(rang === 1 ? c : { ...c, naturalKey: `${c.naturalKey}~${rang}` });
+  }
+
+  for (const nom of repetees) {
+    anomalies.push({
+      code: "ligne_repetee",
+      message:
+        `la ligne de « ${nom} » figure deux fois à l'identique : une seule est retenue`,
+      row: nom,
+    });
+  }
+
+  // LE RANG N'EST PAS UNE IDENTITÉ, et il faut le dire : si la page réordonne
+  // ses lignes, le second « Cécile » change de clé. Mais la source ne donne que
+  // des prénoms — « La Tribu maudite » a deux Cécile, « Les Chasseurs
+  // d'immunité » deux Léa, « La Revanche des 4 Terres » deux Jérôme — et le
+  // rang est le seul repère qu'elle offre sans interprétation. Le nom AFFICHÉ,
+  // lui, ne bouge pas : écrire « Cécile (2) » à l'écran serait écrire à la
+  // place de la source.
+  for (const [cle, total] of vus) {
+    if (total < 2) continue;
+    const nom = uniques.find((c) => fold(c.displayName) === cle)?.displayName ?? cle;
+    anomalies.push({
+      code: "homonymes",
+      message:
+        `${total} aventuriers s'appellent « ${nom} » : distingués par leur rang dans le tableau, et leurs voix ne sont pas attribuées`,
+      row: nom,
+    });
+  }
+
+  return { contestants: uniques, anomalies };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -391,7 +453,15 @@ export function extractProgress(grid: Grid, seasonSlug: string): ProgressExtract
 
   const cell = (r: number, c: number) => (c >= 0 ? (grid[r][c]?.text.trim() ?? "") : "");
 
-  const episodes: ExtractedEpisode[] = [];
+  // UN ÉPISODE PEUT OCCUPER PLUSIEURS LIGNES, et c'est courant : la cellule
+  // « 4e épisode » des « 4 Terres » porte `rowspan=3` — un épisode, trois
+  // conseils. La grille développe le `rowspan`, l'extraction voyait donc trois
+  // épisodes de même numéro, et l'insertion des enregistrements échouait tout
+  // entière sur `unique (run_id, entity, natural_key)`. On rassemble par
+  // NUMÉRO : ce qui est propre au conseil s'ajoute, ce qui est propre à
+  // l'épisode se garde une fois.
+  const parNumero = new Map<number, ExtractedEpisode>();
+  const fusionnes = new Set<number>();
   // Les deux premières lignes sont l'en-tête à deux étages.
   for (let r = 2; r < grid.length; r += 1) {
     const rawEpisode = cell(r, colEpisode);
@@ -431,7 +501,7 @@ export function extractProgress(grid: Grid, seasonSlug: string): ProgressExtract
     const aired = eliminated.length > 0 || rawTally !== "" ||
       cell(r, colComfort) !== "" || cell(r, colImmunity) !== "";
 
-    episodes.push({
+    const ligne: ExtractedEpisode = {
       naturalKey: `${seasonSlug}:e${number}`,
       number,
       airDate,
@@ -442,16 +512,45 @@ export function extractProgress(grid: Grid, seasonSlug: string): ProgressExtract
       tallyRounds,
       departureDay: parseDay(cell(r, colDeparture)),
       aired,
+    };
+
+    const deja = parNumero.get(number);
+    if (!deja) {
+      parNumero.set(number, ligne);
+      continue;
+    }
+    fusionnes.add(number);
+    const unir = (
+      a: readonly string[],
+      b: readonly string[],
+    ) => [...new Set([...a, ...b])];
+    // Le décompte d'un conseil ne se confond pas avec celui d'un autre : les
+    // valeurs distinctes s'enchaînent, dans l'ordre des lignes.
+    const decomptes = [
+      ...new Set([deja.rawTally, ligne.rawTally].filter((v) => v !== "")),
+    ];
+    parNumero.set(number, {
+      ...deja,
+      airDate: deja.airDate ?? ligne.airDate,
+      comfortWinners: unir(deja.comfortWinners, ligne.comfortWinners),
+      immunityWinners: unir(deja.immunityWinners, ligne.immunityWinners),
+      eliminated: unir(deja.eliminated, ligne.eliminated),
+      rawTally: decomptes.join(" / "),
+      tallyRounds: [...deja.tallyRounds, ...ligne.tallyRounds],
+      departureDay: deja.departureDay ?? ligne.departureDay,
+      aired: deja.aired || ligne.aired,
     });
   }
 
-  // ── Contrôles de cohérence ────────────────────────────────────────────
+  const episodes: ExtractedEpisode[] = [...parNumero.values()];
   const numbers = episodes.map((e) => e.number);
-  const duplicates = numbers.filter((n, i) => numbers.indexOf(n) !== i);
-  for (const n of new Set(duplicates)) {
+
+  // ── Contrôles de cohérence ────────────────────────────────────────────
+  for (const n of fusionnes) {
     anomalies.push({
-      code: "episode_duplique",
-      message: `l'épisode ${n} apparaît plusieurs fois dans le tableau`,
+      code: "episode_plusieurs_lignes",
+      message:
+        `l'épisode ${n} occupe plusieurs lignes du tableau — conseils multiples, lignes rassemblées`,
     });
   }
   for (let i = 1; i < numbers.length; i += 1) {
