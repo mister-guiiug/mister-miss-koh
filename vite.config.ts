@@ -150,6 +150,11 @@ export default defineConfig(({ command }) => {
       // de la carte du lieu de tournage (LocationMap), seul hôte externe.
       cspPlugin({
         dev: command === 'serve',
+        // Ouvre les hôtes de Google Tag Manager et de GA4. Sans cette
+        // option, le script que `ConsentBanner` injecte APRÈS l'accord serait
+        // refusé par la politique — et l'échec ne se verrait qu'en console,
+        // sur le site déployé, une fois le consentement donné.
+        analytics: true,
         connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org'],
       }),
