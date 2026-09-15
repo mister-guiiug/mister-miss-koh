@@ -27,7 +27,7 @@ jobs:
     name: Edge Functions (Deno)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       # Version VERROUILLÉE sur celle du poste où les 90 tests ont été
