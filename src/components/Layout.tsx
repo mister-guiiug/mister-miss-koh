@@ -12,6 +12,8 @@ import {
 import { AppHeader } from '@mister-guiiug/dev-pwa-config/react/app-header';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
 import { PageContainer } from '@mister-guiiug/dev-pwa-config/react/page-container';
+import { ConsentBanner } from '@mister-guiiug/dev-pwa-config/react/consent-banner';
+import { usePageViews } from '@mister-guiiug/dev-pwa-config/react/use-page-views';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
@@ -57,6 +59,11 @@ function ThemeButton() {
 export function Layout() {
   const online = useOnline();
   const { pathname } = useLocation();
+
+  // Une vue de page par navigation. GA4 n'en envoie qu'une par chargement de
+  // document, et `initAnalytics` pose `send_page_view: false` pour que la
+  // première passe par ici comme les autres. Rien sans consentement.
+  usePageViews(pathname);
 
   // La coque est le seul endroit monté sur TOUS les écrans : le suivi se
   // synchronise donc une fois par session, quel que soit l'écran d'arrivée —
@@ -126,6 +133,11 @@ export function Layout() {
         <div key={pathname} className="screen">
           <Outlet />
         </div>
+        {/* Une `region`, pas une boîte modale : elle ne recouvre rien et ne
+            piège pas le focus. Ne rend RIEN sans `VITE_GA_MEASUREMENT_ID`. */}
+        <ConsentBanner
+          gaMeasurementId={import.meta.env.VITE_GA_MEASUREMENT_ID}
+        />
       </PageContainer>
       <BottomNav
         placement="fixed"
