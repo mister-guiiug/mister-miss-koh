@@ -35,7 +35,7 @@ jobs:
       # rend pas le même résultat : une CI rouge sans qu'une ligne ait changé.
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.8.x
+          deno-version: 2.9.6
       - name: Lint · Format · Types
         working-directory: supabase/functions
         run: deno lint && deno fmt --check && deno check _shared/*.ts import-wikipedia/index.ts
