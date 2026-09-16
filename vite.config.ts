@@ -92,6 +92,11 @@ export default defineConfig(({ command }) => {
           manualChunks(id) {
             if (!id.includes('node_modules')) return;
             const norm = id.replace(/\\/g, '/');
+            // Sentry est chargé par un `import()` que `loader` rend
+            // analysable. Sans cette ligne il tomberait dans `vendor`, qui
+            // est PRÉCHARGÉ : mesuré sur miss-uwh, 381,9 kB préchargés au
+            // lieu de 227,2 — pour un total gzip identique à 0,1 kB près.
+            if (norm.includes('/@sentry/')) return 'sentry';
             if (
               norm.includes('/vite-plugin-pwa/') ||
               norm.includes('/workbox-')
@@ -165,6 +170,16 @@ export default defineConfig(({ command }) => {
         includeAssets: ['favicon.svg', 'robots.txt'],
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
+          /*
+           * LE MORCEAU SENTRY HORS DU PRÉCACHE, sans quoi le découpage ne servirait
+           * à rien : Workbox ramasse TOUT le JS émis, `import()` ou pas. Mesuré le
+           * 16/09/2026 sur la production de deux apps du parc, 345 et 463 KiB de SDK
+           * téléchargés par chaque visiteur, sans qu'aucun DSN soit posé.
+           *
+           * Hors précache, il part au premier `initSentry` réussi, et jamais si
+           * l'observabilité reste éteinte : rapporter une erreur demande le réseau.
+           */
+          globIgnores: ['**/sentry-*.js'],
           // Les fichiers Rive sont volumineux et facultatifs : mis en cache à
           // la première lecture, jamais préchargés.
           runtimeCaching: [
