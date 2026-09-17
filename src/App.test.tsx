@@ -83,10 +83,9 @@ describe('App', () => {
     expect(screen.queryByText('Source de vérité')).not.toBeInTheDocument();
   });
 
-  it('le pied de page ne répète plus la version', async () => {
-    // Elle a sa carte « Version installée » dans les Réglages, et le
-    // paragraphe « À propos » la porte aussi : trois fois, c'était deux de
-    // trop, et celle du bas ne menait à rien.
+  it('le pied de page ne porte aucun numéro de version', async () => {
+    // Plus AUCUN écran n'en affiche : le numéro que l'app montrait était lié
+    // vers `…/releases/tag/vX.Y.Z`, et aucune app du parc ne pose de tag git.
     const { container } = render(<App />);
     await screen.findByText('Saison de démonstration');
 
@@ -114,22 +113,22 @@ describe('App', () => {
     expect(charge?.url).toBe(`${window.location.origin}/`);
   });
 
-  it('la carte de version dit QUEL build tourne, et de quoi il est fait', async () => {
-    // Un numéro de version ne distingue pas deux déploiements du même jour.
-    // Et « ^4.5.0 » dans un package.json ne dit pas sur quelle 4.x on tourne :
-    // ce sont les versions DU DISQUE qui répondent, injectées au build.
+  it('les Réglages ne nomment plus le build, mais savent toujours le changer', async () => {
+    // La carte « Version installée » nommait le build de quatre façons —
+    // numéro, commit, heure, identifiant — et dépliait les versions de chaque
+    // bibliothèque. Elle est partie avec les vingt-six autres affichages du
+    // parc. Le BOUTON reste : il ne décrit pas un build, il en change.
     window.location.hash = '#/reglages';
     const { container } = render(<App />);
-    await screen.findByText('Version installée');
+    await screen.findByText('Mise à jour');
 
-    expect(screen.getByText('Application')).toBeInTheDocument();
-    expect(screen.getByText('Build')).toBeInTheDocument();
-
-    const details = container.querySelector('details.version-details');
-    expect(details).not.toBeNull();
-    expect(details).not.toHaveAttribute('open');
-    expect(details!.textContent).toContain('@mister-guiiug/dev-pwa-config');
-    expect(details!.textContent).toContain('4.5.0');
+    expect(screen.queryByText('Version installée')).not.toBeInTheDocument();
+    expect(container.querySelector('details.version-details')).toBeNull();
+    expect(
+      screen.getByRole('button', {
+        name: /Forcer le rechargement de la version/,
+      })
+    ).toBeInTheDocument();
   });
 
   it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {

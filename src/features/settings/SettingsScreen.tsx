@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
@@ -408,57 +408,12 @@ export function SettingsScreen() {
           l'accueil et donner l'impression d'un déploiement manqué. Recharger
           la page ne suffit pas ; vider le cache HTTP non plus. Le bouton du
           socle purge le Cache Storage et repart avec un anti-cache. */}
+      {/* PLUS DE CARTE « VERSION INSTALLÉE ». Elle nommait le build de quatre
+          façons — numéro, commit, heure de compilation, identifiant — et
+          dépliait par-dessus les versions de chaque bibliothèque. Le bouton
+          ci-dessous, lui, reste : il ne DÉCRIT pas un build, il en change. */}
       <Card>
-        <CardHeader title="Version installée" />
-        {/* CE QU'IL FAUT POUR IDENTIFIER UN BUILD, pas seulement le nommer.
-            Un numéro de version ne distingue pas deux déploiements du même
-            jour : c'est le commit et l'heure qui le font. Les champs que le
-            build ne connaissait pas ne s'affichent pas — en développement il
-            n'y a ni commit ni heure de compilation, et écrire « inconnu »
-            trois fois vaudrait moins que de se taire. */}
-        <dl className="stats">
-          <dt>Application</dt>
-          <dd>{__APP_VERSION__}</dd>
-          {__APP_COMMIT__ && (
-            <>
-              <dt>Commit</dt>
-              <dd>
-                <code>{__APP_COMMIT__.slice(0, 7)}</code>
-              </dd>
-            </>
-          )}
-          {__APP_BUILT_AT__ && (
-            <>
-              <dt>Compilée le</dt>
-              <dd>{formatDate(__APP_BUILT_AT__)}</dd>
-            </>
-          )}
-          <dt>Build</dt>
-          <dd>
-            <code>{__APP_BUILD_ID__}</code>
-          </dd>
-        </dl>
-
-        {/* LES VERSIONS DU DISQUE, pas les portées du `package.json` :
-            « ^4.5.0 » ne dit pas si l'on tourne sur la 4.5.0 ou la 4.9.2, et
-            c'est précisément la question qu'on se pose quand un build se
-            comporte autrement qu'un autre. Repliées : on les cherche, on ne
-            les subit pas. */}
-        {__APP_DEPS__.length > 0 && (
-          <details className="version-details">
-            <summary>Détails des bibliothèques</summary>
-            <dl className="stats">
-              {__APP_DEPS__.map(dep => (
-                <Fragment key={dep.name}>
-                  <dt>{dep.name}</dt>
-                  <dd>
-                    <code>{dep.version}</code>
-                  </dd>
-                </Fragment>
-              ))}
-            </dl>
-          </details>
-        )}
+        <CardHeader title="Mise à jour" />
 
         <UpdateButton
           label="Forcer le rechargement de la version"
@@ -475,7 +430,7 @@ export function SettingsScreen() {
           avec les ayants droit de l’émission. Les données référentielles sont
           des faits relevés sur une source collaborative — chacun porte sa page,
           sa révision et sa date de lecture — et ne sont jamais présentés comme
-          officiels. Version {__APP_VERSION__}.
+          officiels.
         </p>
       </Card>
       {/* Le second des DEUX écrans qui portent le pied de page : l'accueil,
