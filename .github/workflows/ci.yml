@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   ci:
-    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-ci.yml@v4
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-ci.yml@v6
     with:
       run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
       run-e2e: false

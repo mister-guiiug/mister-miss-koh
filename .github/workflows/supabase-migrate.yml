@@ -31,7 +31,7 @@ jobs:
   # « deadlock was detected for concurrency group ».
   migrate:
     name: Migrations et fonctions
-    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-migrate.yml@v4
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-migrate.yml@v6
     secrets:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       # La référence du projet est PUBLIQUE — elle est dans l'URL du site.

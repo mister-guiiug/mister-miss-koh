@@ -39,4 +39,4 @@ permissions:
 
 jobs:
   pgtap:
-    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-test.yml@v4
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-test.yml@v6

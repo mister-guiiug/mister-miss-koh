@@ -60,9 +60,10 @@ export function Layout() {
   const online = useOnline();
   const { pathname } = useLocation();
 
-  // Une vue de page par navigation. GA4 n'en envoie qu'une par chargement de
-  // document, et `initAnalytics` pose `send_page_view: false` pour que la
-  // première passe par ici comme les autres. Rien sans consentement.
+  // Une vue de page par navigation — ni zéro, ni deux. `initAnalytics` pose
+  // `capture_pageview: false` pour que toutes passent par ici, la première
+  // comprise : laissé à lui-même, PostHog compterait chaque navigation deux
+  // fois. Rien sans consentement.
   usePageViews(pathname);
 
   // La coque est le seul endroit monté sur TOUS les écrans : le suivi se
@@ -134,9 +135,10 @@ export function Layout() {
           <Outlet />
         </div>
         {/* Une `region`, pas une boîte modale : elle ne recouvre rien et ne
-            piège pas le focus. Ne rend RIEN sans `VITE_GA_MEASUREMENT_ID`. */}
+            piège pas le focus. Ne rend RIEN sans `VITE_POSTHOG_KEY`. */}
         <ConsentBanner
-          gaMeasurementId={import.meta.env.VITE_GA_MEASUREMENT_ID}
+          posthogKey={import.meta.env.VITE_POSTHOG_KEY}
+          loader={() => import('posthog-js/dist/module.slim.js')}
         />
       </PageContainer>
       <BottomNav

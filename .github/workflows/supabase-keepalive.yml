@@ -20,7 +20,7 @@ on:
 
 jobs:
   keepalive:
-    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-keepalive.yml@v4
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-supabase-keepalive.yml@v6
     # Nommés, pas hérités : le réutilisable déclare exactement ces deux
     # entrées. Les valeurs viennent des VARIABLES du dépôt, pas des secrets.
     secrets:
