@@ -16,6 +16,7 @@ import { Link2, QrCode } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { shareOrCopy } from '@mister-guiiug/dev-pwa-config/share';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import { qrToDataUrl } from '@mister-guiiug/dev-pwa-config/qr';
 
 interface Props {
@@ -89,6 +90,16 @@ export function ShareLinkPanel({
 
   const sendLink = async () => {
     const result = await shareOrCopy({ title, url: link });
+    /*
+     * ICI, ET PAS CHEZ CHAQUE APPELANT. Ce panneau est le seul endroit par où
+     * passe l'envoi d'un lien — fiche, note, collection, portrait du jour,
+     * lien de l'application : cinq écrans, un geste.
+     *
+     * Le résultat porte le vocabulaire du socle (`shared` / `copied` /
+     * `cancelled` / `failed`). Ni le lien, ni son jeton, ni le titre : ils
+     * nomment une personne ou ouvrent un partage.
+     */
+    trackEvent(GESTES.PARTAGE, { resultat: result });
     if (result === 'copied') toast.success('Lien copié.');
     if (result === 'failed') toast.error('Le lien n’a pas pu être partagé.');
   };

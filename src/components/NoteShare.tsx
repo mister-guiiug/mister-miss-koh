@@ -25,6 +25,7 @@ import { useState } from 'react';
 import { Link2, Link2Off, Send } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import {
   currentAppUrl,
   shareOrCopy,
@@ -55,10 +56,17 @@ export function NoteShare({ note, about, heading }: Props) {
   const link =
     (links ?? []).find(l => l.scope === 'note' && l.noteId === note.id) ?? null;
 
-  const run = async (action: () => Promise<unknown>, done: string) => {
+  const run = async (
+    action: () => Promise<unknown>,
+    done: string,
+    // Joué seulement si l'action a abouti — c'est ce qui permet de compter un
+    // geste sans compter les refus du serveur.
+    after?: () => void
+  ) => {
     setBusy(true);
     try {
       await action();
+      after?.();
       toast.success(done);
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : String(cause));
@@ -73,6 +81,10 @@ export function NoteShare({ note, about, heading }: Props) {
       heading
     );
     const result = await shareOrCopy({ title: `Ma note sur ${about}`, text });
+    // Envoyer le TEXTE de la note, là où `ShareLinkPanel` envoie une adresse :
+    // deux façons de partager, un seul compteur. Rien du texte ne part, et le
+    // titre nomme un candidat.
+    trackEvent(GESTES.PARTAGE, { resultat: result });
     if (result === 'copied') toast.success('Note copiée.');
     if (result === 'failed') toast.error('La note n’a pas pu être partagée.');
   };
@@ -153,7 +165,18 @@ export function NoteShare({ note, about, heading }: Props) {
                 size="sm"
                 disabled={busy}
                 onClick={() =>
-                  void run(() => shareNote(note.id), 'Adresse créée.')
+                  void run(
+                    () => shareNote(note.id),
+                    'Adresse créée.',
+                    // `run` n'appelle ce rappel qu'une fois l'adresse obtenue :
+                    // le quota de vingt liens par heure lève, et un refus ne
+                    // doit pas compter comme un lien créé.
+                    () =>
+                      trackEvent(GESTES.CREATION, {
+                        objet: 'lien_partage',
+                        portee: 'note',
+                      })
+                  )
                 }
               >
                 <Link2 size={16} aria-hidden />
