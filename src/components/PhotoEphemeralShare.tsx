@@ -34,6 +34,7 @@ import { Flame, Trash2 } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import { useSession } from '../hooks/useSession';
 import {
   photoShareRepository,
@@ -141,6 +142,14 @@ export function PhotoEphemeralShare({
       .share(file, `Portrait de ${displayName}`, contestantId)
       .then(created => {
         poser(created);
+        // LE PORTRAIT D'UN JOUR : après `share`, qui lève quand le plafond de
+        // liens actifs est atteint ou que le serveur refuse le fichier. Ni
+        // l'image, ni le jeton, ni le nom du candidat — `portee` dit
+        // seulement lequel des trois liens de l'app vient d'être créé.
+        trackEvent(GESTES.CREATION, {
+          objet: 'lien_partage',
+          portee: 'photo',
+        });
         // Le nouveau prend une place — ou celle du plus ancien, que le
         // serveur vient de chasser. Dans les deux cas le compte ne bouge plus
         // au-delà du plafond.

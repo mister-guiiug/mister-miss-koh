@@ -15,6 +15,7 @@ import { Images } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { downloadBlob, dateSlug } from '@mister-guiiug/dev-pwa-config/download';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import { useAppStore } from '../store/useAppStore';
 import { usePhotosStore } from '../store/usePhotosStore';
 import { archiveName, photoEntries } from '../domain/photosExport';
@@ -60,6 +61,14 @@ export function PhotosExport() {
         toast.error('L’export n’a pas pu démarrer.');
         return;
       }
+      /*
+       * APRÈS LES DEUX SORTIES PRÉMATURÉES — aucune image relue, ou
+       * téléchargement refusé par le navigateur : ni l'une ni l'autre n'est un
+       * export. Le NOMBRE de portraits ne part pas : il dit combien de
+       * candidats l'utilisateur a photographiés, et l'archive, elle, ne quitte
+       * jamais l'appareil.
+       */
+      trackEvent(GESTES.EXPORT, { format: 'zip' });
       toast.success(
         `${entries.length} portrait${entries.length > 1 ? 's' : ''} exporté${entries.length > 1 ? 's' : ''}.`
       );

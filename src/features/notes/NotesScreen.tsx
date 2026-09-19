@@ -60,6 +60,7 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import { downloadText } from '@mister-guiiug/dev-pwa-config/download';
 import {
   currentAppUrl,
@@ -80,7 +81,7 @@ import {
   type ExportableNote,
 } from '../../domain/notesExport';
 import { sharedUrl } from '../../domain/sharing';
-import type { Note } from '../../backend/notes';
+import type { Note, NoteTarget } from '../../backend/notes';
 
 export function NotesScreen() {
   const { account, available, notes, loading, error } = useNotes();
@@ -207,13 +208,43 @@ export function NotesScreen() {
       });
   };
 
+  /*
+   * ÉCRIRE UNE NOTE — le geste qui distingue cette app d'une page Wikipédia.
+   *
+   * DANS LE `after` DE `run`, DONC APRÈS L'ÉCRITURE : `run` n'appelle ce
+   * rappel qu'une fois `create` résolu. Un refus du serveur (quota, session
+   * expirée) passe par le `catch` et ne compte pas.
+   *
+   * NI LE TITRE, NI LE TEXTE, NI LA CIBLE PRÉCISE. Une note sur un candidat
+   * nommé est exactement ce qu'on n'envoie jamais. `cible` ne dit que le TYPE
+   * visé — sept valeurs du schéma, écrites dans `NOTE_TARGETS` — et répond à
+   * la seule question ouverte : qu'est-ce qu'on annote, au juste ?
+   *
+   * `notee` dit si les étoiles ont servi : trois colonnes ont été ajoutées à
+   * l'éditeur, on saura si la troisième méritait de l'être.
+   */
+  const compteNote = (
+    values: NoteValues,
+    target: NoteTarget,
+    modifiee: boolean
+  ) =>
+    trackEvent(GESTES.CREATION, {
+      objet: 'note',
+      cible: target,
+      notee: values.rating !== null,
+      modifiee,
+    });
+
   const submitNew = (values: NoteValues) => {
     const target = choices.find(c => `${c.target}:${c.id}` === choice);
     if (!target) return;
     return run(
       () => create({ target: target.target, targetId: target.id, ...values }),
       'Note enregistrée.',
-      () => setFormKey(k => k + 1)
+      () => {
+        compteNote(values, target.target, false);
+        setFormKey(k => k + 1);
+      }
     );
   };
 
@@ -237,6 +268,10 @@ export function NotesScreen() {
   const sendSelection = async () => {
     const text = notesToText(chosen.map(exportable), heading);
     const result = await shareOrCopy({ title: heading, text });
+    // Le vocabulaire du socle (`shared` / `copied` / `cancelled` / `failed`),
+    // pour que les partages de toutes les apps de la famille se lisent
+    // ensemble. Ni le texte des notes, ni le nombre de notes envoyées.
+    trackEvent(GESTES.PARTAGE, { resultat: result });
     if (result === 'copied') toast.success('Notes copiées.');
     if (result === 'failed') toast.error('L’envoi n’a pas abouti.');
   };
@@ -245,7 +280,11 @@ export function NotesScreen() {
     const document = notesToMarkdown(chosen.map(exportable), heading);
     if (!downloadText(document, notesFileName(heading), 'text/markdown')) {
       toast.error('L’enregistrement n’a pas pu démarrer.');
+      return;
     }
+    // Après le `false` de `downloadText`, pas avant : un navigateur qui refuse
+    // le téléchargement ne doit pas compter comme un export réussi.
+    trackEvent(GESTES.EXPORT, { format: 'md' });
   };
 
   const publishSelection = () =>
@@ -261,6 +300,19 @@ export function NotesScreen() {
       },
       'Lien de collection prêt.',
       () => {
+        /*
+         * UN LIEN RÉVOCABLE, LA SIGNATURE DE CETTE APP. Elle promet un partage
+         * qu'on peut éteindre ; encore faut-il savoir si quelqu'un s'en sert.
+         *
+         * `portee` distingue les trois liens que l'app sait créer — une note,
+         * une collection, un portrait d'un jour — et rien d'autre : ni le
+         * jeton, qui EST l'adresse secrète, ni le titre de la collection, qui
+         * est saisi.
+         */
+        trackEvent(GESTES.CREATION, {
+          objet: 'lien_partage',
+          portee: 'collection',
+        });
         setToPublish(false);
         setPicked([]);
       }
@@ -418,7 +470,13 @@ export function NotesScreen() {
                         run(
                           () => update(note.id, values),
                           'Note corrigée.',
-                          () => setEditing(null)
+                          () => {
+                            // Le même geste, repris : `modifiee` sépare la note
+                            // qu'on écrit de celle qu'on corrige, sans en faire
+                            // deux événements qui ne s'additionneraient plus.
+                            compteNote(values, note.target, true);
+                            setEditing(null);
+                          }
                         )
                       }
                       onCancel={() => setEditing(null)}
