@@ -19,6 +19,17 @@ jobs:
     uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-ci.yml@v6
     with:
       run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
+      # `--strict` : une dette suffit désormais à faire échouer le job. Ce dépôt
+      # est le SEUL des dix-huit qui lancent le docteur à rendre « 0 défaut(s),
+      # 0 dette(s) » (mesuré le 19/09/2026 en jouant `--strict` pour de vrai). Le
+      # passage ne coûte donc rien ici, et il interdit la prochaine régression
+      # au lieu de l'inscrire dans un journal que personne ne lit.
+      doctor-strict: true
+      # Aucune suite Playwright ici : `@playwright/test` n'est pas installé et
+      # le dépôt ne contient pas une seule spec (relevé du 19/09/2026). Il n'y
+      # a donc rien à jouer — et le réutilisable ferait échouer le job plutôt
+      # que de sortir vert sur zéro test. À repasser à `true` le jour où une
+      # suite `e2e/` existe.
       run-e2e: false
 
   # Les Edge Functions sont du Deno : hors du périmètre de `pwa-ci`, qui ne
