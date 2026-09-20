@@ -17,25 +17,31 @@
  * sur le projet hébergé. La restauration, elle, marche déjà : la politique de
  * MISE À JOUR ne filtre pas sur `deleted_at`.
  *
- * LE SOCLE N'A PAS D'ACTION DANS SES NOTIFICATIONS, et ce fichier ne le
- * modifie pas depuis cette application. Il n'en a pas besoin : `toast.show`
- * accepte un nœud React comme message, un bouton en fait partie, et
- * l'identifiant passé à `show` permet de refermer la notification depuis ce
- * bouton. Le jour où le socle portera une action, ce fichier deviendra un
- * appel de plus — pas une réécriture.
+ * LE BOUTON EST CELUI DU SOCLE. Ce fichier a d'abord construit son propre
+ * bouton dans le message, parce que le toast du socle n'avait alors aucune
+ * notion d'action. Il en porte une depuis la 4.5.0 : `show(message,
+ * { action })` rend un vrai `<button>` DANS le message, libellé « Annuler »
+ * dans la langue de l'app (`labels.toast.undo`), habillé par `components.css`
+ * (`[data-dwc='toast-action']`), qui agit PUIS referme la notification dans
+ * le même geste — l'offre d'annuler ne reste pas à l'écran pendant que
+ * l'annulation part, elle n'invite pas à cliquer deux fois. Il ne reste ici
+ * que ce que le socle ne peut pas savoir : quoi annuler, et quoi annoncer
+ * ensuite — le rétablissement, ou son échec.
+ *
+ * LA DURÉE EST UN PLANCHER DU SOCLE. Un toast porteur d'une action vit huit
+ * secondes au moins — le temps de lire, de décider et d'atteindre le bouton —
+ * et le compte à rebours est suspendu tant que le pointeur survole la pile ou
+ * que le focus s'y trouve (WCAG 2.2.1). Ce fichier ne passe donc plus de
+ * durée : c'est la même mesure qu'avant, décidée à un seul endroit, et un
+ * fournisseur réglé plus haut serait respecté.
  *
  * CE QUE ÇA NE COUVRE PAS, ET QUI EST DIT. Huit secondes suffisent au
- * mauvais clic, pas à une hésitation de dix minutes. Le compte à rebours est
- * suspendu tant que le pointeur survole la pile ou que le focus s'y trouve
- * (c'est le fournisseur du socle qui le fait, WCAG 2.2.1). Passé ce délai, la
- * note n'est PAS détruite pour autant — la ligne est toujours en base, seule
- * sa date de suppression est posée.
+ * mauvais clic, pas à une hésitation de dix minutes. Passé ce délai, la note
+ * n'est PAS détruite pour autant — la ligne est toujours en base, seule sa
+ * date de suppression est posée.
  */
 import { useCallback } from 'react';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
-
-/** Huit secondes : le temps de lire la notification et de se raviser. */
-export const UNDO_MS = 8000;
 
 export interface UndoRequest {
   /**
@@ -59,31 +65,25 @@ export function useUndo(): AskUndo {
 
   return useCallback(
     ({ key, message, undo, undone }: UndoRequest) => {
-      const id = `annuler-${key}`;
-      toast.show(
-        <span className="undo">
-          <span>{message}</span>
-          <button
-            type="button"
-            className="undo-action"
-            onClick={() => {
-              // Refermée D'ABORD : laisser l'offre d'annulation à l'écran
-              // pendant que l'annulation part inviterait à cliquer deux fois.
-              toast.dismiss(id);
-              void undo().then(
+      toast.show(message, {
+        id: `annuler-${key}`,
+        action: {
+          onAction: () => {
+            // Un `undo` qui lèverait avant même de rendre sa promesse prend
+            // le chemin d'un rejet : la notification est déjà refermée par le
+            // socle, l'échec doit être dit.
+            void Promise.resolve()
+              .then(() => undo())
+              .then(
                 () => toast.success(undone),
                 (cause: unknown) =>
                   toast.error(
                     cause instanceof Error ? cause.message : String(cause)
                   )
               );
-            }}
-          >
-            Annuler
-          </button>
-        </span>,
-        { tone: 'info', duration: UNDO_MS, id }
-      );
+          },
+        },
+      });
     },
     [toast]
   );
