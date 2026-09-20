@@ -38,11 +38,16 @@
     "preloadGzipKb": 223,
     "_pourquoiPreload": "Posé le 16/09/2026 avec Sentry, socle 4.18.0. Le total compte les morceaux ASYNCHRONES : il monte de 340 à 506 kB par la seule installation du SDK, alors que le chemin critique ne bouge pas. Sans cette seconde borne, ~151 kB de mou couvriraient toute régression. Mesuré 202.2 kB, budget à +10 %."
   },
+  "pwaDoctor": {
+    "refus": {
+      "prefetch-routes": "les trois routes paresseuses sont des écrans de PARTAGE — /partage/:kind/:token, /photo/:token, /profil/:handle — qu'aucun lien de l'application n'atteint : src/domain/sharing.ts les fabrique en URL ABSOLUES, à coller dans une conversation. On y arrive de plain-pied, jamais d'un clic interne. Il n'y a donc rien à précharger : le morceau part en même temps que la page qui le demande, et le repli de Suspense y paraît normalement puisqu'aucune transition ne l'enveloppe."
+    }
+  },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "^10.0.1",
-    "@mister-guiiug/dev-pwa-config": "^6.2.0",
+    "@mister-guiiug/dev-pwa-config": "^6.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
