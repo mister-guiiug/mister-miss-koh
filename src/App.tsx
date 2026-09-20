@@ -21,6 +21,7 @@ import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
 import { usePhotosStore } from './store/usePhotosStore';
+import { useReferentialRetry } from './hooks/useReferentialRetry';
 import { Layout } from './components/Layout';
 import { AppAnimation } from './animations/AppAnimation';
 import { useMotionLevel } from './animations/motion';
@@ -158,6 +159,11 @@ export function App() {
     void init();
     void loadPhotos();
   }, [init, loadPhotos]);
+
+  // `init()` ne lit qu'une fois. Si cette unique lecture est retombée sur un
+  // repli — réseau pas encore prêt au démarrage, serveur muet cinq secondes —
+  // c'est ce hook, et lui seul, qui y revient.
+  useReferentialRetry();
 
   return (
     <ThemeProvider
