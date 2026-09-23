@@ -318,7 +318,7 @@ supabase/
                  0028 tribus colorées, jour du conseil, deux sorties
                  possibles pour un même candidat · 0029 rang de chaque
                  sortie dans sa soirée · 0030 sorties écrasées avant 0028
-                 rendues
+                 rendues · 0031 jour du conseil des épisodes déjà publiés
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
 ```

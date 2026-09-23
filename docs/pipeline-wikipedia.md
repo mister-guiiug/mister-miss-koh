@@ -511,6 +511,21 @@ deux qui le partagent (Jérôme, « La Revanche des 4 terres » ; Cécile, « La
 Tribu maudite » ; Léa, « Les Chasseurs d'immunité ») — confondus en un seul.
 C'est la limite suivante à lever.
 
+**Et le jour du conseil des épisodes déjà publiés (0031, 24/09/2026).** Même
+piège, troisième fois : `publish_run` écrit `day_end` depuis 0028, mais une
+publication n'écrit que ce qui change, et aucun lot ne propose de différence
+d'épisode. Relevé : 0 épisode daté sur 202 dans les saisons anciennes, alors
+que les enregistrements publiés portent le jour depuis la version 2.
+`recaler_jours_de_conseil` en pose 148 — jamais par-dessus un jour publié ;
+59 épisodes n'en ont pas dans la source (les finales, et « La Légende »,
+« La Revanche des héros », « Malaisie », pages sans déroulement). Rejoué avec
+la logique de l'application sur chaque saison et chaque épisode : fins de
+saison identiques, et 16 retours deviennent prouvés, ceux dont 0030 a rendu
+la première sortie. Pas Tania (« Le Feu sacré ») : son séjour « Évincée » est
+un STATUT lu comme une tribu, qui masque une sortie — sans correspondance
+exacte, l'application ne devine rien. **La leçon des trois : toute colonne
+que `publish_run` se met à écrire doit être rattrapée pour l'existant.**
+
 ## Les colliers d'immunité
 
 Quatrième tableau de la source. Relevé du 05/09/2026 :
