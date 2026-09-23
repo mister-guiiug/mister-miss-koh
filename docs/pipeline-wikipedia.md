@@ -494,6 +494,23 @@ cause. `departures.round_number` garde désormais la colonne, et
 `recaler_rangs_des_sorties` l'a rendue aux sorties déjà publiées, relue dans la
 dernière exécution publiée de chaque page.
 
+**Et les sorties écrasées avant 0028 reviennent (0030, 24/09/2026).** Avec une
+sortie par candidat, publier la seconde METTAIT À JOUR la première. Les tours
+s'appliquant dans l'ordre textuel des clés (`e13` avant `e4`), c'est la
+dernière appliquée qui restait ; le tour de l'autre affichait « ? éliminé·e »,
+et la cause d'un départ lié pouvait suivre la ligne dans une autre soirée
+(Teheiura, éliminé à l'épisode 3 « à la suite de » Charlotte, sortie au 10).
+Aucun lot ne les rend : le diff compare à la dernière exécution publiée, qui
+les contient déjà. `rendre_les_sorties_perdues` y relit chaque soirée et écrit
+ce que la publication d'aujourd'hui en ferait. Relevé du 24/09/2026, en
+rejouant ces exécutions hors ligne (leur nombre d'enregistrements égale, pour
+les quinze saisons, celui des différences publiées) : 31 sorties perdues, 29
+rendues, 3 causes reprises. Les deux autres appartiennent à des homonymes :
+la publication rapproche les candidats par le prénom, et trois saisons en ont
+deux qui le partagent (Jérôme, « La Revanche des 4 terres » ; Cécile, « La
+Tribu maudite » ; Léa, « Les Chasseurs d'immunité ») — confondus en un seul.
+C'est la limite suivante à lever.
+
 ## Les colliers d'immunité
 
 Quatrième tableau de la source. Relevé du 05/09/2026 :
