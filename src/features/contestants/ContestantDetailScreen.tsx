@@ -268,11 +268,18 @@ export function ContestantDetailScreen() {
                 episodeNumber={event.episodeNumber}
               >
                 <p>
+                  {/* L'épisode ne s'écrit que s'il est SÛR : estimé, il n'est
+                      qu'une garde anti-spoiler, pas une date à afficher. */}
                   <Badge tone="success">
-                    De retour à l’épisode {event.episodeNumber}
+                    {event.comeback.episodeKnown
+                      ? `De retour à l’épisode ${event.episodeNumber}`
+                      : 'De retour'}
                   </Badge>
                   {event.comeback.fromDay && (
-                    <> · jour {event.comeback.fromDay}</>
+                    <>
+                      {event.comeback.episodeKnown ? ' · jour ' : ' au jour '}
+                      {event.comeback.fromDay}
+                    </>
                   )}
                   {event.comeback.team && (
                     <>

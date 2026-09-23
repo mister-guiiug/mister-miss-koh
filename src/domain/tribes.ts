@@ -76,80 +76,142 @@ export function teamAt(
 }
 
 /**
- * Est-il REVENU après la sortie de l'épisode `exit` ?
+ * Les SORTIES DES TRIBUS d'un candidat, dans l'ordre des jours : chaque trou
+ * entre deux séjours — il n'était plus dans aucune tribu —, puis la fin de son
+ * dernier séjour s'il est refermé. Un trou se referme sur un RETOUR : le séjour
+ * qui recommence après lui.
  *
- * Un retour n'a pas de ligne à lui : il se lit dans un séjour qui COMMENCE
- * après la sortie — « Sebako (jour 9 – ) » pour Maxime, sorti au conseil du
- * jour 3 — et qui dure encore à la limite. Charlotte revient dans Taboga
- * (jour 9 – 14) après sa sortie de l'épisode 3 : en jeu à l'épisode 4, plus à
- * l'épisode 5, dont le conseil du jour 14 referme son séjour.
+ * Maxime : tribu unique (jour 1 – 3), puis Sebako (jour 9 – ) — un trou du
+ * jour 3 au jour 9, refermé par Sebako. Charlotte : (1 – 8), (9 – 14) — un
+ * trou refermé par Taboga, puis une fin. Lola : (1 – 9), (9 – 11) — pas de
+ * trou, une fin.
  */
-export function returnedAfter(
-  ref: Referential,
-  contestant: Contestant,
-  exit: number,
-  limit: number
-): boolean {
-  return contestant.teamStints.some(s => {
-    const from = revealOfDay(ref, s.fromDay);
-    if (from <= exit || from > limit) return false;
-    if (s.toDay === null) return true;
-    const end = episodeOfDay(ref, s.toDay);
-    return end === null || end > limit;
-  });
+function exitsFromTribes(
+  stints: readonly TeamStint[]
+): { readonly back: TeamStint | null }[] {
+  const dated = stints
+    .filter((s): s is TeamStint & { fromDay: number } => s.fromDay !== null)
+    .sort((a, b) => a.fromDay - b.fromDay);
+  const exits: { back: TeamStint | null }[] = [];
+  // Jusqu'où les séjours déjà lus le couvrent : `null` = un séjour ouvert,
+  // qui le couvre pour de bon ; `undefined` = aucun séjour encore.
+  let covered: number | null | undefined;
+  for (const s of dated) {
+    if (typeof covered === 'number' && s.fromDay > covered) {
+      exits.push({ back: s });
+    }
+    covered =
+      covered === null || s.toDay === null
+        ? null
+        : Math.max(covered ?? s.toDay, s.toDay);
+  }
+  if (typeof covered === 'number') exits.push({ back: null });
+  return exits;
 }
 
-/** Un retour : l'épisode qui le montre, et la tribu où l'on revient. */
+/** Les épisodes de ses sorties publiées, dans l'ordre. */
+function exitEpisodes(ref: Referential, contestantId: string): number[] {
+  return ref.departures
+    .filter(d => d.contestantId === contestantId && d.episodeNumber !== null)
+    .map(d => d.episodeNumber as number)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * Les retours qu'on peut PROUVER : un par sortie publiée, dans l'ordre —
+ * chaque sortie répond à une sortie des tribus, et celle-ci dit si l'on est
+ * revenu.
+ *
+ * SANS CORRESPONDANCE EXACTE, ON NE DEVINE RIEN. Deux cas le rendent
+ * nécessaire, tous deux mesurés en production le 23/09/2026 :
+ *
+ *  - dater le retour par le jour de conseil ne marche pas quand ce jour
+ *    manque — c'est le cas de toute saison publiée avant 0028. Retardée par
+ *    prudence, la date d'un séjour ordinaire passait APRÈS la sortie, et
+ *    Fidji affichait quatorze candidats « en jeu » pour un seul resté ;
+ *  - une base publiée avant 0028 n'a gardé qu'UNE sortie par candidat : Marvyn
+ *    (Fidji) est sorti deux fois, la base n'en connaît qu'une, et ses deux
+ *    sorties des tribus ne s'y apparient pas.
+ *
+ * Dans les deux cas, les sorties publiées font foi, comme avant les tribus.
+ *
+ * ET UNE SAISON SANS AUCUN JOUR DE CONSEIL N'INFÈRE AUCUN RETOUR. Ce sont les
+ * saisons publiées avant 0028 : une sortie par candidat, et des séjours
+ * « (jour 37) » lus comme ouverts alors qu'ils ne durent qu'un jour. Sur
+ * « Malaisie », les deux défauts se compensaient exactement — une sortie
+ * perdue, un séjour faussement ouvert — et Thierry, éliminé deux fois,
+ * revenait en jeu jusqu'à la finale. Une saison republiée depuis 0028 porte
+ * ses jours de conseil et ses sorties complètes : c'est là seulement que le
+ * comptage est digne de confiance.
+ */
+function provenReturns(
+  ref: Referential,
+  contestant: Contestant
+): { exit: number; back: TeamStint | null }[] | null {
+  if (!ref.episodes.some(e => e.councilDay !== null)) return null;
+  const exits = exitEpisodes(ref, contestant.id);
+  const tribes = exitsFromTribes(contestant.teamStints);
+  if (exits.length === 0 || tribes.length !== exits.length) return null;
+  return exits.map((exit, index) => ({
+    exit,
+    back: tribes[index]?.back ?? null,
+  }));
+}
+
+/**
+ * En jeu à cette limite ?
+ *
+ * Personne n'est sorti : oui. Sinon, c'est la DERNIÈRE sortie avant la limite
+ * qui décide — et un retour prouvé, déjà montré à la limite, remet en jeu.
+ * Maxime, sorti à l'épisode 1, revient dans Sebako au jour 9 : en jeu à
+ * partir de l'épisode 4. Charlotte revient dans Taboga, puis ressort à
+ * l'épisode 5 : en jeu au 4, plus au 5.
+ */
+export function inGameAt(
+  ref: Referential,
+  contestant: Contestant,
+  limit: number
+): boolean {
+  const past = exitEpisodes(ref, contestant.id).filter(e => e <= limit);
+  if (past.length === 0) return true;
+  const back = provenReturns(ref, contestant)?.[past.length - 1]?.back;
+  return !!back && revealOfDay(ref, back.fromDay) <= limit;
+}
+
+/** Un retour : le jour où il a eu lieu, la tribu, et quand le montrer. */
 export interface Comeback {
+  /** L'épisode à partir duquel le montrer — prudent quand il est estimé. */
   readonly episodeNumber: number;
+  /** Vrai si cet épisode vient d'un jour de conseil CONNU, pas d'un repli. */
+  readonly episodeKnown: boolean;
   readonly team: Team | null;
   readonly fromDay: number | null;
 }
 
 /**
- * Les RETOURS d'un candidat, dans l'ordre : après chacune de ses sorties, le
- * premier séjour qui commence ensuite — et avant la sortie suivante.
+ * Les RETOURS prouvés d'un candidat, dans l'ordre.
  *
- * Ils ne dépendent pas de la limite : l'écran les montre chacun derrière sa
- * garde anti-spoiler, à l'épisode qui les révèle. Charlotte en a un (Taboga,
- * épisode 4), entre ses sorties des épisodes 3 et 5 ; Joana, battue à l'arène
- * après sa sortie, aucun.
+ * Ils ne dépendent pas de la limite : l'écran montre chacun derrière sa garde
+ * anti-spoiler. Charlotte en a un (Taboga, jour 9), entre ses sorties des
+ * épisodes 3 et 5 ; Joana, battue à l'arène après sa sortie, aucun.
  */
 export function comebacksOf(
   ref: Referential,
   contestant: Contestant
 ): Comeback[] {
-  const exits = [
-    ...new Set(
-      ref.departures
-        .filter(d => d.contestantId === contestant.id)
-        .map(d => d.episodeNumber)
-        .filter((n): n is number => n !== null)
-    ),
-  ].sort((a, b) => a - b);
-  const stints = contestant.teamStints.map(stint => ({
-    stint,
-    reveal: revealOfDay(ref, stint.fromDay),
-  }));
-
-  const comebacks: Comeback[] = [];
-  exits.forEach((exit, index) => {
-    const next = exits[index + 1] ?? Number.POSITIVE_INFINITY;
-    const back = stints
-      .filter(s => s.reveal > exit && s.reveal <= next)
-      .sort(
-        (a, b) =>
-          a.reveal - b.reveal || (a.stint.fromDay ?? 0) - (b.stint.fromDay ?? 0)
-      )[0];
-    if (!back) return;
-    const { teamId, fromDay } = back.stint;
-    comebacks.push({
-      episodeNumber: back.reveal,
-      team: ref.teams.find(t => t.id === teamId) ?? null,
-      fromDay,
-    });
+  return (provenReturns(ref, contestant) ?? []).flatMap(({ back }) => {
+    if (!back) return [];
+    const { teamId, fromDay } = back;
+    const known = fromDay === null ? null : episodeOfDay(ref, fromDay);
+    return [
+      {
+        episodeNumber: known ?? revealOfDay(ref, fromDay),
+        episodeKnown: known !== null,
+        team: ref.teams.find(t => t.id === teamId) ?? null,
+        fromDay,
+      },
+    ];
   });
-  return comebacks;
 }
 
 /**
