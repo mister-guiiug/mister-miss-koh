@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(81);
+select plan(86);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -665,6 +665,61 @@ select is(
   'vote:1:1 / linked_pair:2 ← Bastien ép.1',
   'et le décor est celui d''avant'
 );
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2 quater. Le jour du conseil des épisodes publiés avant 0028 (0031)
+--
+-- Une publication n'écrit que ce qui change : un épisode publié avant que
+-- `publish_run` écrive le jour du conseil ne l'a jamais reçu, alors que son
+-- enregistrement le porte.
+-- ════════════════════════════════════════════════════════════════════════════
+
+update episodes set day_end = null
+ where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1;
+
+insert into import_records (run_id, entity, natural_key, payload) values
+  ('dddddddd-0000-0000-0000-000000000001', 'episode', 'saison-fictive:e1',
+   '{"number":1,"airDate":"2026-08-25","aired":true,"departureDay":3,"comfortWinners":["Aël"],"immunityWinners":["Rouge"]}');
+
+select is(
+  recaler_jours_de_conseil('cccccccc-0000-0000-0000-000000000001'), 1,
+  'le jour de l''enregistrement publié arrive sur l''épisode'
+);
+
+select is(
+  (select day_end from episodes
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1),
+  3,
+  'celui que la source écrit : « Départ : Jour 3 »'
+);
+
+select is(
+  recaler_jours_de_conseil('cccccccc-0000-0000-0000-000000000001'), 0,
+  'rejoué, le recalage ne fait rien'
+);
+
+update episodes set day_end = 4
+ where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1;
+
+select is(
+  recaler_jours_de_conseil('cccccccc-0000-0000-0000-000000000001'), 0,
+  'un jour déjà en base ne se remplace pas'
+);
+
+select is(
+  (select day_end from episodes
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1),
+  4,
+  'il reste celui qu''une publication a écrit'
+);
+
+-- Le décor d'avant, pour la suite.
+update episodes set day_end = 3
+ where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1;
+
+delete from import_records
+ where run_id = 'dddddddd-0000-0000-0000-000000000001'
+   and entity = 'episode' and natural_key = 'saison-fictive:e1';
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 3. On ne publie pas deux fois

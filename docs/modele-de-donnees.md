@@ -120,6 +120,11 @@ enregistrements : 29 sorties rendues sur 31, et 3 causes ramenées dans leur
 soirée. Les 2 autres restent absentes : deux candidats y portent le même
 prénom, et la publication les a confondus.
 
+**Le jour du conseil des épisodes déjà publiés (0031, 24/09/2026)** : même
+piège — `episodes.day_end` n'était écrit que sur un épisode qui change.
+`recaler_jours_de_conseil` le pose depuis la dernière exécution publiée
+(148 épisodes), sans jamais remplacer un jour publié.
+
 ### 2. `council_rounds` s'intercale entre le conseil et les votes
 
 La source écrit `<s>9-9</s> / **11**-7` : premier vote à égalité, annulé, puis
