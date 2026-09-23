@@ -317,7 +317,8 @@ supabase/
                  jointure de profil rendue EXTERNE) · … ·
                  0028 tribus colorées, jour du conseil, deux sorties
                  possibles pour un même candidat · 0029 rang de chaque
-                 sortie dans sa soirée
+                 sortie dans sa soirée · 0030 sorties écrasées avant 0028
+                 rendues
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
 ```

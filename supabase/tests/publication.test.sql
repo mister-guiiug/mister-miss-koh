@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(65);
+select plan(81);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -480,6 +480,190 @@ delete from import_records
 select is(
   recaler_rangs_des_sorties('cccccccc-0000-0000-0000-000000000001'), 1,
   'la colonne en trop partie, la sortie retrouve la sienne'
+);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2 ter. Les sorties écrasées avant 0028 reviennent (0030)
+--
+-- Une seule sortie par candidat tenait en base : la seconde écrasait la
+-- première, et le tour de celle-ci affichait « ? éliminé·e ». Les
+-- enregistrements de la dernière exécution publiée les gardent toutes : c'est
+-- d'eux que la réparation les rend. Ici, Bastien sort au vote (colonne 1) et
+-- Aël le suit (colonne 2) — puis on rejoue les écrasements, un par un.
+-- ════════════════════════════════════════════════════════════════════════════
+
+create or replace function sortie_de(prenom text, episode integer) returns text
+language sql stable as $$
+  select d.kind::text || ':' || coalesce(d.round_number::text, '?')
+         || coalesce(':' || cr.round_number, '')
+         || coalesce(' ← ' || cause_sc.display_name || ' ép.' || cause_e.number, '')
+    from departures d
+    join season_contestants sc on sc.id = d.season_contestant_id
+    join episodes e on e.id = d.episode_id
+    left join council_rounds cr on cr.id = d.round_id
+    left join departures cause on cause.id = d.caused_by_departure_id
+    left join season_contestants cause_sc on cause_sc.id = cause.season_contestant_id
+    left join episodes cause_e on cause_e.id = cause.episode_id
+   where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+     and sc.display_name = prenom and e.number = episode
+$$;
+
+create or replace function oublier_sortie(prenom text) returns void
+language sql as $$
+  delete from departures d using season_contestants sc
+   where sc.id = d.season_contestant_id
+     and sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+     and sc.display_name = prenom
+$$;
+
+-- La sortie au vote de Bastien est partie ailleurs ; par la clé étrangère, le
+-- départ lié d'Aël a perdu sa cause avec elle.
+select oublier_sortie('Bastien');
+
+select is(
+  sortie_de('Aël', 1), 'linked_pair:2',
+  'décor : le départ lié n''a plus de cause'
+);
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 2,
+  'la sortie au vote revient, et le départ lié retrouve sa cause'
+);
+
+select is(
+  sortie_de('Bastien', 1), 'vote:1:1',
+  'elle retrouve son tour : il ne dira plus « ? éliminé·e »'
+);
+
+select is(
+  sortie_de('Aël', 1), 'linked_pair:2 ← Bastien ép.1',
+  'la cause est celle de la même soirée'
+);
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 0,
+  'rejouée, la réparation ne fait rien'
+);
+
+-- Le départ lié, écrasé à son tour.
+select oublier_sortie('Aël');
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 1,
+  'une sortie sans scrutin revient aussi'
+);
+
+select is(
+  sortie_de('Aël', 1), 'linked_pair:2 ← Bastien ép.1',
+  'avec sa colonne et sa cause'
+);
+
+select is(fictif_compte('duos'), 1, 'le duo existait : il n''est pas doublé');
+
+-- Une cause emportée dans une autre soirée, comme celle de Teheiura (« L'Île
+-- des héros »), éliminé à l'épisode 3 « à la suite de » Charlotte, sortie au 10.
+insert into episodes (id, season_id, number, validation_status, published_at)
+values ('eeeeeeee-0000-0000-0000-000000000009',
+        'cccccccc-0000-0000-0000-000000000001', 9, 'published', now());
+
+insert into departures (id, season_contestant_id, episode_id, kind,
+                        validation_status, published_at)
+select 'ffffffff-0000-0000-0000-000000000009', sc.id,
+       'eeeeeeee-0000-0000-0000-000000000009', 'vote', 'published', now()
+  from season_contestants sc
+ where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+   and sc.display_name = 'Bastien';
+
+update departures d
+   set caused_by_departure_id = 'ffffffff-0000-0000-0000-000000000009'
+  from season_contestants sc
+ where sc.id = d.season_contestant_id
+   and sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+   and sc.display_name = 'Aël';
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 1,
+  'une cause d''une autre soirée est reprise'
+);
+
+select is(
+  sortie_de('Aël', 1), 'linked_pair:2 ← Bastien ép.1',
+  'elle revient dans la soirée de la sortie'
+);
+
+delete from departures where id = 'ffffffff-0000-0000-0000-000000000009';
+delete from episodes where id = 'eeeeeeee-0000-0000-0000-000000000009';
+
+-- Deux candidats portent le même prénom : lequel est sorti ? (Le décor ne met
+-- aucun candidat dans les enregistrements : on y pose les deux.)
+insert into import_records (run_id, entity, natural_key, payload) values
+  ('dddddddd-0000-0000-0000-000000000001', 'season_contestant', 'saison-fictive:Aël',
+   '{"displayName":"Aël","gender":"f","age":31,"previousSeasons":[],"finalJury":null}'),
+  ('dddddddd-0000-0000-0000-000000000001', 'season_contestant', 'saison-fictive:Aël~2',
+   '{"displayName":"Aël","gender":"f","age":52,"previousSeasons":[],"finalJury":null}');
+
+select oublier_sortie('Aël');
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 0,
+  'un prénom que portent deux candidats ne désigne personne : rien n''est rendu'
+);
+
+delete from import_records
+ where run_id = 'dddddddd-0000-0000-0000-000000000001'
+   and natural_key in ('saison-fictive:Aël', 'saison-fictive:Aël~2');
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 1,
+  'l''homonyme parti, la sortie revient'
+);
+
+-- Égalité puis second tour, sans rien qui la marque : deux colonnes contre
+-- Bastien dans la même soirée.
+insert into council_rounds (council_id, round_number, outcome, source_document_id,
+                            validation_status, published_at)
+select c.id, 3, 'elimination', 'bbbbbbbb-0000-0000-0000-000000000001', 'published', now()
+  from councils c
+  join episodes e on e.id = c.episode_id
+ where e.season_id = 'cccccccc-0000-0000-0000-000000000001' and e.number = 1;
+
+insert into import_records (run_id, entity, natural_key, payload) values
+  ('dddddddd-0000-0000-0000-000000000001', 'council_round', 'saison-fictive:e1:r3',
+   '{"episodeNumber":1,"roundNumber":3,"kind":"vote","eliminated":"Bastien"}');
+
+select oublier_sortie('Bastien');
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 2,
+  'deux colonnes pour une sortie : elle revient une fois, et le départ lié la retrouve'
+);
+
+select is(
+  sortie_de('Bastien', 1), 'vote:3:3',
+  'c''est la dernière colonne qui élimine'
+);
+
+-- Le décor d'avant, pour la suite.
+select oublier_sortie('Bastien');
+
+delete from council_rounds cr using councils c, episodes e
+ where c.id = cr.council_id and e.id = c.episode_id
+   and e.season_id = 'cccccccc-0000-0000-0000-000000000001'
+   and e.number = 1 and cr.round_number = 3;
+
+delete from import_records
+ where run_id = 'dddddddd-0000-0000-0000-000000000001'
+   and natural_key = 'saison-fictive:e1:r3';
+
+select is(
+  rendre_les_sorties_perdues('cccccccc-0000-0000-0000-000000000001'), 2,
+  'la seconde colonne partie, la sortie retrouve la première'
+);
+
+select is(
+  sortie_de('Bastien', 1) || ' / ' || sortie_de('Aël', 1),
+  'vote:1:1 / linked_pair:2 ← Bastien ép.1',
+  'et le décor est celui d''avant'
 );
 
 -- ═══════════════════════════════════════════════════════════════════════════

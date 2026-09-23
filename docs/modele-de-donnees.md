@@ -111,6 +111,15 @@ scrutin du catalogue. `departures.round_number` garde la colonne de la source,
 pour toute sortie. L'ordre d'une soirée se LIT : plusieurs sorties sans
 scrutin se suivent souvent, et aucun tour ne dit leur ordre entre elles.
 
+**Les sorties écrasées avant 0028 reviennent (0030, 24/09/2026).** L'ancienne
+unicité ne se contentait pas d'interdire la seconde sortie : elle la faisait
+ÉCRASER la première, dont le tour affichait ensuite « ? éliminé·e ». Aucun lot
+ne pouvait les rendre — le diff compare à la dernière exécution publiée, qui
+les contient déjà. `rendre_les_sorties_perdues` les relit dans ces
+enregistrements : 29 sorties rendues sur 31, et 3 causes ramenées dans leur
+soirée. Les 2 autres restent absentes : deux candidats y portent le même
+prénom, et la publication les a confondus.
+
 ### 2. `council_rounds` s'intercale entre le conseil et les votes
 
 La source écrit `<s>9-9</s> / **11**-7` : premier vote à égalité, annulé, puis
