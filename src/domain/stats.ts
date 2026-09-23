@@ -16,7 +16,7 @@
  */
 import type { Referential, Round } from './referential';
 import { lastAiredEpisode } from './referential';
-import { returnedAfter } from './tribes';
+import { inGameAt } from './tribes';
 
 export { lastAiredEpisode };
 
@@ -39,23 +39,13 @@ function votingRounds(ref: Referential, upToEpisode: number): Round[] {
  * ON REVIENT. Maxime, éliminé au premier conseil d'All Stars, rentre dans
  * Sebako au jour 9 ; compter toute sortie comme définitive le laissait
  * « sorti·e » dans sa propre tribu. Le retour ne se lit que dans les séjours
- * en tribu — voir `returnedAfter`. Et l'on ressort : Charlotte, revenue dans
- * Taboga, est de nouveau éliminée à l'épisode 5. C'est donc la DERNIÈRE sortie
- * avant la limite qui compte.
+ * en tribu, et seulement quand il se PROUVE — voir `inGameAt`. Et l'on
+ * ressort : Charlotte, revenue dans Taboga, est de nouveau éliminée à
+ * l'épisode 5. C'est donc la DERNIÈRE sortie avant la limite qui compte.
  */
 export function inGame(ref: Referential, upToEpisode: number): string[] {
-  const lastExit = new Map<string, number>();
-  for (const d of ref.departures) {
-    if (d.episodeNumber === null || d.episodeNumber > upToEpisode) continue;
-    const known = lastExit.get(d.contestantId);
-    if (known === undefined || d.episodeNumber > known)
-      lastExit.set(d.contestantId, d.episodeNumber);
-  }
   return ref.contestants
-    .filter(c => {
-      const exit = lastExit.get(c.id);
-      return exit === undefined || returnedAfter(ref, c, exit, upToEpisode);
-    })
+    .filter(c => inGameAt(ref, c, upToEpisode))
     .map(c => c.id);
 }
 

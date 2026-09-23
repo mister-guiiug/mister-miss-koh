@@ -84,17 +84,19 @@ describe('en jeu : on sort, on revient, on ressort', () => {
     expect(enJeu(5)).toContain('c-mael');
   });
 
-  it('sans sa seconde sortie publiée, le séjour refermé au jour 14 la sort quand même', () => {
-    // Une base publiée avant 0028 n'a qu'UNE sortie par candidat. Le séjour
-    // « Kalima (jour 9 – 14) » suffit à dire qu'elle n'est plus là au 5.
+  it('une base publiée avant 0028 n’a gardé qu’UNE sortie : aucun retour deviné', () => {
+    // Deux sorties des tribus, une seule sortie publiée : rien ne dit
+    // laquelle elle est. Les sorties publiées font foi, comme avant les
+    // tribus — sortie au 3, et elle le reste.
     const avant0028: Referential = {
       ...S,
       departures: S.departures.filter(
         d => !(d.contestantId === 'c-chloe' && d.episodeNumber === 5)
       ),
     };
-    expect(inGame(avant0028, 4)).toContain('c-chloe');
+    expect(inGame(avant0028, 4)).not.toContain('c-chloe');
     expect(inGame(avant0028, 5)).not.toContain('c-chloe');
+    expect(comebacksOf(avant0028, who('c-chloe'))).toEqual([]);
   });
 
   it('battu à l’arène : une seconde sortie ne le fait pas revenir', () => {
@@ -109,6 +111,79 @@ describe('en jeu : on sort, on revient, on ressort', () => {
     expect(
       comebacksOf(S, who('c-chloe')).map(b => [b.episodeNumber, b.fromDay])
     ).toEqual([[4, 9]]);
+  });
+});
+
+describe('sans jour de conseil, aucun retour inventé (régression du 23/09)', () => {
+  // FIDJI EN PRODUCTION : vingt sortis sur vingt et un, et l'écran en disait
+  // quatorze « en jeu ». Aucun jour de conseil n'y est publié ; retardé par
+  // prudence au dernier épisode diffusé, un séjour dans la tribu réunifiée
+  // passait APRÈS une élimination qui l'avait refermé.
+  const fidji: Referential = {
+    ...S,
+    episodes: S.episodes.map(e => ({ ...e, councilDay: null })),
+    contestants: [
+      ...S.contestants,
+      {
+        id: 'c-fabien',
+        displayName: 'Fabien',
+        gender: 'm',
+        age: 30,
+        previousSeasons: [],
+        pairId: null,
+        finalJury: null,
+        teamStints: [
+          { teamId: 't-rouge', fromDay: 1, toDay: 10 },
+          { teamId: 't-jaune', fromDay: 10, toDay: 23 },
+          { teamId: 't-unique', fromDay: 23, toDay: 30 },
+        ],
+      },
+    ],
+    departures: [
+      ...S.departures,
+      {
+        contestantId: 'c-fabien',
+        episodeNumber: 3,
+        kind: 'vote',
+        day: null,
+        causedById: null,
+      },
+    ],
+  };
+
+  it('un séjour commencé avant l’élimination ne fait pas un retour', () => {
+    expect(inGame(fidji, 5)).not.toContain('c-fabien');
+    expect(comebacksOf(fidji, contestantById(fidji, 'c-fabien')!)).toEqual([]);
+  });
+
+  it('sans AUCUN jour de conseil publié, les sorties font foi : aucun retour', () => {
+    // Une saison publiée avant 0028. Même un vrai trou entre deux séjours ne
+    // se lit pas en retour : sur « Malaisie », une sortie perdue et un séjour
+    // « (jour 37) » lu comme ouvert s'y compensaient exactement.
+    expect(inGame(fidji, 5)).not.toContain('c-mael');
+    expect(comebacksOf(fidji, who('c-mael'))).toEqual([]);
+  });
+
+  it('avec les jours publiés depuis 0028 — ceux des épisodes 4 et 5 —, le retour se prouve', () => {
+    // Ce qu'All Stars aura après sa prochaine publication : les épisodes 1 à
+    // 3 n'ont pas changé, leur jour de conseil reste inconnu.
+    const republiee: Referential = {
+      ...S,
+      episodes: S.episodes.map(e =>
+        e.number <= 3 ? { ...e, councilDay: null } : e
+      ),
+    };
+    expect(inGame(republiee, 3)).not.toContain('c-mael');
+    expect(inGame(republiee, 4)).toContain('c-mael');
+    expect(inGame(republiee, 4)).toContain('c-chloe');
+    expect(inGame(republiee, 5)).not.toContain('c-chloe');
+    expect(comebacksOf(republiee, who('c-mael'))).toEqual([
+      expect.objectContaining({
+        episodeNumber: 4,
+        episodeKnown: true,
+        fromDay: 9,
+      }),
+    ]);
   });
 });
 

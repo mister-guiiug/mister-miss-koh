@@ -175,7 +175,11 @@ export function DashboardScreen() {
                 const c = contestantById(referential, b.contestantId);
                 return (
                   <li key={`back:${b.contestantId}:${b.episodeNumber}`}>
-                    <span>Épisode {b.episodeNumber}</span>{' '}
+                    <span>
+                      {b.episodeKnown
+                        ? `Épisode ${b.episodeNumber}`
+                        : `Jour ${b.fromDay ?? '?'}`}
+                    </span>{' '}
                     <Link to={`/candidats/${b.contestantId}`}>
                       {c?.displayName ?? '?'}
                     </Link>{' '}
