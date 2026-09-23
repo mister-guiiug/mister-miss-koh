@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(43);
+select plan(57);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ insert into import_differences
    '{"displayName":"Bastien","gender":"m","age":44,"previousSeasons":[],"finalJury":null}'),
   ('dddddddd-0000-0000-0000-000000000001', 'episode', 'saison-fictive:e1',
    'insert', 'unambiguous', 'validated',
-   '{"number":1,"airDate":"2026-08-25","aired":true,"comfortWinners":["Aël"],"immunityWinners":["Rouge"]}'),
+   '{"number":1,"airDate":"2026-08-25","aired":true,"departureDay":3,"comfortWinners":["Aël"],"immunityWinners":["Rouge"]}'),
   ('dddddddd-0000-0000-0000-000000000001', 'council_round', 'saison-fictive:e1:r1',
    'insert', 'unambiguous', 'validated',
    '{"episodeNumber":1,"roundNumber":1,"kind":"vote","eliminated":"Bastien","reportedVotesFor":2,"reportedVotesTotal":2}'),
@@ -89,6 +89,32 @@ insert into import_differences
   ('dddddddd-0000-0000-0000-000000000002', 'season_contestant', 'saison-fictive:Aël',
    'update', 'retroactive', 'validated',
    '{"displayName":"Aël","gender":"f","age":32,"previousSeasons":["Saison 1"],"finalJury":null,"teams":[{"name":"Rouge","fromDay":1,"toDay":5}]}');
+
+-- Troisième lot (0028) : les tribus reçoivent leur couleur, l'épisode 2 son
+-- jour de conseil, et deux candidats DÉJÀ sortis à l'épisode 1 ressortent —
+-- Aël au vote après un retour, Bastien sans scrutin ni cause (l'arène).
+insert into import_runs (id, source_document_id, status, source_revision)
+values ('dddddddd-0000-0000-0000-000000000003',
+        'bbbbbbbb-0000-0000-0000-000000000001', 'diffed', '44');
+
+insert into import_differences
+  (run_id, entity, natural_key, operation, class, status, after_value) values
+  ('dddddddd-0000-0000-0000-000000000003', 'team', 'saison-fictive:tribu:Rouge',
+   'insert', 'unambiguous', 'validated', '{"name":"Rouge","colour":"#fc5d5d"}'),
+  ('dddddddd-0000-0000-0000-000000000003', 'team', 'saison-fictive:tribu:Jaune',
+   'insert', 'unambiguous', 'validated', '{"name":"Jaune","colour":"#fee347"}'),
+  ('dddddddd-0000-0000-0000-000000000003', 'team', 'saison-fictive:tribu:Verte',
+   'insert', 'unambiguous', 'validated',
+   '{"name":"Verte","colour":"url(https://exemple.test/pixel.png)"}'),
+  ('dddddddd-0000-0000-0000-000000000003', 'episode', 'saison-fictive:e2',
+   'insert', 'unambiguous', 'validated',
+   '{"number":2,"airDate":"2026-09-01","aired":true,"departureDay":11,"comfortWinners":[],"immunityWinners":[]}'),
+  ('dddddddd-0000-0000-0000-000000000003', 'council_round', 'saison-fictive:e2:r1',
+   'insert', 'unambiguous', 'validated',
+   '{"episodeNumber":2,"roundNumber":1,"kind":"vote","eliminated":"Aël","causedBy":null,"reportedVotesFor":3,"reportedVotesTotal":5}'),
+  ('dddddddd-0000-0000-0000-000000000003', 'council_round', 'saison-fictive:e2:r2',
+   'insert', 'unambiguous', 'validated',
+   '{"episodeNumber":2,"roundNumber":2,"kind":"linked","eliminated":"Bastien","causedBy":null,"reportedVotesFor":0,"reportedVotesTotal":null}');
 
 create or replace function devenir(who uuid) returns void
 language plpgsql as $$
@@ -286,6 +312,13 @@ select is(
   'le document source dit quelle révision est en ligne'
 );
 
+select is(
+  (select day_end from episodes
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 1),
+  3,
+  'le jour du conseil arrive sur l''épisode : c''est lui qui date les séjours en tribu'
+);
+
 
 select is(fictif_compte('tribus'), 2, 'chaque tribu citée est créée une fois');
 
@@ -442,6 +475,127 @@ select is(
       and display_name = 'Aël'),
   31,
   'et le candidat retrouve son âge d''avant'
+);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 3 ter. Tribus en couleur, jour du conseil, et une SECONDE sortie (0028)
+--
+-- La page All Stars du 23/09/2026 : Taboga est jaune, Sebako rouge ; Maxime,
+-- sorti au premier conseil, revient au jour 9 ; Charlotte, sortie à
+-- l'épisode 3, revient puis ressort à l'épisode 5. Avec une sortie par
+-- candidat, la seconde ÉCRASAIT la première.
+-- ════════════════════════════════════════════════════════════════════════════
+
+select devenir('aaaaaaaa-0000-0000-0000-000000000001');
+
+select lives_ok(
+  $$select publish_run('dddddddd-0000-0000-0000-000000000003', 'couleurs et retours')$$,
+  'le lot des couleurs et des secondes sorties se publie'
+);
+
+reset role;
+
+select is(
+  (select colour from teams
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and name = 'Rouge'),
+  '#fc5d5d',
+  'une tribu née d''un séjour reçoit sa couleur'
+);
+
+select is(
+  (select count(*)::int from team_memberships tm
+     join teams t on t.id = tm.team_id
+    where t.season_id = 'cccccccc-0000-0000-0000-000000000001' and t.name = 'Rouge'),
+  1,
+  'et garde son identifiant : le séjour qui la cite pointe toujours dessus'
+);
+
+select is(
+  (select colour from teams
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and name = 'Jaune'),
+  '#fee347',
+  'une tribu neuve naît avec sa couleur'
+);
+
+select is(
+  (select colour from teams
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and name = 'Verte'),
+  null,
+  'ce qui n''est pas une couleur n''est pas écrit — la tribu, elle, est publiée'
+);
+
+select throws_ok(
+  $$update teams set colour = 'url(https://exemple.test/pixel.png)'
+     where season_id = 'cccccccc-0000-0000-0000-000000000001' and name = 'Jaune'$$,
+  '23514',
+  null,
+  'et la base elle-même refuse une couleur qui finirait dans un attribut `style`'
+);
+
+select is(
+  (select day_end from episodes
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and number = 2),
+  11,
+  'l''épisode 2 porte le jour de son conseil'
+);
+
+select is(
+  (select string_agg(e.number || ':' || d.kind, ', ' order by e.number)
+     from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+     join episodes e on e.id = d.episode_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and sc.display_name = 'Aël'),
+  '1:linked_pair, 2:vote',
+  'une seconde sortie S''AJOUTE : celle de l''épisode 1 reste ce qu''elle était'
+);
+
+select is(
+  (select d.kind::text || coalesce(':' || d.caused_by_departure_id::text, '')
+     from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+     join episodes e on e.id = d.episode_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and sc.display_name = 'Bastien' and e.number = 2),
+  'other',
+  'zéro voix que rien ne cause : ni un vote, ni un binôme — une sortie, sans plus'
+);
+
+select devenir('aaaaaaaa-0000-0000-0000-000000000001');
+
+select lives_ok(
+  $$select revert_publication(
+      (select id from publications
+        where run_id = 'dddddddd-0000-0000-0000-000000000003'
+        order by rang desc limit 1),
+      'couleurs contestées')$$,
+  'le lot des couleurs s''annule'
+);
+
+reset role;
+
+select is(
+  (select colour from teams
+    where season_id = 'cccccccc-0000-0000-0000-000000000001' and name = 'Rouge'),
+  null,
+  'la tribu retrouve l''absence de couleur qu''elle avait : elle avait été photographiée'
+);
+
+select is(
+  (select count(*)::int from teams
+    where season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and name in ('Jaune', 'Verte')),
+  0,
+  'les tribus nées de ce lot disparaissent avec lui'
+);
+
+select is(
+  (select count(*)::int from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and sc.display_name in ('Aël', 'Bastien')),
+  2,
+  'les secondes sorties partent, les premières restent'
 );
 
 

@@ -617,3 +617,66 @@ Deno.test("une ligne de candidat recopiée ne coule plus la saison", async () =>
     "aucune clé naturelle répétée ne part à l'écriture",
   );
 });
+
+// ── Les tribus jaune et rouge : la page du 23/09/2026 ─────────────────────
+
+const read0923 = (name: string) =>
+  Deno.readTextFile(
+    new URL(`./fixtures/all-stars-${name}-2026-09-23.html`, import.meta.url),
+  );
+
+Deno.test("23/09 : une différence par TRIBU porte sa couleur, les séjours restent tels quels", async () => {
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      revId: "239752857",
+      sections: [
+        { index: "4", line: "Candidats" },
+        { index: "5", line: "Déroulement" },
+        { index: "8", line: "Détails des votes" },
+      ],
+      html: {
+        "0": INTRODUCTION,
+        "4": await read0923("candidats"),
+        "5": await read0923("deroulement"),
+        "8": await read0923("votes"),
+      },
+    }),
+  });
+
+  assertEquals(outcome.status, "diffed");
+  const tribus = calls.records.filter((r) => r.entity === "team");
+  assertEquals(tribus.map((r) => [r.naturalKey, r.payload]), [
+    ["all-stars-2026:tribu:Tribu unique", { name: "Tribu unique", colour: "#ffffff" }],
+    ["all-stars-2026:tribu:Taboga", { name: "Taboga", colour: "#fee347" }],
+    ["all-stars-2026:tribu:Sebako", { name: "Sebako", colour: "#fc5d5d" }],
+  ]);
+  assert(
+    calls.differences.some((d) =>
+      d.entity === "team" && d.naturalKey === "all-stars-2026:tribu:Taboga" &&
+      d.class === "unambiguous"
+    ),
+    "une tribu neuve se relit comme une donnée neuve",
+  );
+
+  // LA COULEUR NE DESCEND PAS SUR LES SÉJOURS : sans cette retenue, chaque
+  // candidat de chaque saison deviendrait une différence à relire le jour où
+  // l'extraction apprend à lire une pastille.
+  const camille = calls.records.find((r) =>
+    r.entity === "season_contestant" && r.naturalKey === "all-stars-2026:Camille"
+  );
+  assertEquals(camille?.payload.teams, [
+    { name: "Tribu unique", fromDay: 1, toDay: 9 },
+    { name: "Taboga", fromDay: 9, toDay: null },
+  ]);
+
+  const e5r1 = calls.records.find((r) => r.naturalKey === "all-stars-2026:e5:r1");
+  assertEquals(e5r1?.payload.kind, "annulled", "le « / » de l'épisode 5 est une égalité");
+});
+
+Deno.test("la version d'extraction est la 12 : les pages figées sont rejouées", () => {
+  // Sans ce changement de version, une page qui ne bouge plus répondrait
+  // « révision déjà traitée », et les couleurs n'atteindraient jamais la base.
+  assertEquals(EXTRACTOR_VERSION, "12");
+});

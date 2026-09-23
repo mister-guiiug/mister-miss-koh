@@ -7,6 +7,7 @@ import {
   episodesFromRounds,
   extractContestants,
   extractProgress,
+  extractTeams,
   looksLikeProgress,
 } from "./extract-season.ts";
 import {
@@ -463,4 +464,85 @@ Deno.test("une ligne recopiée à l'identique n'est pas un homonyme", () => {
   assertEquals(out.contestants.length, 1);
   assert(out.anomalies.some((a) => a.code === "ligne_repetee"));
   assert(!out.anomalies.some((a) => a.code === "homonymes"));
+});
+
+// ── Tribus jaune et rouge : la page du 23/09/2026 (révision 239752857) ────
+
+const candidats0923Html = await Deno.readTextFile(
+  new URL("./fixtures/all-stars-candidats-2026-09-23.html", import.meta.url),
+);
+const candidats0923 = extractContestants(
+  parseTables(candidats0923Html)[0].grid,
+  SEASON,
+);
+
+Deno.test("23/09 : chaque séjour porte la couleur de sa pastille", () => {
+  const camille = candidats0923.contestants.find((c) => c.displayName === "Camille");
+  assertEquals(camille?.teams, [
+    { name: "Tribu unique", fromDay: 1, toDay: 9, colour: "#ffffff" },
+    { name: "Taboga", fromDay: 9, toDay: null, colour: "#fee347" },
+  ]);
+  const ugo = candidats0923.contestants.find((c) => c.displayName === "Ugo");
+  assertEquals(ugo?.teams.at(-1), {
+    name: "Sebako",
+    fromDay: 9,
+    toDay: null,
+    colour: "#fc5d5d",
+  });
+});
+
+Deno.test("23/09 : un retour se lit dans les jours — Maxime, banni, puis Sebako", () => {
+  // Éliminé au premier conseil (jour 3), il revient au jour 9 par l'arène.
+  // Rien d'autre ne le dit : la colonne « Départ » de sa ligne est vide.
+  const maxime = candidats0923.contestants.find((c) => c.displayName === "Maxime");
+  assertEquals(maxime?.teams.map((t) => [t.name, t.fromDay, t.toDay]), [
+    ["Tribu unique", 1, 3],
+    ["Sebako", 9, null],
+  ]);
+  assertEquals(maxime?.teamStatuses.map((s) => [s.name, s.fromDay, s.toDay]), [
+    ["Banni", 3, 9],
+  ]);
+  assertEquals(maxime?.departure, null);
+});
+
+Deno.test("23/09 : trois tribus, une couleur chacune, et « Banni » n'en est pas une", () => {
+  const { teams, anomalies } = extractTeams(candidats0923.contestants, SEASON);
+  assertEquals(teams, [
+    {
+      naturalKey: "all-stars-2026:tribu:Tribu unique",
+      name: "Tribu unique",
+      colour: "#ffffff",
+    },
+    { naturalKey: "all-stars-2026:tribu:Taboga", name: "Taboga", colour: "#fee347" },
+    { naturalKey: "all-stars-2026:tribu:Sebako", name: "Sebako", colour: "#fc5d5d" },
+  ]);
+  assertEquals(anomalies, []);
+});
+
+Deno.test("deux couleurs pour une tribu : aucune n'est retenue, et c'est dit", () => {
+  const stint = (colour: string | null) => ({
+    name: "Kama",
+    fromDay: 1,
+    toDay: null,
+    colour,
+  });
+  const contestant = (name: string, colour: string | null) => ({
+    naturalKey: `s:${name}`,
+    displayName: name,
+    gender: null,
+    age: null,
+    previousSeasons: [],
+    teams: [stint(colour)],
+    teamStatuses: [],
+    finalJury: null,
+    departure: null,
+  });
+  const { teams, anomalies } = extractTeams(
+    [contestant("A", "#fc5d5d"), contestant("B", "#fee347"), contestant("C", null)],
+    "s",
+  );
+  assertEquals(teams, [{ naturalKey: "s:tribu:Kama", name: "Kama", colour: null }]);
+  assertEquals(anomalies.map((a) => [a.code, a.row]), [
+    ["couleur_de_tribu_discordante", "tribu:Kama"],
+  ]);
 });

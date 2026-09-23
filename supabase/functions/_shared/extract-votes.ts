@@ -531,5 +531,34 @@ export function extractVotes(
     });
   }
 
+  // ── L'ÉGALITÉ QUE LA SOURCE NE BARRE PAS ─────────────────────────────────
+  //
+  // Une égalité se lit d'ordinaire à ses voix BARRÉES (épisode 1 d'All Stars).
+  // Mais la source ne les barre pas toujours : elle écrit alors « / » en guise
+  // de décompte, et fait courir le nom de l'éliminé sur deux colonnes — ce
+  // tour-ci, puis le second tour qui l'élimine vraiment. Relevé du 23/09/2026
+  // sur les dix-huit pages : quatorze colonnes de scrutin — des voix, aucune
+  // barrée — portent « / » pour décompte, sur neuf pages, et TOUTES sont
+  // suivies du second tour de la même soirée contre la même personne. Les
+  // autres « / » du corpus sont déjà des égalités barrées, ou des colonnes
+  // sans éliminé : la règle ne les touche pas.
+  //
+  // La lire comme un scrutin ordinaire, c'était publier deux tours qui
+  // éliminent la même personne — l'application affichait le premier en
+  // « ? éliminé·e », et comptait ses voix dans les « voix reçues ».
+  for (let k = 0; k + 1 < rounds.length; k += 1) {
+    const round = rounds[k];
+    const next = rounds[k + 1];
+    if (
+      round.kind === "vote" && round.rawTally.trim() === "/" &&
+      round.eliminated !== null &&
+      next.episodeNumber === round.episodeNumber &&
+      next.eliminated === round.eliminated &&
+      next.reportedVotesFor !== null
+    ) {
+      rounds[k] = { ...round, kind: "annulled" };
+    }
+  }
+
   return { rounds, votes, statuses, contestants, anomalies };
 }

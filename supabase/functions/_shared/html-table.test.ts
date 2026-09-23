@@ -13,8 +13,57 @@ import {
   cellText,
   decodeEntities,
   footnoteRefs,
+  legendLines,
+  normaliseColour,
   parseTables,
 } from "./html-table.ts";
+
+// ── Légendes colorées ─────────────────────────────────────────────────────
+
+/** Une ligne telle que MediaWiki rend `{{Légende|<couleur>|<texte>}}`. */
+function legende(couleur: string, texte: string): string {
+  return '<li><span class="legende" style="margin-right:.3em;display:inline-block;' +
+    `width:1.3em;height:1.3em;background:${couleur};border:1px solid gray;` +
+    `vertical-align:middle"></span>${texte}</li>`;
+}
+
+Deno.test("légende : chaque ligne garde la couleur de SA pastille", () => {
+  const html = '<div class="legende-bloc legende-bloc-vertical">' +
+    '<link rel="mw-deduplicated-inline-style" href="mw-data:TemplateStyles:r1" />' +
+    "<ul>" + legende("white", "Tribu unique (jour 1 – 9)") +
+    legende("#fee347", "Taboga (jour 9 – )") + "</ul></div>";
+  assertEquals(legendLines(html), [
+    { text: "Tribu unique (jour 1 – 9)", colour: "#ffffff" },
+    { text: "Taboga (jour 9 – )", colour: "#fee347" },
+  ]);
+});
+
+Deno.test("légende : une cellule sans <li> rend ses lignes, sans couleur", () => {
+  assertEquals(legendLines("Tupan (jour 1 – 12)<br>Réunifiée (jour 12 – )"), [
+    { text: "Tupan (jour 1 – 12)", colour: null },
+    { text: "Réunifiée (jour 12 – )", colour: null },
+  ]);
+  assertEquals(
+    legendLines("<ul><li>Tribu des hommes (jour 1 – 8)</li></ul>"),
+    [{ text: "Tribu des hommes (jour 1 – 8)", colour: null }],
+    "une ligne sans pastille n'a pas de couleur — on ne la devine pas",
+  );
+});
+
+Deno.test("couleur : réduite à #rrggbb, et rien d'autre ne passe", () => {
+  assertEquals(normaliseColour("#FC5D5D"), "#fc5d5d", "la casse ne fait pas deux tribus");
+  assertEquals(normaliseColour(" #fee347 "), "#fee347");
+  assertEquals(normaliseColour("#abc"), "#aabbcc");
+  assertEquals(normaliseColour("White"), "#ffffff");
+  assertEquals(normaliseColour("grey"), "#808080");
+  assertEquals(normaliseColour("darkgray"), "#a9a9a9");
+  // Ce qui finirait dans un attribut `style` ne doit rien pouvoir y glisser.
+  assertEquals(normaliseColour("url(https://exemple.invalid/x.png)"), null);
+  assertEquals(normaliseColour("var(--primary)"), null);
+  assertEquals(normaliseColour("#12345"), null);
+  assertEquals(normaliseColour("#ggg"), null);
+  assertEquals(normaliseColour("rebeccapurple"), null, "hors du relevé : pas publiée");
+});
 
 Deno.test("décodage : seulement ce que MediaWiki produit", () => {
   assertEquals(decodeEntities("a &amp; b"), "a & b");

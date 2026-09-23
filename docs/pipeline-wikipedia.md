@@ -82,17 +82,17 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 ## Modules
 
-| Fichier                 | Rôle                                                                               |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| `mediawiki.ts`          | Client API : révision, sections, HTML d'une section, empreinte stable              |
-| `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), sans dépendance                    |
-| `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                           |
-| `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                        |
-| `parse-fr.ts`           | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation |
-| `cross-check.ts`        | Recoupement des trois tableaux entre eux                                           |
-| `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable          |
-| `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement            |
-| `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées              |
+| Fichier                 | Rôle                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `mediawiki.ts`          | Client API : révision, sections, HTML d'une section, empreinte stable                 |
+| `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), couleur des légendes, sans dépendance |
+| `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                              |
+| `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                           |
+| `parse-fr.ts`           | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation    |
+| `cross-check.ts`        | Recoupement des trois tableaux entre eux                                              |
+| `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable             |
+| `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement               |
+| `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées                 |
 
 Trois pièges que les tests figent :
 
@@ -429,6 +429,60 @@ Le format de l'épreuve se **déduit** du vainqueur : `team` si une tribu a
 gagné, `individual` si un candidat. Le supposer individuel ferait passer une
 victoire de tribu pour une victoire personnelle.
 
+## Les tribus en couleur, et ce que la page du 23/09/2026 a appris
+
+Au jour 9 d'All Stars, la tribu unique se scinde : **Taboga**, la tribu jaune,
+et **Sebako**, la rouge. La page le dit deux fois — une pastille devant chaque
+séjour de la colonne « Tribu » (`{{Légende|#fee347|Taboga (jour 9 – )}}`), et
+une légende sous le tableau. Le site, lui, n'affichait qu'une « Tribu unique » :
+la base en était restée à la révision du 11/09, et même relue, elle n'aurait
+pas su dire qui était jaune ni qui était rouge.
+
+Relevé du 23/09/2026 sur les dix-huit pages, **avant** d'écrire une ligne :
+
+| Ce qui a été compté                                      | Résultat                                                                    |
+| -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| lignes de légende dans les colonnes « Tribu »            | 657, dont 21 sans pastille (« La Légende »)                                 |
+| notations de couleur                                     | `#rrggbb` (les deux casses) et `white`, `black`, `gray`, `grey`, `darkgray` |
+| tribus dont la couleur varie dans leur saison            | aucune, une fois la casse ramenée à une seule                               |
+| colonnes « / » à voix non barrées                        | 14, sur neuf pages — toutes le 1er tour d'une égalité                       |
+| colonnes à zéro voix qu'aucun vote de la soirée ne cause | 84, sur quinze pages                                                        |
+| personnes éliminées à deux épisodes différents           | sur quatorze pages sur seize                                                |
+
+Quatre conséquences, une par ligne du tableau ou presque :
+
+- **la couleur est un fait de la tribu, pas du séjour.** L'extraction 12 la lit
+  sur la pastille (`legendLines`), la réduit à `#rrggbb` — rien d'autre ne
+  passe, parce qu'elle finira dans un attribut `style` — et la propose une fois
+  par tribu : une entité `team` de plus, une différence par tribu à relire, et
+  les séjours des candidats gardent exactement leur forme. Deux couleurs pour
+  une même tribu, aucune n'est retenue, et l'anomalie le dit ;
+- **une égalité ne se lit pas toujours à ses voix barrées.** Quatorze colonnes
+  écrivent « / » pour décompte et font courir le nom de l'éliminé sur deux
+  colonnes, sans rien barrer : c'est le premier tour d'une égalité, et il
+  devient `annulled`. Lu comme un scrutin, il publiait deux tours contre la
+  même personne, dont un « ? éliminé·e » ;
+- **zéro voix sans cause n'est pas un départ de binôme.** Un abandon, une
+  évacuation, et à l'épisode 4 d'All Stars la sortie de quatre bannis battus à
+  l'arène. L'extraction dit déjà « rien ne le cause » (`causedBy` vide) ; c'est
+  la publication qui en faisait un `linked_pair`, et l'application écrivait
+  « part avec son binôme » sous des abandons et des évacuations, dans quinze
+  saisons. Elle publie désormais `other` ;
+- **on revient, et l'on ressort.** Maxime, éliminé au premier conseil, rentre
+  dans Sebako au jour 9 ; Charlotte sort avec son binôme à l'épisode 3,
+  revient dans Taboga, puis est éliminée à l'épisode 5. Avec une sortie par
+  candidat, la seconde écrasait la première : depuis `0028`, une sortie se
+  rattache à sa soirée. Le retour, lui, n'a pas de ligne — il se lit dans les
+  séjours, qui recommencent après la sortie.
+
+**Et le jour du conseil devient publié.** La colonne « Départ » du déroulement
+date chaque conseil (« Jour 11 ») ; l'extraction la lisait depuis la version 2
+sans que rien ne la publie. `episodes.day_end` la reçoit. C'est la pièce qui
+manquait pour montrer un séjour au bon moment : « Taboga (jour 9 – ) » se
+montre à partir de l'épisode dont le conseil tombe le jour 9 ou après — le 4,
+tenu le jour 11. Rien n'est converti en base : l'application déduit, et quand
+un jour de conseil manque, elle attend plutôt que de deviner.
+
 ## Les colliers d'immunité
 
 Quatrième tableau de la source. Relevé du 05/09/2026 :
@@ -619,8 +673,11 @@ un défaut d'outil.
 2. les **résumés d'épisodes** : la source les rédige en prose, et le projet ne
    stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
-3. les **ordinaux** des saisons précédentes : « 33<sup>e</sup> jour » perd son
-   « e » parce que tous les exposants sont retirés avec les appels de note.
+3. l'**île des bannis** : « Banni (jour 3 – 9) » est lu (`teamStatuses`) mais
+   pas publié. L'application sait qu'un candidat est sorti puis revenu ; elle
+   ne sait pas dire, entre les deux, qu'il attendait sur l'île plutôt qu'il
+   était rentré chez lui. Le publier demande une table — ce n'est pas une
+   tribu, et la colonne le range pourtant avec elles.
 
 ## La planification
 

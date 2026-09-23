@@ -146,6 +146,104 @@ export function cellLines(html: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+/** Une ligne de légende : son texte, et la couleur de sa pastille. */
+export interface LegendLine {
+  readonly text: string;
+  /** `#rrggbb` en minuscules, ou `null` si la pastille n'en déclare aucune. */
+  readonly colour: string | null;
+}
+
+/**
+ * Les lignes d'une cellule qui empile des LÉGENDES colorées.
+ *
+ * LA COULEUR D'UNE TRIBU EST UNE DONNÉE DE LA SOURCE, pas une décoration. La
+ * colonne « Tribu » écrit chaque séjour avec le modèle `{{Légende|#fee347|
+ * Taboga (jour 9 – )}}`, que MediaWiki rend en `<li>` précédé d'une pastille
+ * `<span class="legende" style="…background:#fee347…">`. La page le dit en
+ * toutes lettres sous le tableau : « Taboga » est la tribu jaune. Relevé du
+ * 23/09/2026 sur les dix-huit pages : 657 lignes de légende, toutes colorées
+ * sauf les 21 des deux tribus de départ de « La Légende », et chaque tribu
+ * garde UNE couleur d'un bout à l'autre de sa saison — à la casse près
+ * (`#FC5D5D` et `#fc5d5d` sur « L'Île des héros »).
+ *
+ * Une cellule SANS `<li>` rend ses lignes sans couleur : on ne devine pas.
+ */
+export function legendLines(html: string): LegendLine[] {
+  if (!html.includes("<li")) {
+    return cellLines(html).map((text) => ({ text, colour: null }));
+  }
+  const out: LegendLine[] = [];
+  let i = 0;
+  while (i < html.length) {
+    const start = html.indexOf("<li", i);
+    if (start === -1) break;
+    const close = html.indexOf("</li>", start);
+    const end = close === -1 ? html.length : close;
+    const item = html.slice(start, end);
+    const text = cellText(item);
+    if (text) out.push({ text, colour: swatchColour(item) });
+    i = close === -1 ? html.length : close + "</li>".length;
+  }
+  return out;
+}
+
+/** Couleur de la PREMIÈRE pastille `class="legende"` d'un fragment. */
+function swatchColour(fragment: string): string | null {
+  const marker = fragment.indexOf('class="legende"');
+  if (marker === -1) return null;
+  const tagStart = fragment.lastIndexOf("<", marker);
+  const tagEnd = fragment.indexOf(">", marker);
+  if (tagStart === -1 || tagEnd === -1) return null;
+  const style = decodeEntities(attrValue(fragment.slice(tagStart, tagEnd), "style"));
+  // Une déclaration CSS par `;`, découpée à la main : la valeur vient d'une
+  // page que n'importe qui peut modifier, et elle n'ira jamais plus loin que
+  // `normaliseColour`, qui ne laisse passer qu'un `#rrggbb`.
+  for (const declaration of style.split(";")) {
+    const colon = declaration.indexOf(":");
+    if (colon === -1) continue;
+    const property = declaration.slice(0, colon).trim().toLowerCase();
+    if (property !== "background" && property !== "background-color") continue;
+    return normaliseColour(declaration.slice(colon + 1));
+  }
+  return null;
+}
+
+/**
+ * Les couleurs NOMMÉES que le corpus emploie (relevé du 23/09/2026), et leur
+ * valeur CSS. Une couleur absente de cette liste vaut `null` : on ne publie
+ * pas une valeur qu'on ne sait pas relire.
+ */
+const NAMED_COLOURS: Readonly<Record<string, string>> = {
+  white: "#ffffff",
+  black: "#000000",
+  gray: "#808080",
+  grey: "#808080",
+  darkgray: "#a9a9a9",
+  darkgrey: "#a9a9a9",
+  lightgray: "#d3d3d3",
+  lightgrey: "#d3d3d3",
+  silver: "#c0c0c0",
+};
+
+/**
+ * Une couleur CSS → `#rrggbb` en minuscules, ou `null`.
+ *
+ * CE QUI SORT D'ICI FINIT DANS UN ATTRIBUT `style` DE L'APPLICATION. La
+ * valeur est donc réduite à six chiffres hexadécimaux : ni `url(…)`, ni
+ * `var(…)`, ni rien de ce qu'une page modifiable par tous pourrait y glisser.
+ */
+export function normaliseColour(raw: string): string | null {
+  const value = raw.trim().toLowerCase().replace(/\s*!important$/, "");
+  const named = NAMED_COLOURS[value];
+  if (named) return named;
+  if (!value.startsWith("#")) return null;
+  const hex = value.slice(1);
+  if (!/^[0-9a-f]+$/.test(hex)) return null;
+  if (hex.length === 6) return `#${hex}`;
+  if (hex.length === 3) return `#${[...hex].map((c) => c + c).join("")}`;
+  return null;
+}
+
 /**
  * Identifiants des notes citées dans la cellule (`n° 2`, `12`…).
  *

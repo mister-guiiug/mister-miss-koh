@@ -467,3 +467,74 @@ Deno.test("les voix d'un homonyme ne sont attribuées à personne", () => {
     "les deux lignes écartées sont dites",
   );
 });
+
+// ── L'égalité que la source ne barre pas ──────────────────────────────────
+
+Deno.test("« / » puis un second tour contre la même personne : une égalité", () => {
+  // La forme de quatorze colonnes du corpus au 23/09/2026 : les voix du
+  // premier tour ne sont PAS barrées, seul le « / » et le nom courant sur deux
+  // colonnes disent l'égalité.
+  const grid = gridOf([
+    ["► Épisode", "5", "5"],
+    ["► Éliminé", "Charlotte", "Charlotte"],
+    ["► Votes", "/", "3/6"],
+    ["▼ Candidats", "Votes", ""],
+    ["Camille", "Vincent", "Vincent"],
+    ["Charlotte", "Vincent", "Vincent"],
+    ["Vincent", "Charlotte", "Charlotte"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assertEquals(out.rounds.map((r) => r.kind), ["annulled", "vote"]);
+  assertEquals(out.rounds[1].eliminated, "Charlotte");
+  assertEquals(out.rounds[1].reportedVotesFor, 3);
+});
+
+Deno.test("« / » suivi d'autre chose qu'un second tour contre la même personne : inchangé", () => {
+  const grid = gridOf([
+    ["► Épisode", "5", "5", "6"],
+    ["► Éliminé", "Charlotte", "Vincent", "Camille"],
+    ["► Votes", "/", "3/6", "/"],
+    ["▼ Candidats", "Votes", "", ""],
+    ["Camille", "Vincent", "Vincent", "Vincent"],
+    ["Charlotte", "Vincent", "Vincent", "Camille"],
+    ["Vincent", "Charlotte", "Charlotte", "Camille"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assertEquals(
+    out.rounds.map((r) => r.kind),
+    ["vote", "vote", "vote"],
+    "un autre éliminé, ou aucun tour après : rien n'autorise à parler d'égalité",
+  );
+});
+
+// ── La page du 23/09/2026 (révision 239752857) ────────────────────────────
+
+const fixture0923 = await Deno.readTextFile(
+  new URL("./fixtures/all-stars-votes-2026-09-23.html", import.meta.url),
+);
+const real0923 = extractVotes(
+  parseTables(fixture0923).find((t) => looksLikeVotes(t.grid))!.grid,
+  SEASON,
+);
+
+Deno.test("23/09 : l'égalité de l'épisode 5 n'élimine pas deux fois Charlotte", () => {
+  const ep5 = real0923.rounds.filter((r) => r.episodeNumber === 5);
+  assertEquals(ep5.map((r) => [r.kind, r.eliminated, r.rawTally]), [
+    ["annulled", "Charlotte", "/"],
+    ["vote", "Charlotte", "3/6"],
+  ]);
+});
+
+Deno.test("23/09 : l'arène sort quatre bannis sans scrutin, et rien ne les cause", () => {
+  // Épisode 4 : quatre colonnes à zéro voix AVANT le conseil de Lola. Ce ne
+  // sont pas des départs de binôme — aucun vote de la soirée ne les précède —,
+  // et la publication doit le savoir : `causedBy` reste vide.
+  const ep4 = real0923.rounds.filter((r) => r.episodeNumber === 4);
+  assertEquals(ep4.map((r) => [r.kind, r.eliminated, r.causedBy]), [
+    ["linked", "Joana", null],
+    ["linked", "Moussa", null],
+    ["linked", "Naoil", null],
+    ["linked", "Jacques", null],
+    ["vote", "Lola", null],
+  ]);
+});
