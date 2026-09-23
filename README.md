@@ -316,7 +316,8 @@ supabase/
                  0021 partage des notes (lecteur de collection, et la
                  jointure de profil rendue EXTERNE) · … ·
                  0028 tribus colorées, jour du conseil, deux sorties
-                 possibles pour un même candidat
+                 possibles pour un même candidat · 0029 rang de chaque
+                 sortie dans sa soirée
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
 ```

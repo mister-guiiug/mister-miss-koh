@@ -101,6 +101,16 @@ tribu, qui recommencent après la sortie (« Sebako (jour 9 – ) »), et dans l
 jour du conseil de chaque épisode (`episodes.day_end`), qui dit à partir de
 quand ce séjour peut se montrer.
 
+**Une sortie garde son rang dans la soirée (0029, 24/09/2026).** C'est le tour
+qui portait le rang (`council_rounds.round_number`), et une sortie sans scrutin
+n'a pas de tour — c'en serait un fantôme (0009). L'application la rangeait donc
+après le dernier conseil de sa soirée : juste pour un départ de binôme, qui
+suit l'élimination qui le cause, faux pour les quatre bannis battus à l'arène
+d'All Stars, qui précèdent le conseil de Lola, et pour 65 des 102 colonnes sans
+scrutin du catalogue. `departures.round_number` garde la colonne de la source,
+pour toute sortie. L'ordre d'une soirée se LIT : plusieurs sorties sans
+scrutin se suivent souvent, et aucun tour ne dit leur ordre entre elles.
+
 ### 2. `council_rounds` s'intercale entre le conseil et les votes
 
 La source écrit `<s>9-9</s> / **11**-7` : premier vote à égalité, annulé, puis

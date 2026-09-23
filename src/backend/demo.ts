@@ -325,6 +325,7 @@ const raw = {
       kind: 'vote',
       day: 3,
       causedById: null,
+      roundNumber: 2,
     },
     {
       contestantId: 'c-hina',
@@ -332,6 +333,7 @@ const raw = {
       kind: 'linked_pair',
       day: 3,
       causedById: 'c-gael',
+      roundNumber: 3,
     },
     {
       contestantId: 'c-dimitri',
@@ -339,6 +341,7 @@ const raw = {
       kind: 'vote',
       day: 6,
       causedById: null,
+      roundNumber: 1,
     },
     {
       contestantId: 'c-celeste',
@@ -346,6 +349,7 @@ const raw = {
       kind: 'linked_pair',
       day: 6,
       causedById: 'c-dimitri',
+      roundNumber: 2,
     },
   ],
   provenance: {

@@ -374,6 +374,8 @@ describe('mapReferential', () => {
       kind: 'linked_pair',
       day: 3,
       causedById: 'sc-d',
+      // Une base d'avant 0029 ne dit pas son rang : il reste inconnu.
+      roundNumber: null,
     });
   });
 
@@ -506,6 +508,115 @@ describe('mapReferential — tribus colorées et sorties multiples (0028)', () =
         .filter(d => d.contestantId === 'sc-c')
         .map(d => d.episodeNumber)
     ).toEqual([1, 2]);
+  });
+});
+
+describe('mapReferential — le rang dans la soirée (0029)', () => {
+  // L'épisode 4 d'All Stars en petit : deux sorties à l'arène (colonnes 1 et
+  // 2), PUIS le conseil (colonne 3). Les lignes arrivent dans le désordre,
+  // comme la base peut les rendre, et une quatrième sortie n'a pas de rang.
+  const soiree = mapReferential(
+    {
+      ...rows,
+      episodes: rows.episodes.map(e =>
+        e.id === 'e2'
+          ? {
+              ...e,
+              councils: [
+                {
+                  id: 'c2',
+                  council_rounds: [
+                    {
+                      id: 'r5',
+                      round_number: 3,
+                      outcome: 'elimination',
+                      reported_votes_for: 4,
+                      reported_votes_total: 7,
+                      votes_complete: true,
+                      council_votes: [],
+                    },
+                  ],
+                },
+              ],
+            }
+          : e
+      ),
+      departures: [
+        ...rows.departures,
+        {
+          id: 'd5',
+          season_contestant_id: 'sc-b',
+          episode_id: 'e2',
+          round_id: 'r5',
+          kind: 'vote',
+          day: null,
+          caused_by_departure_id: null,
+          round_number: 3,
+        },
+        {
+          id: 'd6',
+          season_contestant_id: 'sc-a',
+          episode_id: 'e2',
+          round_id: null,
+          kind: 'other',
+          day: null,
+          caused_by_departure_id: null,
+          round_number: 2,
+        },
+        {
+          id: 'd7',
+          season_contestant_id: 'sc-c',
+          episode_id: 'e2',
+          round_id: null,
+          kind: 'other',
+          day: null,
+          caused_by_departure_id: null,
+          round_number: 1,
+        },
+        {
+          id: 'd8',
+          season_contestant_id: 'sc-d',
+          episode_id: 'e2',
+          round_id: null,
+          kind: 'other',
+          day: null,
+          caused_by_departure_id: null,
+        },
+      ],
+    },
+    TODAY
+  );
+
+  it('une sortie sans scrutin prend SA colonne : l’arène passe avant le conseil', () => {
+    const tours = soiree.rounds
+      .filter(r => r.episodeNumber === 2)
+      .sort((a, b) => a.roundNumber - b.roundNumber)
+      .map(r => [r.roundNumber, r.eliminatedId, r.kind]);
+    expect(tours).toEqual([
+      [1, 'sc-c', 'departure'],
+      [2, 'sc-a', 'departure'],
+      [3, 'sc-b', 'vote'],
+      // Rang inconnu : après tous les rangs connus, et sur aucun d'eux.
+      [4, 'sc-d', 'departure'],
+    ]);
+  });
+
+  it('chaque sortie porte son rang : celui de son tour, sinon celui de la base', () => {
+    const rangs = soiree.departures.map(d => [
+      d.contestantId,
+      d.episodeNumber,
+      d.roundNumber,
+    ]);
+    expect(rangs).toEqual([
+      // Base d'avant 0029 : le vote tient son rang de son tour, le départ lié
+      // n'en a aucun.
+      ['sc-d', 1, 2],
+      ['sc-c', 1, null],
+      ['sc-b', 2, 3],
+      ['sc-a', 2, 2],
+      ['sc-c', 2, 1],
+      ['sc-d', 2, null],
+    ]);
   });
 });
 

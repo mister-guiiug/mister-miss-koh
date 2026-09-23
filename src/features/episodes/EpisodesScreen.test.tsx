@@ -115,4 +115,47 @@ describe('une soirée de la saison aux tribus', () => {
     expect(pastilles).toHaveLength(2);
     expect(pastilles[0]).toHaveStyle({ background: '#fc5d5d' });
   });
+
+  it('la soirée se lit dans l’ordre de la source, pas dans celui des lignes', () => {
+    // L'arène (colonne 1) PRÉCÈDE le conseil (colonne 2) ; les tours arrivent
+    // pourtant à l'envers, comme la base peut les rendre.
+    const soiree: Referential = {
+      ...SAISON_AUX_TRIBUS,
+      rounds: [
+        {
+          id: 'conseil:ugo',
+          episodeNumber: 4,
+          roundNumber: 2,
+          kind: 'vote',
+          eliminatedId: 'c-ugo',
+          reportedVotesFor: 4,
+          reportedVotesTotal: 7,
+          votesComplete: true,
+        },
+        {
+          id: 'depart:jonas',
+          episodeNumber: 4,
+          roundNumber: 1,
+          kind: 'departure',
+          eliminatedId: 'c-jonas',
+          reportedVotesFor: 0,
+          reportedVotesTotal: null,
+          votesComplete: true,
+        },
+      ],
+    };
+    useAppStore.setState({
+      referential: soiree,
+      spoiler: 'reveal_all',
+      watched: [],
+    });
+    renderScreen();
+
+    const texte =
+      screen.getByText('Épisode 4').closest('article')?.textContent ?? '';
+    const arene = texte.indexOf('Jonas quitte l’aventure');
+    const conseil = texte.indexOf('Ugo éliminé·e');
+    expect(arene).toBeGreaterThanOrEqual(0);
+    expect(conseil).toBeGreaterThan(arene);
+  });
 });
