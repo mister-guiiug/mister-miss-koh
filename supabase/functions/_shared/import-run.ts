@@ -39,6 +39,7 @@ import {
   episodesFromRounds,
   extractContestants,
   extractProgress,
+  extractTeams,
   looksLikeContestants,
   looksLikeProgress,
 } from "./extract-season.ts";
@@ -93,8 +94,13 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  * 11 — plus aucune clé naturelle répétée : un épisode à plusieurs conseils
  *      rassemble ses lignes, deux homonymes se distinguent par leur rang, et
  *      une ligne recopiée à l'identique n'est retenue qu'une fois
+ * 12 — les tribus ont une COULEUR, lue sur la pastille de la légende (entité
+ *      `team`, une par tribu et par saison) ; et un tour au décompte « / »
+ *      que suit, dans la même soirée, un second tour contre la même personne
+ *      est le premier tour d'une ÉGALITÉ (`annulled`), même quand la source ne
+ *      barre pas ses voix — quatorze colonnes sur neuf pages au 23/09/2026
  */
-export const EXTRACTOR_VERSION = "11";
+export const EXTRACTOR_VERSION = "12";
 
 export interface SourceDocument {
   readonly id: string;
@@ -167,6 +173,7 @@ export interface RunOutcome {
 
 const ENTITIES = [
   "season",
+  "team",
   "season_contestant",
   "episode",
   "council_round",
@@ -407,6 +414,7 @@ export async function runImport(
 
     const absences: Anomaly[] = [];
     const contestants = extractContestants(contestantsTable.grid, document.seasonSlug);
+    const teams = extractTeams(contestants.contestants, document.seasonSlug);
 
     let progress: ReturnType<typeof extractProgress> = { episodes: [], anomalies: [] };
     if (progressTable) {
@@ -488,6 +496,7 @@ export async function runImport(
     const anomalies: Anomaly[] = [
       ...absences,
       ...contestants.anomalies,
+      ...teams.anomalies,
       ...progress.anomalies,
       ...votes.anomalies,
       ...advantages.anomalies,
@@ -560,6 +569,7 @@ export async function runImport(
     // ── 5. Modèle intermédiaire, et son empreinte ─────────────────────────
     const { records, anomaliesByKey } = buildRecords(
       contestants,
+      teams,
       progress,
       votes,
       advantages,
@@ -674,6 +684,7 @@ export interface SeasonFacts {
 
 export function buildRecords(
   contestants: ReturnType<typeof extractContestants>,
+  teams: ReturnType<typeof extractTeams>,
   progress: ReturnType<typeof extractProgress>,
   votes: ReturnType<typeof extractVotes>,
   advantages: ReturnType<typeof extractAdvantages>,
@@ -713,6 +724,15 @@ export function buildRecords(
     locationLat: season.coordinates?.lat ?? null,
     locationLon: season.coordinates?.lon ?? null,
   }, [...season.anomalyCodes]);
+
+  // Les tribus : un nom et une couleur, UNE fois par saison. Les séjours des
+  // candidats, plus bas, ne portent pas la couleur — voir `extractTeams`.
+  for (const t of teams.teams) {
+    push("team", t.naturalKey, {
+      name: t.name,
+      colour: t.colour,
+    }, byRow.get(`tribu:${t.name}`) ?? []);
+  }
 
   for (const c of contestants.contestants) {
     push("season_contestant", c.naturalKey, {

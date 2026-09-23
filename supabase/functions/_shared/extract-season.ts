@@ -14,7 +14,7 @@
  * désigne par sa paire (chapeau, sous-titre).
  */
 import type { Grid } from "./html-table.ts";
-import { cellLines } from "./html-table.ts";
+import { cellLines, legendLines } from "./html-table.ts";
 import type { Anomaly } from "./extract-votes.ts";
 import { STATUS_WORDS } from "./extract-votes.ts";
 import {
@@ -40,6 +40,7 @@ import {
  */
 export function readTeamLine(
   line: string,
+  colour: string | null = null,
 ): { kind: "team" | "status"; stint: TeamStint } | null {
   const range = parseDayRange(line);
   if (!range) return null;
@@ -47,7 +48,7 @@ export function readTeamLine(
   if (!name) return null;
   return {
     kind: STATUS_WORDS.has(fold(name)) ? "status" : "team",
-    stint: { name, fromDay: range.fromDay, toDay: range.toDay },
+    stint: { name, fromDay: range.fromDay, toDay: range.toDay, colour },
   };
 }
 
@@ -64,6 +65,8 @@ export interface TeamStint {
   readonly name: string;
   readonly fromDay: number;
   readonly toDay: number | null;
+  /** La pastille de la légende, `#rrggbb` — `null` si la ligne n'en a pas. */
+  readonly colour: string | null;
 }
 
 export interface ExtractedContestant {
@@ -209,9 +212,9 @@ export function extractContestants(
     const teams: TeamStint[] = [];
     const teamStatuses: TeamStint[] = [];
     if (colTeam >= 0) {
-      for (const line of cellLines(grid[r][colTeam]?.html ?? "")) {
+      for (const { text: line, colour } of legendLines(grid[r][colTeam]?.html ?? "")) {
         if (!line.trim()) continue;
-        const read = readTeamLine(line);
+        const read = readTeamLine(line, colour);
         if (!read) {
           anomalies.push({
             code: "tribu_illisible",
@@ -315,6 +318,75 @@ export function extractContestants(
   }
 
   return { contestants: uniques, anomalies };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Tribus
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Une tribu de la saison, une seule fois, avec sa couleur. */
+export interface ExtractedTeam {
+  readonly naturalKey: string;
+  readonly name: string;
+  /** `#rrggbb`, ou `null` : pas de pastille, ou deux pastilles qui se contredisent. */
+  readonly colour: string | null;
+}
+
+export interface TeamsExtraction {
+  readonly teams: readonly ExtractedTeam[];
+  readonly anomalies: readonly Anomaly[];
+}
+
+/**
+ * Les tribus de la saison, chacune UNE fois, avec sa couleur.
+ *
+ * LA COULEUR EST UN FAIT DE LA TRIBU, PAS DU SÉJOUR. La source la répète sur
+ * chaque ligne de la colonne « Tribu », mais « Taboga » est jaune pour ses
+ * sept membres à la fois. La publier sur chaque séjour ferait de chaque
+ * candidat de chaque saison une différence à relire le jour où l'on a
+ * seulement appris à lire une pastille ; la publier sur la tribu en fait une
+ * par tribu.
+ *
+ * DEUX COULEURS POUR UNE MÊME TRIBU, AUCUNE N'EST RETENUE — la règle du diff
+ * pour une clé qui reçoit deux valeurs : choisir la plus fréquente serait
+ * trancher à la place de la source. Aucune page du corpus n'est dans ce cas
+ * au 23/09/2026, une fois la casse ramenée à une seule (`#FC5D5D` et
+ * `#fc5d5d`, sur « L'Île des héros »).
+ *
+ * « Bannie » n'est pas une tribu (voir `readTeamLine`) : elle n'est pas ici.
+ */
+export function extractTeams(
+  contestants: readonly ExtractedContestant[],
+  seasonSlug: string,
+): TeamsExtraction {
+  const colours = new Map<string, Set<string>>();
+  for (const contestant of contestants) {
+    for (const stint of contestant.teams) {
+      const seen = colours.get(stint.name) ?? new Set<string>();
+      if (stint.colour !== null) seen.add(stint.colour);
+      colours.set(stint.name, seen);
+    }
+  }
+
+  const anomalies: Anomaly[] = [];
+  const teams: ExtractedTeam[] = [];
+  for (const [name, seen] of colours) {
+    if (seen.size > 1) {
+      anomalies.push({
+        code: "couleur_de_tribu_discordante",
+        message: `la tribu « ${name} » porte ${seen.size} couleurs (${
+          [...seen].join(", ")
+        }) : aucune n'est retenue`,
+        row: `tribu:${name}`,
+      });
+    }
+    teams.push({
+      naturalKey: `${seasonSlug}:tribu:${name}`,
+      name,
+      colour: seen.size === 1 ? [...seen][0] : null,
+    });
+  }
+  return { teams, anomalies };
 }
 
 // ════════════════════════════════════════════════════════════════════════════

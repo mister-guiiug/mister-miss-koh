@@ -47,7 +47,7 @@ erDiagram
     contestants        ||--o{ season_contestants : "participe"
     season_contestants ||--o{ contestant_previous_seasons : "a déjà joué"
     season_contestants ||--o{ team_memberships   : "appartient"
-    season_contestants ||--o| departures         : "quitte"
+    season_contestants ||--o{ departures         : "quitte (une fois par soirée)"
     season_contestants ||--o{ council_votes      : "exprime"
     teams              ||--o{ team_memberships   : "accueille"
     pairs              }o--|| season_contestants : "lie deux"
@@ -88,6 +88,18 @@ fausserait toute statistique de votes reçus.
 `other` — et `caused_by_departure_id` s'auto-référence, ce qui permet à la
 chronologie d'écrire « partie à la suite de Maxime » au lieu de laisser un
 départ inexpliqué.
+
+**On peut sortir deux fois (0028, 23/09/2026).** Le schéma d'origine posait
+`unique (season_contestant_id)` : « un candidat ne part qu'une fois ». Faux dès
+All Stars : Charlotte sort avec son binôme à l'épisode 3, revient par l'arène
+au jour 9, puis est éliminée à l'épisode 5 — et la seconde sortie ÉCRASAIT la
+première. Relevé le même jour sur les seize pages lisibles : une même personne
+éliminée deux fois, à deux épisodes différents, sur quatorze d'entre elles. Une
+sortie se rattache donc à sa soirée, `unique (season_contestant_id,
+episode_id)`. Le RETOUR, lui, n'a pas de ligne : il se lit dans les séjours en
+tribu, qui recommencent après la sortie (« Sebako (jour 9 – ) »), et dans le
+jour du conseil de chaque épisode (`episodes.day_end`), qui dit à partir de
+quand ce séjour peut se montrer.
 
 ### 2. `council_rounds` s'intercale entre le conseil et les votes
 
