@@ -20,6 +20,7 @@ const voteOut = (name: string, episodeNumber: number): Departure => ({
   kind: 'vote',
   day: 3,
   causedById: null,
+  roundNumber: null,
 });
 
 describe('ruleApplies', () => {
@@ -57,6 +58,8 @@ describe('linkedDepartures — la règle est lue, jamais présumée', () => {
       kind: 'linked_pair',
       day: 3,
       causedById: id('Gaël'),
+      // Déduit d'une règle : aucune colonne de la source ne le range.
+      roundNumber: null,
     });
   });
 

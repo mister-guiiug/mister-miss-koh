@@ -52,4 +52,39 @@ describe('le tableau de bord d’une saison où l’on revient', () => {
       'Épisode 5 Chloé éliminé·e au vote',
     ]);
   });
+
+  it('dans une soirée, les sorties suivent leur rang, pas l’ordre des lignes', () => {
+    // Ugo est éliminé au conseil (colonne 2) APRÈS l'arène de Jonas
+    // (colonne 1), mais sa sortie arrive la première.
+    useAppStore.setState({
+      referential: {
+        ...SAISON_AUX_TRIBUS,
+        departures: [
+          {
+            contestantId: 'c-ugo',
+            episodeNumber: 4,
+            kind: 'vote',
+            day: null,
+            causedById: null,
+            roundNumber: 2,
+          },
+          ...SAISON_AUX_TRIBUS.departures.map(d =>
+            d.contestantId === 'c-jonas' && d.episodeNumber === 4
+              ? { ...d, roundNumber: 1 }
+              : d
+          ),
+        ],
+      },
+    });
+    const { container } = renderDashboard();
+    const soiree = Array.from(container.querySelectorAll('.timeline li'), li =>
+      li.textContent?.replace(/\s+/g, ' ').trim()
+    ).filter(ligne => ligne?.startsWith('Épisode 4'));
+    expect(soiree).toEqual([
+      'Épisode 4 Maël retour — dans Sorako',
+      'Épisode 4 Chloé retour — dans Kalima',
+      'Épisode 4 Jonas sortie sans vote',
+      'Épisode 4 Ugo éliminé·e au vote',
+    ]);
+  });
 });

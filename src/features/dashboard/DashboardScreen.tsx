@@ -24,9 +24,17 @@ export function DashboardScreen() {
     // épisode que l'utilisateur accepte de voir.
     const upTo = Math.min(limit, lastAiredEpisode(referential));
     const still = new Set(inGame(referential, upTo));
+    // DANS UNE SOIRÉE, L'ORDRE DE LA SOURCE : le rang de chaque sortie. Sans
+    // lui, c'était l'ordre où la base rend ses lignes — juste par chance pour
+    // l'arène d'All Stars, et à la merci de la moindre mise à jour. Une sortie
+    // de rang inconnu passe après les autres.
+    const rank = (d: Departure) => d.roundNumber ?? Number.MAX_SAFE_INTEGER;
     const out = referential.departures
       .filter(d => d.episodeNumber !== null && d.episodeNumber <= upTo)
-      .sort((a, b) => (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0));
+      .sort(
+        (a, b) =>
+          (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0) || rank(a) - rank(b)
+      );
     // LES RETOURS AUSSI SONT DES ÉVÉNEMENTS. Maxime, sorti à l'épisode 1,
     // revient dans Sebako à l'épisode 4 : une chronologie qui ne montrerait
     // que sa sortie le laisserait dehors pour de bon.
@@ -49,7 +57,8 @@ export function DashboardScreen() {
     ].sort(
       (x, y) =>
         x.episodeNumber - y.episodeNumber ||
-        (x.kind === 'back' ? -1 : 1) - (y.kind === 'back' ? -1 : 1)
+        (x.kind === 'back' ? -1 : 1) - (y.kind === 'back' ? -1 : 1) ||
+        (x.kind === 'exit' && y.kind === 'exit' ? rank(x.d) - rank(y.d) : 0)
     );
     // Un départ par épisode, de 1 à `upTo` : c'est le RYTHME des éliminations,
     // qu'aucun chiffre isolé ne raconte. Les épisodes sans départ valent zéro

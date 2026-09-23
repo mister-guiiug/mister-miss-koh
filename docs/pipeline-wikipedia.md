@@ -483,6 +483,17 @@ montre à partir de l'épisode dont le conseil tombe le jour 9 ou après — le 
 tenu le jour 11. Rien n'est converti en base : l'application déduit, et quand
 un jour de conseil manque, elle attend plutôt que de deviner.
 
+**Et chaque sortie garde sa colonne (0029, 24/09/2026).** L'extraction
+numérote les colonnes d'une soirée dans l'ordre de la source, sorties sans
+scrutin comprises (`roundNumber`). La publication ne gardait ce numéro qu'avec
+un tour : une sortie sans scrutin le perdait, et l'application la rangeait
+après le conseil — l'arène d'All Stars passait derrière l'élimination de Lola.
+Relevé du 24/09/2026 : 102 colonnes sans scrutin dans quinze saisons, 65 avant
+un tour de leur soirée, et chaque départ de binôme après l'élimination qui le
+cause. `departures.round_number` garde désormais la colonne, et
+`recaler_rangs_des_sorties` l'a rendue aux sorties déjà publiées, relue dans la
+dernière exécution publiée de chaque page.
+
 ## Les colliers d'immunité
 
 Quatrième tableau de la source. Relevé du 05/09/2026 :

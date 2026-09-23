@@ -646,6 +646,7 @@ export type Database = {
           published_at: string | null;
           reason: string | null;
           round_id: string | null;
+          round_number: number | null;
           season_contestant_id: string;
           source_document_id: string | null;
           updated_at: string;
@@ -663,6 +664,7 @@ export type Database = {
           published_at?: string | null;
           reason?: string | null;
           round_id?: string | null;
+          round_number?: number | null;
           season_contestant_id: string;
           source_document_id?: string | null;
           updated_at?: string;
@@ -680,6 +682,7 @@ export type Database = {
           published_at?: string | null;
           reason?: string | null;
           round_id?: string | null;
+          round_number?: number | null;
           season_contestant_id?: string;
           source_document_id?: string | null;
           updated_at?: string;

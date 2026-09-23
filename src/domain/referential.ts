@@ -193,6 +193,12 @@ export const DepartureSchema = z.object({
   kind: DepartureKindSchema,
   day: z.number().int().positive().nullable(),
   causedById: z.string().nullable(),
+  /**
+   * Son rang dans la soirée : la colonne que la source lui donne, celle de son
+   * tour quand il y a eu un vote. `null` = inconnu, et la sortie passe après
+   * les autres.
+   */
+  roundNumber: z.number().int().positive().nullable().default(null),
 });
 
 export const AdvantageSchema = z.object({

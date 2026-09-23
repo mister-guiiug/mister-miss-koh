@@ -82,9 +82,12 @@ export function EpisodesScreen() {
           la grille l'emporterait avec elles. */}
       <div className="grid-cards">
         {referential.episodes.map(e => {
-          const rounds = referential.rounds.filter(
-            r => r.episodeNumber === e.number
-          );
+          // L'ORDRE DE LA SOIRÉE, dit par le rang et non par celui où les
+          // lignes arrivent : la base ne promet aucun ordre, et l'arène
+          // d'All Stars passait derrière le conseil qu'elle précède.
+          const rounds = referential.rounds
+            .filter(r => r.episodeNumber === e.number)
+            .sort((a, b) => a.roundNumber - b.roundNumber);
           // « Vu » suit la même règle que l'anti-spoiler : en être au 5,
           // c'est avoir vu les quatre premiers.
           const seen = isWatched(e.number, watched);

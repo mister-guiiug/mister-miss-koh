@@ -17,7 +17,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(57);
+select plan(65);
 
 -- ── Décor ─────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,8 @@ insert into import_differences
 
 -- Troisième lot (0028) : les tribus reçoivent leur couleur, l'épisode 2 son
 -- jour de conseil, et deux candidats DÉJÀ sortis à l'épisode 1 ressortent —
--- Aël au vote après un retour, Bastien sans scrutin ni cause (l'arène).
+-- Bastien sans scrutin ni cause, à l'arène, AVANT le conseil (colonne 1) ;
+-- Aël, revenu, au vote (colonne 2). L'épisode 4 d'All Stars, en petit.
 insert into import_runs (id, source_document_id, status, source_revision)
 values ('dddddddd-0000-0000-0000-000000000003',
         'bbbbbbbb-0000-0000-0000-000000000001', 'diffed', '44');
@@ -111,10 +112,10 @@ insert into import_differences
    '{"number":2,"airDate":"2026-09-01","aired":true,"departureDay":11,"comfortWinners":[],"immunityWinners":[]}'),
   ('dddddddd-0000-0000-0000-000000000003', 'council_round', 'saison-fictive:e2:r1',
    'insert', 'unambiguous', 'validated',
-   '{"episodeNumber":2,"roundNumber":1,"kind":"vote","eliminated":"Aël","causedBy":null,"reportedVotesFor":3,"reportedVotesTotal":5}'),
+   '{"episodeNumber":2,"roundNumber":1,"kind":"linked","eliminated":"Bastien","causedBy":null,"reportedVotesFor":0,"reportedVotesTotal":null}'),
   ('dddddddd-0000-0000-0000-000000000003', 'council_round', 'saison-fictive:e2:r2',
    'insert', 'unambiguous', 'validated',
-   '{"episodeNumber":2,"roundNumber":2,"kind":"linked","eliminated":"Bastien","causedBy":null,"reportedVotesFor":0,"reportedVotesTotal":null}');
+   '{"episodeNumber":2,"roundNumber":2,"kind":"vote","eliminated":"Aël","causedBy":null,"reportedVotesFor":3,"reportedVotesTotal":5}');
 
 create or replace function devenir(who uuid) returns void
 language plpgsql as $$
@@ -396,6 +397,91 @@ select is(
   'le départ lié pointe la cause que L''EXTRACTION a nommée, pas une trouvée en SQL'
 );
 
+select is(
+  (select string_agg(d.round_number || ':' || sc.display_name, ', '
+                     order by d.round_number)
+     from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  '1:Bastien, 2:Aël',
+  'chaque sortie garde sa colonne de la source, qu''elle ait un tour ou non'
+);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2 bis. Les sorties publiées avant 0029 retrouvent leur rang
+--
+-- Leur rang se perdait à la publication. Le tour le porte pour une sortie au
+-- vote ; pour une sortie sans scrutin, c'est sa colonne dans la dernière
+-- exécution publiée — l'état publié, pour l'import lui-même.
+-- ════════════════════════════════════════════════════════════════════════════
+
+update departures d
+   set round_number = null
+  from season_contestants sc
+ where sc.id = d.season_contestant_id
+   and sc.season_id = 'cccccccc-0000-0000-0000-000000000001';
+
+insert into import_records (run_id, entity, natural_key, payload) values
+  ('dddddddd-0000-0000-0000-000000000001', 'council_round',
+   'saison-fictive:e1:r2',
+   '{"episodeNumber":1,"roundNumber":2,"kind":"linked","eliminated":"Aël","causedBy":"Bastien"}');
+
+select is(
+  recaler_rangs_des_sorties('cccccccc-0000-0000-0000-000000000001'), 2,
+  'le recalage rend un rang aux deux sorties'
+);
+
+select is(
+  (select string_agg(d.round_number || ':' || sc.display_name, ', '
+                     order by d.round_number)
+     from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'),
+  '1:Bastien, 2:Aël',
+  'le vote par son tour, le départ lié par sa colonne : les rangs de la publication'
+);
+
+select is(
+  recaler_rangs_des_sorties('cccccccc-0000-0000-0000-000000000001'), 0,
+  'rejoué, il ne déplace rien : seuls les rangs vides se remplissent'
+);
+
+-- Deux colonnes nomment Aël dans la même soirée : laquelle a été publiée ?
+update departures d
+   set round_number = null
+  from season_contestants sc
+ where sc.id = d.season_contestant_id
+   and sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+   and sc.display_name = 'Aël';
+
+insert into import_records (run_id, entity, natural_key, payload) values
+  ('dddddddd-0000-0000-0000-000000000001', 'council_round',
+   'saison-fictive:e1:r3',
+   '{"episodeNumber":1,"roundNumber":3,"kind":"linked","eliminated":"Aël","causedBy":null}');
+
+select is(
+  recaler_rangs_des_sorties('cccccccc-0000-0000-0000-000000000001'), 0,
+  'deux colonnes pour une même sortie : aucune n''est choisie'
+);
+
+select is(
+  (select d.round_number from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and sc.display_name = 'Aël'),
+  null,
+  'le rang reste vide plutôt que faux'
+);
+
+delete from import_records
+ where run_id = 'dddddddd-0000-0000-0000-000000000001'
+   and natural_key = 'saison-fictive:e1:r3';
+
+select is(
+  recaler_rangs_des_sorties('cccccccc-0000-0000-0000-000000000001'), 1,
+  'la colonne en trop partie, la sortie retrouve la sienne'
+);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 3. On ne publie pas deux fois
 -- ════════════════════════════════════════════════════════════════════════════
@@ -559,6 +645,18 @@ select is(
       and sc.display_name = 'Bastien' and e.number = 2),
   'other',
   'zéro voix que rien ne cause : ni un vote, ni un binôme — une sortie, sans plus'
+);
+
+select is(
+  (select string_agg(d.round_number || ':' || sc.display_name, ', '
+                     order by d.round_number)
+     from departures d
+     join season_contestants sc on sc.id = d.season_contestant_id
+     join episodes e on e.id = d.episode_id
+    where sc.season_id = 'cccccccc-0000-0000-0000-000000000001'
+      and e.number = 2),
+  '1:Bastien, 2:Aël',
+  'l''arène garde sa place : la sortie sans scrutin vient AVANT le conseil de sa soirée'
 );
 
 select devenir('aaaaaaaa-0000-0000-0000-000000000001');

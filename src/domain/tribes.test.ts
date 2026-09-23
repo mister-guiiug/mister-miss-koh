@@ -147,6 +147,7 @@ describe('sans jour de conseil, aucun retour inventé (régression du 23/09)', (
         kind: 'vote',
         day: null,
         causedById: null,
+        roundNumber: null,
       },
     ],
   };

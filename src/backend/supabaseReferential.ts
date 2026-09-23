@@ -169,6 +169,8 @@ const DepartureRow = z.object({
   kind: z.string(),
   day: z.number().nullable(),
   caused_by_departure_id: z.string().nullable(),
+  // 0029. Absent d'une base qui ne l'a pas encore : le rang est alors inconnu.
+  round_number: z.number().int().positive().nullable().default(null),
 });
 
 const AdvantageRow = z.object({
@@ -318,6 +320,19 @@ export function mapReferential(input: unknown, today: string): Referential {
     if (d.round_id && d.kind === 'vote')
       eliminatedByRound.set(d.round_id, d.season_contestant_id);
   }
+  // LE RANG D'UNE SORTIE DANS SA SOIRÉE : la colonne que la source lui donne.
+  // Celui de son tour quand il y a eu un vote ; sinon celui que la base garde
+  // depuis 0029 — une sortie sans scrutin n'a pas de tour pour le porter.
+  const roundNumberById = new Map<string, number>();
+  for (const e of rows.episodes) {
+    for (const c of e.councils) {
+      for (const r of c.council_rounds)
+        roundNumberById.set(r.id, r.round_number);
+    }
+  }
+  const rankOf = (d: (typeof rows.departures)[number]): number | null =>
+    (d.round_id ? roundNumberById.get(d.round_id) : undefined) ??
+    d.round_number;
 
   const rounds: Round[] = [];
   for (const e of rows.episodes) {
@@ -341,6 +356,13 @@ export function mapReferential(input: unknown, today: string): Referential {
     // ni décompte. L'application, elle, la montre à sa place dans la
     // soirée : un tour synthétique, à ZÉRO voix, certain.
     //
+    // SA PLACE EST SON RANG, pas « après le dernier conseil ». C'était juste
+    // pour un départ de binôme, qui suit l'élimination qui le cause, et faux
+    // pour tout le reste : l'arène d'All Stars (épisode 4) précède le conseil
+    // de Lola, et 65 colonnes sans scrutin sur 102 précèdent un tour de leur
+    // soirée (relevé du 24/09/2026). Seul un rang inconnu se range encore
+    // après les autres.
+    //
     // BINÔME SEULEMENT SI UNE CAUSE EST NOMMÉE. Jusqu'à 0028, toute sortie à
     // zéro voix se publiait en `linked_pair`, abandons et évacuations
     // compris : quinze saisons affichaient « part avec son binôme » sous des
@@ -348,12 +370,12 @@ export function mapReferential(input: unknown, today: string): Referential {
     const silent = rows.departures.filter(
       d => d.kind !== 'vote' && d.episode_id === e.id
     );
+    for (const d of silent) maxRound = Math.max(maxRound, rankOf(d) ?? 0);
     for (const d of silent) {
-      maxRound += 1;
       rounds.push({
         id: `linked:${d.id}`,
         episodeNumber: e.number,
-        roundNumber: maxRound,
+        roundNumber: rankOf(d) ?? ++maxRound,
         kind:
           d.kind === 'linked_pair' && d.caused_by_departure_id !== null
             ? 'linked'
@@ -418,6 +440,7 @@ export function mapReferential(input: unknown, today: string): Referential {
     causedById: d.caused_by_departure_id
       ? (departureContestantById.get(d.caused_by_departure_id) ?? null)
       : null,
+    roundNumber: rankOf(d),
   }));
 
   const referential: Referential = {
@@ -688,12 +711,14 @@ export async function fetchRows(
   }
 
   const contestantIds = (contestants.data ?? []).map(c => c.id);
+  // `*` ET NON UNE LISTE. Le site et la migration 0029 partent du même push,
+  // par deux workflows que rien n'ordonne : nommer `round_number` avant que la
+  // colonne existe ferait échouer TOUTE la lecture. Absente de `*`, elle se
+  // complète à la frontière, et le rang reste inconnu le temps d'une minute.
   const departures = contestantIds.length
     ? await client
         .from('departures')
-        .select(
-          'id, season_contestant_id, episode_id, round_id, kind, day, caused_by_departure_id'
-        )
+        .select('*')
         .in('season_contestant_id', contestantIds)
     : { data: [], error: null };
   if (departures.error)

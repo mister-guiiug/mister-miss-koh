@@ -54,6 +54,9 @@ export function linkedDepartures(
       kind: 'linked_pair',
       day: departure.day,
       causedById: departure.contestantId,
+      // Déduit d'une règle, pas lu dans la source : aucune colonne ne le range.
+      // Inconnu, il passe après les autres — après le vote qui le cause.
+      roundNumber: null,
     },
   ];
 }
