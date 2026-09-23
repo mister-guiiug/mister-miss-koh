@@ -54,13 +54,38 @@ export const SeasonSchema = z.object({
   location: SeasonLocationSchema.nullable().default(null),
 });
 
+/**
+ * Un séjour dans une tribu, daté comme la source le date : en JOURS.
+ *
+ * « Taboga (jour 9 – ) ». La tribu n'est pas un attribut du candidat mais un
+ * intervalle : on en change, on en sort, on y revient. Les jours ne se
+ * convertissent pas en épisodes ici — c'est `domain/tribes.ts` qui décide, à
+ * partir du jour du conseil de chaque épisode, quand un séjour peut se montrer.
+ */
+export const TeamStintSchema = z.object({
+  teamId: z.string(),
+  fromDay: z.number().int().positive().nullable(),
+  /** `null` = la source n'a pas refermé le séjour : il dure encore. */
+  toDay: z.number().int().positive().nullable(),
+});
+
 export const ContestantSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   gender: z.enum(['f', 'm', 'other']).nullable(),
   age: z.number().int().positive().nullable(),
   previousSeasons: z.array(z.string()),
-  teamId: z.string().nullable(),
+  /**
+   * Tous ses séjours en tribu, dans l'ordre des jours.
+   *
+   * IL N'Y A PLUS DE `teamId`. « La » tribu d'un candidat, c'était la plus
+   * récente, lue sans limite : à qui n'avait vu que l'épisode 2, la fiche de
+   * Camille annonçait déjà « Taboga », formée au jour 9. La tribu se demande
+   * désormais à une limite (`teamAt`), jamais dans l'absolu. Par défaut vide,
+   * pour qu'un référentiel mis en cache avant ce champ passe encore la
+   * frontière.
+   */
+  teamStints: z.array(TeamStintSchema).default([]),
   pairId: z.string().nullable(),
   /** Membre du jury final, quand la source le dit ; `null` = pas encore. */
   finalJury: z.boolean().nullable().default(null),
@@ -69,7 +94,15 @@ export const ContestantSchema = z.object({
 export const TeamSchema = z.object({
   id: z.string(),
   name: z.string(),
-  colour: z.string().nullable(),
+  /**
+   * La pastille de la légende source, `#rrggbb` — « Taboga » est jaune.
+   * Elle finit dans un attribut `style` : rien d'autre ne passe la frontière.
+   * Jamais la seule distinction à l'écran : le nom de la tribu l'accompagne.
+   */
+  colour: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/)
+    .nullable(),
 });
 
 export const PairSchema = z.object({
@@ -91,6 +124,12 @@ export const EpisodeSchema = z.object({
   number: z.number().int().positive(),
   airDate: z.string().nullable(), // ISO `AAAA-MM-JJ`
   aired: z.boolean(),
+  /**
+   * Le jour du conseil qui clôt l'épisode (« Départ : Jour 11 »), ou `null`
+   * quand la source ne le donne pas. C'est la seule passerelle entre les jours
+   * des séjours en tribu et les épisodes de l'anti-spoiler.
+   */
+  councilDay: z.number().int().positive().nullable().default(null),
   comfortWinnerIds: z.array(z.string()),
   immunityWinnerIds: z.array(z.string()),
   /**
@@ -102,10 +141,18 @@ export const EpisodeSchema = z.object({
   immunityWinnerTeamIds: z.array(z.string()).default([]),
 });
 
+/**
+ * `linked` : une sortie sans vote que l'élimination d'un binôme a CAUSÉE.
+ * `departure` : une sortie sans vote que rien ne cause dans la soirée — un
+ * abandon, une évacuation, une élimination à l'arène ; la source ne dit pas
+ * lequel. Les confondre écrivait « part avec son binôme » dans des saisons
+ * sans binômes.
+ */
 export const RoundKindSchema = z.enum([
   'vote',
   'annulled',
   'linked',
+  'departure',
   'unknown',
 ]);
 
@@ -202,6 +249,7 @@ export const ReferentialSchema = z.object({
 export type SeasonRule = z.infer<typeof SeasonRuleSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
 export type Contestant = z.infer<typeof ContestantSchema>;
+export type TeamStint = z.infer<typeof TeamStintSchema>;
 export type Advantage = z.infer<typeof AdvantageSchema>;
 export type Team = z.infer<typeof TeamSchema>;
 export type Pair = z.infer<typeof PairSchema>;
@@ -231,4 +279,12 @@ export function contestantById(
 ): Contestant | null {
   if (!id) return null;
   return ref.contestants.find(c => c.id === id) ?? null;
+}
+
+/** Dernier épisode diffusé, ou 0. */
+export function lastAiredEpisode(ref: Referential): number {
+  return ref.episodes.reduce(
+    (max, e) => (e.aired && e.number > max ? e.number : max),
+    0
+  );
 }

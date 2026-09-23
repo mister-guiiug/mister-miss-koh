@@ -5,6 +5,7 @@ import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { ContestantDetailScreen } from './ContestantDetailScreen';
 import { useAppStore } from '../../store/useAppStore';
 import { DEMO_REFERENTIAL } from '../../backend/demo';
+import { SAISON_AUX_TRIBUS } from '../../test/saisonAuxTribus';
 
 function renderAt(id: string) {
   return render(
@@ -112,5 +113,61 @@ describe('ContestantDetailScreen', () => {
     expect(carte).not.toBeNull();
     expect(carte?.querySelector('.photo-picker')).not.toBeNull();
     expect(carte?.querySelector('.stats')).not.toBeNull();
+  });
+});
+
+describe('la fiche d’une saison aux tribus', () => {
+  it('le statut est une CHRONOLOGIE : sortie, retour dans sa tribu, nouvelle sortie', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      ready: true,
+      spoiler: 'reveal_all',
+      watched: [],
+      favorites: [],
+    });
+    renderAt('c-chloe');
+
+    const statut = screen
+      .getByRole('heading', { name: 'Statut' })
+      .closest('[data-dwc="card"]');
+    const lignes = Array.from(statut!.querySelectorAll('p'), p =>
+      p.textContent?.replace(/\s+/g, ' ').trim()
+    );
+    expect(lignes).toEqual([
+      'Sorti·e à l’épisode 3 — à la suite de Jonas',
+      'De retour à l’épisode 4 · jour 9 — dans Kalima · tribu jaune',
+      'Sorti·e à l’épisode 5',
+    ]);
+  });
+
+  it('à l’épisode 4, la revenue est en jeu, dans la tribu jaune', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      ready: true,
+      spoiler: 'hide_unwatched',
+      watched: [1, 2, 3, 4],
+      favorites: [],
+    });
+    renderAt('c-chloe');
+
+    const pastilles = document.querySelector('.identity-main .chips-row');
+    expect(pastilles).toHaveTextContent('en jeu');
+    expect(pastilles).toHaveTextContent('Kalima · tribu jaune');
+    // Et sa seconde sortie, au-delà de la limite, reste sous sa garde.
+    expect(screen.queryByText('Sorti·e à l’épisode 5')).not.toBeInTheDocument();
+  });
+
+  it('battu à l’arène : « sans vote », et pas « à la suite de » personne', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      ready: true,
+      spoiler: 'reveal_all',
+      watched: [],
+      favorites: [],
+    });
+    renderAt('c-jonas');
+    expect(
+      screen.getByText(/Sorti·e à l’épisode 4/).closest('p')
+    ).toHaveTextContent('Sorti·e à l’épisode 4 — sans vote');
   });
 });

@@ -261,11 +261,11 @@ describe('mapReferential', () => {
     ]);
   });
 
-  it('candidats : genre inconnu → null, saisons passées dans l’ordre, dernière tribu, binôme', () => {
+  it('candidats : genre inconnu → null, saisons passées dans l’ordre, séjours, binôme', () => {
     const ael = ref.contestants.find(c => c.id === 'sc-a');
     expect(ael?.gender).toBe('f');
     expect(ael?.previousSeasons).toEqual(['Première', 'Deuxième']);
-    expect(ael?.teamId).toBe('t-unique');
+    expect(ael?.teamStints.map(s => s.teamId)).toEqual(['t-rouge', 't-unique']);
     expect(ael?.pairId).toBe('pair-1');
     // « x » n'est pas un genre reconnu : null, pas une invention.
     expect(ref.contestants.find(c => c.id === 'sc-b')?.gender).toBeNull();
@@ -323,9 +323,13 @@ describe('mapReferential', () => {
     expect(e1?.immunityWinnerIds).not.toContain('sc-a');
   });
 
-  it('la tribu courante est la plus récente EN JOURS, pas en épisodes', () => {
-    // La source date la colonne « Tribu » en jours ; l'épisode y est nul.
-    expect(ref.contestants.find(c => c.id === 'sc-a')?.teamId).toBe('t-unique');
+  it('les séjours se rangent EN JOURS, et gardent leurs deux bornes', () => {
+    // La source date la colonne « Tribu » en jours ; l'épisode y est nul. Une
+    // réponse sans `to_day` (lue avant 0028) laisse le séjour ouvert.
+    expect(ref.contestants.find(c => c.id === 'sc-a')?.teamStints).toEqual([
+      { teamId: 't-rouge', fromDay: 1, toDay: null },
+      { teamId: 't-unique', fromDay: 12, toDay: null },
+    ]);
   });
 
   it('diffusé = documenté, ou daté dans le passé ; jamais une date seule dans le futur', () => {
@@ -408,6 +412,100 @@ describe('mapReferential', () => {
       TODAY
     );
     expect(sansLieu.season.location).toBeNull();
+  });
+});
+
+describe('mapReferential — tribus colorées et sorties multiples (0028)', () => {
+  it('une couleur publiable passe ; toute autre devient « pas de couleur »', () => {
+    const ref = mapReferential(
+      {
+        ...rows,
+        teams: [
+          { id: 't-rouge', name: 'Rouge', colour: '#fc5d5d' },
+          { id: 't-unique', name: 'Tribu unique', colour: 'url(x)' },
+        ],
+      },
+      TODAY
+    );
+    expect(ref.teams.map(t => t.colour)).toEqual(['#fc5d5d', null]);
+  });
+
+  it('le jour du conseil arrive sur l’épisode ; absent, il reste inconnu', () => {
+    const ref = mapReferential(
+      {
+        ...rows,
+        episodes: rows.episodes.map(e =>
+          e.id === 'e1' ? { ...e, day_end: 3 } : e
+        ),
+      },
+      TODAY
+    );
+    expect(ref.episodes.map(e => e.councilDay)).toEqual([3, null, null]);
+  });
+
+  it('zéro voix SANS cause : une sortie, pas un départ de binôme', () => {
+    // Jusqu'à 0028, abandons et évacuations se publiaient en `linked_pair` —
+    // c'est ce qui reste en base tant que la saison n'est pas republiée.
+    const ref = mapReferential(
+      {
+        ...rows,
+        departures: [
+          ...rows.departures,
+          {
+            id: 'd3',
+            season_contestant_id: 'sc-a',
+            episode_id: 'e1',
+            round_id: null,
+            kind: 'linked_pair',
+            day: null,
+            caused_by_departure_id: null,
+          },
+          {
+            id: 'd4',
+            season_contestant_id: 'sc-b',
+            episode_id: 'e1',
+            round_id: null,
+            kind: 'other',
+            day: null,
+            caused_by_departure_id: null,
+          },
+        ],
+      },
+      TODAY
+    );
+    const synthetiques = ref.rounds.filter(r => r.id.startsWith('linked:'));
+    expect(synthetiques.map(r => [r.eliminatedId, r.kind])).toEqual([
+      ['sc-c', 'linked'],
+      ['sc-a', 'departure'],
+      ['sc-b', 'departure'],
+    ]);
+  });
+
+  it('deux sorties pour une même personne : le duo se révèle à la PREMIÈRE', () => {
+    const ref = mapReferential(
+      {
+        ...rows,
+        departures: [
+          ...rows.departures,
+          {
+            id: 'd5',
+            season_contestant_id: 'sc-c',
+            episode_id: 'e2',
+            round_id: null,
+            kind: 'vote',
+            day: null,
+            caused_by_departure_id: null,
+          },
+        ],
+      },
+      TODAY
+    );
+    expect(ref.pairs.find(p => p.id === 'pair-2')?.revealEpisodeNumber).toBe(1);
+    expect(
+      ref.departures
+        .filter(d => d.contestantId === 'sc-c')
+        .map(d => d.episodeNumber)
+    ).toEqual([1, 2]);
   });
 });
 

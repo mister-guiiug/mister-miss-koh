@@ -8,8 +8,10 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
-import { contestantById } from '../../domain/referential';
+import { contestantById, type Departure } from '../../domain/referential';
+import { comebacksOf } from '../../domain/tribes';
 import { AppAnimation } from '../../animations/AppAnimation';
+import { TribeName } from '../../components/TribeName';
 
 export function DashboardScreen() {
   const referential = useAppStore(s => s.referential);
@@ -25,6 +27,30 @@ export function DashboardScreen() {
     const out = referential.departures
       .filter(d => d.episodeNumber !== null && d.episodeNumber <= upTo)
       .sort((a, b) => (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0));
+    // LES RETOURS AUSSI SONT DES ÉVÉNEMENTS. Maxime, sorti à l'épisode 1,
+    // revient dans Sebako à l'épisode 4 : une chronologie qui ne montrerait
+    // que sa sortie le laisserait dehors pour de bon.
+    const backs = referential.contestants.flatMap(c =>
+      comebacksOf(referential, c)
+        .filter(b => b.episodeNumber <= upTo)
+        .map(b => ({ ...b, contestantId: c.id }))
+    );
+    const timeline = [
+      ...out.map(d => ({
+        kind: 'exit' as const,
+        episodeNumber: d.episodeNumber ?? 0,
+        d,
+      })),
+      ...backs.map(b => ({
+        kind: 'back' as const,
+        episodeNumber: b.episodeNumber,
+        b,
+      })),
+    ].sort(
+      (x, y) =>
+        x.episodeNumber - y.episodeNumber ||
+        (x.kind === 'back' ? -1 : 1) - (y.kind === 'back' ? -1 : 1)
+    );
     // Un départ par épisode, de 1 à `upTo` : c'est le RYTHME des éliminations,
     // qu'aucun chiffre isolé ne raconte. Les épisodes sans départ valent zéro
     // et doivent rester dans la suite — un creux fait partie de la forme.
@@ -36,6 +62,9 @@ export function DashboardScreen() {
       upTo,
       inGame: [...still],
       departures: out,
+      timeline,
+      // DES PERSONNES, pas des sorties : on peut sortir deux fois, et revenir.
+      outCount: referential.contestants.length - still.size,
       parEpisode,
       favoritesInGame: favorites.filter(id => still.has(id)),
       hidden: Number.isFinite(limit) && lastAiredEpisode(referential) > limit,
@@ -61,8 +90,8 @@ export function DashboardScreen() {
           />
           <Stat label="Encore en jeu" value={view.inGame.length} />
           <Stat
-            label={view.departures.length > 1 ? 'Parti·e·s' : 'Parti·e'}
-            value={view.departures.length}
+            label={view.outCount > 1 ? 'Parti·e·s' : 'Parti·e'}
+            value={view.outCount}
           />
         </div>
         {/* LE RYTHME DES DÉPARTS, que trois chiffres ne disent pas : deux
@@ -140,11 +169,33 @@ export function DashboardScreen() {
           />
         ) : (
           <ol className="timeline">
-            {view.departures.map(d => {
+            {view.timeline.map(event => {
+              if (event.kind === 'back') {
+                const { b } = event;
+                const c = contestantById(referential, b.contestantId);
+                return (
+                  <li key={`back:${b.contestantId}:${b.episodeNumber}`}>
+                    <span>Épisode {b.episodeNumber}</span>{' '}
+                    <Link to={`/candidats/${b.contestantId}`}>
+                      {c?.displayName ?? '?'}
+                    </Link>{' '}
+                    <Badge tone="success" size="xs">
+                      retour
+                    </Badge>
+                    {b.team && (
+                      <span className="muted">
+                        {' '}
+                        — dans <TribeName team={b.team} />
+                      </span>
+                    )}
+                  </li>
+                );
+              }
+              const { d } = event;
               const c = contestantById(referential, d.contestantId);
               const cause = contestantById(referential, d.causedById);
               return (
-                <li key={d.contestantId}>
+                <li key={`exit:${d.contestantId}:${d.episodeNumber}`}>
                   <span>Épisode {d.episodeNumber}</span>{' '}
                   <Link to={`/candidats/${d.contestantId}`}>
                     {c?.displayName ?? '?'}
@@ -153,7 +204,7 @@ export function DashboardScreen() {
                     tone={d.kind === 'vote' ? 'danger' : 'muted'}
                     size="xs"
                   >
-                    {kindLabel(d.kind)}
+                    {kindLabel(d)}
                   </Badge>
                   {cause && (
                     <span className="muted">
@@ -171,12 +222,16 @@ export function DashboardScreen() {
   );
 }
 
-function kindLabel(kind: string): string {
-  switch (kind) {
+function kindLabel(departure: Departure): string {
+  switch (departure.kind) {
     case 'vote':
       return 'éliminé·e au vote';
     case 'linked_pair':
-      return 'départ lié au binôme';
+      // Sans cause nommée, ce n'est pas un binôme : jusqu'à 0028, toute
+      // sortie à zéro voix se publiait sous ce genre-là.
+      return departure.causedById ? 'départ lié au binôme' : 'sortie sans vote';
+    case 'other':
+      return 'sortie sans vote';
     case 'quit':
       return 'abandon';
     case 'medical':
@@ -184,6 +239,6 @@ function kindLabel(kind: string): string {
     case 'banned':
       return 'bannissement';
     default:
-      return kind;
+      return departure.kind;
   }
 }

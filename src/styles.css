@@ -1655,6 +1655,35 @@ a.brand-link {
   font-size: var(--text-sm);
 }
 
+/* ── Une tribu : sa pastille, son nom, et le nom de sa teinte ─────────────
+   La pastille reprend la couleur de la légende source, et elle est BORDÉE :
+   la tribu unique et la tribu réunifiée sont blanches, et un disque blanc
+   sans bord disparaît sur un fond clair. Le nom suit toujours — la couleur
+   n'est jamais la seule à dire la tribu. */
+.tribe {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.tribe-swatch {
+  flex: none;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, currentColor 45%, transparent);
+}
+
+/* Dans un titre de groupe, le nom ressort et la teinte reste en retrait ;
+   dans une pastille de fiche, les deux héritent de sa couleur. */
+.group-title .tribe-name {
+  color: var(--text);
+}
+
+.tribe-colour {
+  font-weight: 400;
+}
+
 /* ── Le binôme : celui de la source, et celui qu'on suppose ─────────────── */
 .pair-block {
   display: flex;

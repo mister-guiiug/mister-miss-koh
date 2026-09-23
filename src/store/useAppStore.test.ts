@@ -199,6 +199,7 @@ describe('useAppStore — le suivi est un début de saison', () => {
       number: n,
       airDate: null,
       aired: true,
+      councilDay: null,
       comfortWinnerIds: [],
       immunityWinnerIds: [],
       comfortWinnerTeamIds: [],

@@ -84,6 +84,9 @@ const ContestantRow = z.object({
         from_episode_number: z.number().nullable(),
         // La source date les appartenances en JOURS, jamais en épisodes.
         from_day: z.number().nullable(),
+        // La fin du séjour : sans elle, un retour ne se distingue pas d'un
+        // séjour qui n'a jamais cessé.
+        to_day: z.number().nullable().default(null),
       })
     )
     .default([]),
@@ -94,6 +97,16 @@ const TeamRow = z.object({
   name: z.string(),
   colour: z.string().nullable(),
 });
+
+/**
+ * Une couleur publiable, ou rien. La base la contraint depuis 0028, mais une
+ * valeur écrite avant la contrainte (`not valid`) ne doit pas faire refuser
+ * tout le référentiel à la frontière : elle devient « pas de couleur ».
+ */
+function couleur(value: string | null): string | null {
+  return value !== null && /^#[0-9a-f]{6}$/.test(value) ? value : null;
+}
+
 const PairRow = z.object({
   id: z.string(),
   member_a_id: z.string(),
@@ -127,6 +140,9 @@ const EpisodeRow = z.object({
   id: z.string(),
   number: z.number(),
   air_date: z.string().nullable(),
+  // Le jour du conseil de la soirée (0028) ; nul avant, et pour les pages
+  // qui ne le donnent pas.
+  day_end: z.number().nullable().default(null),
   challenges: z
     .array(
       z.object({
@@ -187,7 +203,12 @@ export const RowsSchema = z.object({
   provenance: ProvenanceRow.nullable(),
 });
 
-export type Rows = z.infer<typeof RowsSchema>;
+/**
+ * Les lignes telles que PostgREST les rend — AVANT les valeurs par défaut :
+ * une colonne ajoutée après coup (`to_day`, `day_end`) peut manquer d'une
+ * réponse mise en cache, et c'est la frontière qui la complète.
+ */
+export type Rows = z.input<typeof RowsSchema>;
 
 // ── Mappage pur ─────────────────────────────────────────────────────────────
 
@@ -280,12 +301,16 @@ export function mapReferential(input: unknown, today: string): Referential {
   const departureContestantById = new Map(
     rows.departures.map(d => [d.id, d.season_contestant_id])
   );
+  // LA PREMIÈRE SORTIE de chacun : depuis 0028, on peut sortir deux fois, et
+  // c'est la première qui a pu révéler un duo.
   const departureEpisodeOf = new Map<string, number>();
   for (const d of rows.departures) {
     const number = d.episode_id
       ? episodeNumberById.get(d.episode_id)
       : undefined;
-    if (number !== undefined)
+    if (number === undefined) continue;
+    const known = departureEpisodeOf.get(d.season_contestant_id);
+    if (known === undefined || number < known)
       departureEpisodeOf.set(d.season_contestant_id, number);
   }
   const eliminatedByRound = new Map<string, string>();
@@ -312,19 +337,27 @@ export function mapReferential(input: unknown, today: string): Referential {
         });
       }
     }
-    // Un départ de binôme n'est pas un scrutin en base — il n'a ni voix ni
-    // décompte. L'application, elle, le montre à sa place dans la soirée :
-    // un tour synthétique, à ZÉRO voix, certain.
-    const linked = rows.departures.filter(
-      d => d.kind === 'linked_pair' && d.episode_id === e.id
+    // Une sortie sans vote n'est pas un scrutin en base — elle n'a ni voix
+    // ni décompte. L'application, elle, la montre à sa place dans la
+    // soirée : un tour synthétique, à ZÉRO voix, certain.
+    //
+    // BINÔME SEULEMENT SI UNE CAUSE EST NOMMÉE. Jusqu'à 0028, toute sortie à
+    // zéro voix se publiait en `linked_pair`, abandons et évacuations
+    // compris : quinze saisons affichaient « part avec son binôme » sous des
+    // gens qui n'en avaient pas. Sans cause, c'est une sortie, sans plus.
+    const silent = rows.departures.filter(
+      d => d.kind !== 'vote' && d.episode_id === e.id
     );
-    for (const d of linked) {
+    for (const d of silent) {
       maxRound += 1;
       rounds.push({
         id: `linked:${d.id}`,
         episodeNumber: e.number,
         roundNumber: maxRound,
-        kind: 'linked',
+        kind:
+          d.kind === 'linked_pair' && d.caused_by_departure_id !== null
+            ? 'linked'
+            : 'departure',
         eliminatedId: d.season_contestant_id,
         reportedVotesFor: 0,
         reportedVotesTotal: null,
@@ -413,15 +446,21 @@ export function mapReferential(input: unknown, today: string): Referential {
         : null,
     },
     contestants: rows.contestants.map(c => {
-      // L'appartenance la plus récente : la tribu est un intervalle, pas
-      // un attribut, et c'est la dernière qui décrit l'état courant. Le tri
-      // porte d'abord sur le JOUR, parce que c'est ce que la source date ;
-      // l'épisode ne sert que si un jour manque.
-      const membership = [...c.team_memberships].sort(
-        (a, b) =>
-          (b.from_day ?? 0) - (a.from_day ?? 0) ||
-          (b.from_episode_number ?? 0) - (a.from_episode_number ?? 0)
-      )[0];
+      // TOUS les séjours, dans l'ordre des jours : la tribu est un intervalle,
+      // et « la » tribu d'un candidat ne se dit qu'à une limite anti-spoiler
+      // (`teamAt`). Garder seulement la plus récente, c'était l'afficher à qui
+      // n'en était pas là.
+      const teamStints = [...c.team_memberships]
+        .sort(
+          (a, b) =>
+            (a.from_day ?? 0) - (b.from_day ?? 0) ||
+            (a.from_episode_number ?? 0) - (b.from_episode_number ?? 0)
+        )
+        .map(m => ({
+          teamId: m.team_id,
+          fromDay: m.from_day,
+          toDay: m.to_day,
+        }));
       const gender = c.contestants?.gender;
       return {
         id: c.id,
@@ -434,12 +473,16 @@ export function mapReferential(input: unknown, today: string): Referential {
         previousSeasons: [...c.contestant_previous_seasons]
           .sort((a, b) => a.ordinal - b.ordinal)
           .map(s => s.label),
-        teamId: membership?.team_id ?? null,
+        teamStints,
         pairId: pairOf.get(c.id) ?? null,
         finalJury: c.final_jury,
       };
     }),
-    teams: rows.teams.map(t => ({ id: t.id, name: t.name, colour: t.colour })),
+    teams: rows.teams.map(t => ({
+      id: t.id,
+      name: t.name,
+      colour: couleur(t.colour),
+    })),
     pairs: rows.pairs.map(p => ({
       id: p.id,
       memberIds: [p.member_a_id, p.member_b_id] as [string, string],
@@ -466,6 +509,7 @@ export function mapReferential(input: unknown, today: string): Referential {
         // Diffusé = passé à la date du jour, OU déjà documenté. Une date
         // seule dans le futur ne suffit pas ; une soirée renseignée suffit.
         aired: hasData || (e.air_date !== null && e.air_date <= today),
+        councilDay: e.day_end,
         comfortWinnerIds: winnersOf(
           comfort.flatMap(c => c.challenge_results),
           pairMembers
@@ -589,7 +633,7 @@ export async function fetchRows(
       client
         .from('season_contestants')
         .select(
-          'id, contestant_id, display_name, age_at_season, final_jury, contestants(gender), contestant_previous_seasons(label, ordinal), team_memberships(team_id, from_episode_number, from_day)'
+          'id, contestant_id, display_name, age_at_season, final_jury, contestants(gender), contestant_previous_seasons(label, ordinal), team_memberships(team_id, from_episode_number, from_day, to_day)'
         )
         .eq('season_id', season.id),
       client
@@ -603,7 +647,7 @@ export async function fetchRows(
       client
         .from('episodes')
         .select(
-          'id, number, air_date, challenges(kind, challenge_results(season_contestant_id, pair_id, team_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(voter_id, target_id, is_annulled)))'
+          'id, number, air_date, day_end, challenges(kind, challenge_results(season_contestant_id, pair_id, team_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(voter_id, target_id, is_annulled)))'
         )
         .eq('season_id', season.id)
         .order('number'),

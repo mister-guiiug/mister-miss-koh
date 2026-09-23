@@ -11,11 +11,13 @@ import { FavoriteButton } from '../../components/FavoriteButton';
 import { inGame, lastAiredEpisode } from '../../domain/stats';
 import {
   effectivePairs,
-  groupingWithGuesses,
+  groupingAt,
   membersInDisplayOrder,
   type PairGuess,
 } from '../../domain/pairing';
-import type { Contestant, Referential } from '../../domain/referential';
+import type { Contestant, Referential, Team } from '../../domain/referential';
+import { teamAt } from '../../domain/tribes';
+import { TribeName } from '../../components/TribeName';
 import {
   CONTESTANT_FILTER_OPTIONS,
   filterLabel,
@@ -31,6 +33,8 @@ interface Row extends Contestant {
 interface Group {
   key: string;
   label: string;
+  /** La tribu du groupe, pour sa pastille ; absente pour un duo. */
+  team?: Team;
   /** Le duo vient d'une supposition, pas de la source : ça se dit. */
   guessed: boolean;
   rows: Row[];
@@ -39,24 +43,29 @@ interface Group {
 /**
  * Les groupes de l'édition suivie.
  *
- * PAR DUO OU PAR TRIBU, selon ce que la saison est — `groupingWithGuesses` le
- * lit dans les données, ou dans le fait qu'on ait supposé un duo. Un duo de la
- * SOURCE n'apparaît que s'il a été révélé par un départ, et pas avant
- * l'épisode qui l'a révélé : la source ne liste les duos nulle part, on ne les
- * connaît qu'a posteriori, et les afficher plus tôt divulgâcherait ce départ.
- * Un duo SUPPOSÉ, lui, s'affiche tout de suite — il est de vous — et porte sa
- * mention. Les autres se rangent sous « Duo non révélé », qui n'est pas un
- * aveu de manque mais l'état réel de ce qu'on sait.
+ * PAR DUO OU PAR TRIBU, selon ce que la saison est À CETTE LIMITE —
+ * `groupingAt` le lit dans les données : All Stars se regroupe par duos
+ * jusqu'à l'épisode 3, puis par tribus quand Taboga et Sebako apparaissent.
+ * Un duo de la SOURCE n'apparaît que s'il a été révélé par un départ, et pas
+ * avant l'épisode qui l'a révélé : la source ne liste les duos nulle part, on
+ * ne les connaît qu'a posteriori, et les afficher plus tôt divulgâcherait ce
+ * départ. Un duo SUPPOSÉ, lui, s'affiche tout de suite — il est de vous — et
+ * porte sa mention. Les autres se rangent sous « Duo non révélé », qui n'est
+ * pas un aveu de manque mais l'état réel de ce qu'on sait.
+ *
+ * @param limit la limite anti-spoiler brute, pour les duos
+ * @param upTo la même, bornée au dernier épisode diffusé, pour les tribus
  */
 function groupsOf(
   ref: Referential,
   rows: Row[],
   guesses: readonly PairGuess[],
-  limit: number
+  limit: number,
+  upTo: number
 ): Group[] {
   const byId = new Map(rows.map(r => [r.id, r]));
 
-  if (groupingWithGuesses(ref, guesses) === 'pair') {
+  if (groupingAt(ref, guesses, upTo) === 'pair') {
     const groups: Group[] = [];
     const placed = new Set<string>();
 
@@ -94,19 +103,38 @@ function groupsOf(
     return groups;
   }
 
+  // LA TRIBU À LA LIMITE, jamais la plus récente dans l'absolu : à qui n'a vu
+  // que l'épisode 2, Camille est dans la tribu unique, pas dans Taboga. Un
+  // candidat sorti reste rangé avec la dernière tribu où on l'a vu.
+  const teamOf = new Map(
+    ref.contestants.map(c => [c.id, teamAt(ref, c, upTo)])
+  );
+  // LES TRIBUS EN JEU D'ABORD. L'ordre se calcule sur TOUS les candidats, pas
+  // sur la liste filtrée : sans cela, passer de « En jeu » à « Tous » ferait
+  // sauter les groupes d'une place à l'autre. À égalité, l'ordre alphabétique.
+  const still = new Set(inGame(ref, upTo));
+  const weight = (team: Team) =>
+    ref.contestants.filter(
+      c => still.has(c.id) && teamOf.get(c.id)?.id === team.id
+    ).length;
+  const teams = [...ref.teams].sort(
+    (a, b) => weight(b) - weight(a) || a.name.localeCompare(b.name, 'fr')
+  );
+
   const groups: Group[] = [];
-  for (const team of ref.teams) {
-    const members = rows.filter(r => r.teamId === team.id);
+  for (const team of teams) {
+    const members = rows.filter(r => teamOf.get(r.id)?.id === team.id);
     if (members.length > 0) {
       groups.push({
         key: team.id,
         label: team.name,
+        team,
         guessed: false,
         rows: members,
       });
     }
   }
-  const rest = rows.filter(r => !r.teamId);
+  const rest = rows.filter(r => !teamOf.get(r.id));
   if (rest.length > 0) {
     groups.push({
       key: 'sans-tribu',
@@ -145,7 +173,7 @@ export function ContestantsScreen() {
       }))
       .filter(c => !q || c.displayName.toLowerCase().includes(q))
       .filter(c => matchesFilter(status, c.inGame));
-    return groupsOf(referential, rows, guesses, limit);
+    return groupsOf(referential, rows, guesses, limit, upTo);
   }, [referential, favorites, guesses, limit, query, status]);
 
   if (!referential) return null;
@@ -196,7 +224,11 @@ export function ContestantsScreen() {
           <section key={group.key}>
             {showHeadings && (
               <h3 className="group-title">
-                {group.label}{' '}
+                {group.team ? (
+                  <TribeName team={group.team} describe />
+                ) : (
+                  group.label
+                )}{' '}
                 {group.guessed && (
                   <Badge tone="warning" size="xs">
                     supposé

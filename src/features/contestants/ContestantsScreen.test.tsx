@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ContestantsScreen } from './ContestantsScreen';
 import { useAppStore } from '../../store/useAppStore';
 import { DEMO_REFERENTIAL } from '../../backend/demo';
+import { SAISON_AUX_TRIBUS } from '../../test/saisonAuxTribus';
 
 function renderList() {
   return render(
@@ -106,5 +107,62 @@ describe('le filtre de statut', () => {
     expect(
       screen.getByText(/Aucun nom ne correspond à « zzzz », filtre « En jeu »/)
     ).toBeInTheDocument();
+  });
+});
+
+describe('les tribus, à la limite anti-spoiler', () => {
+  const titres = () =>
+    Array.from(document.querySelectorAll('.group-title'), h =>
+      h.textContent?.trim()
+    );
+
+  it('dès que deux tribus se montrent, la liste se range par tribu, couleur nommée', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      spoiler: 'hide_unwatched',
+      watched: [1, 2, 3, 4],
+      contestantFilter: 'tous',
+    });
+    renderList();
+
+    // Les tribus EN JEU d'abord, la plus peuplée en tête ; la tribu unique,
+    // où ne restent que des sortis, en dernier.
+    expect(titres()).toEqual([
+      'Kalima · tribu jaune',
+      'Sorako · tribu rouge',
+      'Tribu unique',
+    ]);
+    // La pastille est décorative : c'est le nom qui dit la tribu.
+    const pastille = document.querySelector('.group-title .tribe-swatch');
+    expect(pastille).toHaveAttribute('aria-hidden', 'true');
+    expect(pastille).toHaveStyle({ background: '#fee347' });
+  });
+
+  it('le revenu est « en jeu » dans sa nouvelle tribu', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      spoiler: 'hide_unwatched',
+      watched: [1, 2, 3, 4],
+      contestantFilter: 'tous',
+    });
+    renderList();
+
+    const rouge = screen.getByText('Sorako').closest('section');
+    const mael = within(rouge!).getByRole('link', { name: 'Maël' });
+    expect(mael.closest('li')).toHaveTextContent('en jeu');
+  });
+
+  it('à qui n’a vu que l’épisode 3, pas une tribu de couleur : les duos', () => {
+    useAppStore.setState({
+      referential: SAISON_AUX_TRIBUS,
+      spoiler: 'hide_unwatched',
+      watched: [1, 2, 3],
+      contestantFilter: 'tous',
+    });
+    renderList();
+
+    expect(screen.queryByText('Kalima')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sorako')).not.toBeInTheDocument();
+    expect(titres()).toContain('Chloé et Jonas');
   });
 });

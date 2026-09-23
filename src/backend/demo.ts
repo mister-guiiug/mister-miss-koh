@@ -46,7 +46,7 @@ const raw = {
       gender: 'f',
       age: 31,
       previousSeasons: ['Saison fictive 3'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: null }],
       pairId: 'p-1',
     },
     {
@@ -55,7 +55,7 @@ const raw = {
       gender: 'm',
       age: 35,
       previousSeasons: ['Saison fictive 3'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: null }],
       pairId: 'p-1',
     },
     {
@@ -64,7 +64,7 @@ const raw = {
       gender: 'f',
       age: 28,
       previousSeasons: ['Saison fictive 7'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: 6 }],
       pairId: 'p-2',
     },
     {
@@ -73,7 +73,7 @@ const raw = {
       gender: 'm',
       age: 42,
       previousSeasons: ['Saison fictive 7', 'Saison fictive 12'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: 6 }],
       pairId: 'p-2',
     },
     {
@@ -82,7 +82,7 @@ const raw = {
       gender: 'm',
       age: 26,
       previousSeasons: ['Saison fictive 9'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: null }],
       pairId: 'p-3',
     },
     {
@@ -91,7 +91,7 @@ const raw = {
       gender: 'f',
       age: 33,
       previousSeasons: ['Saison fictive 9'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: null }],
       pairId: 'p-3',
     },
     {
@@ -100,7 +100,7 @@ const raw = {
       gender: 'm',
       age: 39,
       previousSeasons: ['Saison fictive 5'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: 3 }],
       pairId: 'p-4',
     },
     {
@@ -109,7 +109,7 @@ const raw = {
       gender: 'f',
       age: 30,
       previousSeasons: ['Saison fictive 5'],
-      teamId: 't-unique',
+      teamStints: [{ teamId: 't-unique', fromDay: 1, toDay: 3 }],
       pairId: 'p-4',
     },
   ],
@@ -136,6 +136,7 @@ const raw = {
       number: 1,
       airDate: '2026-08-25',
       aired: true,
+      councilDay: 3,
       comfortWinnerIds: ['c-ael', 'c-bastien'],
       immunityWinnerIds: ['c-celeste', 'c-dimitri'],
     },
@@ -144,6 +145,7 @@ const raw = {
       number: 2,
       airDate: '2026-09-01',
       aired: true,
+      councilDay: 6,
       comfortWinnerIds: ['c-elouan', 'c-fanny'],
       immunityWinnerIds: ['c-ael', 'c-bastien'],
     },
