@@ -6,6 +6,8 @@ import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { EpisodesScreen } from './EpisodesScreen';
 import { useAppStore } from '../../store/useAppStore';
 import { DEMO_REFERENTIAL } from '../../backend/demo';
+import { SAISON_AUX_TRIBUS } from '../../test/saisonAuxTribus';
+import type { Referential } from '../../domain/referential';
 
 function renderScreen() {
   return render(
@@ -69,5 +71,48 @@ describe('EpisodesScreen', () => {
 
     expect(screen.queryByText(/^Masqué/)).toBeNull();
     expect(document.querySelector('.reveal')).toBeNull();
+  });
+});
+
+describe('une soirée de la saison aux tribus', () => {
+  it('la tribu gagnante porte sa pastille, et l’arène se dit « sans vote »', () => {
+    const soiree: Referential = {
+      ...SAISON_AUX_TRIBUS,
+      episodes: SAISON_AUX_TRIBUS.episodes.map(e =>
+        e.number === 4
+          ? {
+              ...e,
+              comfortWinnerTeamIds: ['t-rouge'],
+              immunityWinnerTeamIds: ['t-rouge'],
+            }
+          : e
+      ),
+      rounds: [
+        {
+          id: 'depart:jonas',
+          episodeNumber: 4,
+          roundNumber: 1,
+          kind: 'departure',
+          eliminatedId: 'c-jonas',
+          reportedVotesFor: 0,
+          reportedVotesTotal: null,
+          votesComplete: true,
+        },
+      ],
+    };
+    useAppStore.setState({
+      referential: soiree,
+      spoiler: 'reveal_all',
+      watched: [],
+    });
+    renderScreen();
+
+    const carte = screen.getByText('Épisode 4').closest('article');
+    expect(carte).toHaveTextContent('Jonas quitte l’aventure sans vote');
+    // UNE sortie sans cause n'est PAS un départ de binôme.
+    expect(carte).not.toHaveTextContent('binôme');
+    const pastilles = carte!.querySelectorAll('.tribe-swatch');
+    expect(pastilles).toHaveLength(2);
+    expect(pastilles[0]).toHaveStyle({ background: '#fc5d5d' });
   });
 });

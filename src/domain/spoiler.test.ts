@@ -11,6 +11,7 @@ const ep = (
   number,
   airDate,
   aired,
+  councilDay: null,
   comfortWinnerIds: [],
   immunityWinnerIds: [],
   comfortWinnerTeamIds: [],

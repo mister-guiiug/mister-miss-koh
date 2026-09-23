@@ -151,6 +151,21 @@ respectent l'**anti-spoiler** : « 16 en jeu » s'arrête à la limite que vous 
 réglée, ce que l'écran dit sous les tuiles plutôt que de laisser croire à une
 erreur de calcul.
 
+**Les candidats se rangent comme la saison se joue, à l'épisode où vous en
+êtes.** All Stars se joue en duos dans une tribu unique jusqu'au jour 9, puis
+en deux tribus, Taboga la jaune et Sebako la rouge. L'onglet Candidats suit ce
+changement : il regroupe par duo tant qu'une seule tribu existe à votre limite
+anti-spoiler, puis par tribu dès que deux se montrent. Chaque tribu porte la
+couleur de la légende Wikipédia et le nom de sa teinte (« tribu jaune »),
+parce que c'est ainsi qu'on en parle devant l'émission. **La tribu d'un
+candidat se lit à votre limite, jamais dans l'absolu** : à qui n'a vu que
+l'épisode 3, Taboga n'existe pas encore. La source date les séjours en jours
+et l'anti-spoiler raisonne en épisodes. Le jour du conseil de chaque soirée
+fait le lien, et s'il manque, l'application attend plutôt que de deviner. **On
+revient, et l'on ressort** : un éliminé que l'arène ramène dans une tribu
+redevient « en jeu », et sa fiche raconte sortie, retour et nouvelle sortie,
+chaque ligne derrière sa garde anti-spoiler.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
@@ -244,7 +259,9 @@ src/
                  statistiques (zéro ≠ inconnu), chiffres de l'accueil
                  (`summary.ts` — comptés À LA LIMITE anti-spoiler), règles de
                  saison, duos
-                 supposés (`pairing.ts` — la source prime toujours), partage
+                 supposés (`pairing.ts` — la source prime toujours), tribus
+                 (`tribes.ts` — la tribu À LA LIMITE, les retours, le nom de
+                 la teinte), partage
                  (`sharing.ts` — nom de fichier, adresses, capacité d'un QR),
                  notes en document (`notesExport.ts` — Markdown et texte brut),
                  cibles d'une note (`noteTargets.ts` — nommer, ou le dire),
@@ -297,7 +314,9 @@ supabase/
                  publications, photo des remplacements, cause extraite ·
                  0019 lieu de tournage · 0020 révision publiée ·
                  0021 partage des notes (lecteur de collection, et la
-                 jointure de profil rendue EXTERNE)
+                 jointure de profil rendue EXTERNE) · … ·
+                 0028 tribus colorées, jour du conseil, deux sorties
+                 possibles pour un même candidat
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
 ```

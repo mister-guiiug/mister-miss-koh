@@ -9,6 +9,7 @@ import { TargetNotes } from '../../components/TargetNotes';
 import { useHaptics } from '../../hooks/useHaptics';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { contestantById } from '../../domain/referential';
+import { TribeName } from '../../components/TribeName';
 import { isWatched } from '../../domain/spoiler';
 
 type Ref = NonNullable<ReturnType<typeof useAppStore.getState>['referential']>;
@@ -40,11 +41,14 @@ function Winners({
   teamIds: readonly string[];
 }) {
   const parts: ReactNode[] = [
-    ...teamIds.map(id => (
-      <span key={`t-${id}`}>
-        {data.teams.find(t => t.id === id)?.name ?? '?'}
-      </span>
-    )),
+    ...teamIds.map(id => {
+      const team = data.teams.find(t => t.id === id);
+      return team ? (
+        <TribeName key={`t-${id}`} team={team} />
+      ) : (
+        <span key={`t-${id}`}>?</span>
+      );
+    }),
     ...contestantIds.map(id => (
       <ContestantLink key={`c-${id}`} data={data} id={id} />
     )),
@@ -174,6 +178,21 @@ export function EpisodesScreen() {
                                   part avec son binôme{' '}
                                   <Badge tone="muted" size="xs">
                                     0 voix
+                                  </Badge>
+                                </>
+                              )}
+                              {/* Zéro voix, et rien ne la cause : abandon,
+                                  évacuation, arène — la source ne dit pas
+                                  lequel, l'écran ne l'invente pas. */}
+                              {r.kind === 'departure' && (
+                                <>
+                                  <ContestantLink
+                                    data={referential}
+                                    id={r.eliminatedId}
+                                  />{' '}
+                                  quitte l’aventure{' '}
+                                  <Badge tone="muted" size="xs">
+                                    sans vote
                                   </Badge>
                                 </>
                               )}

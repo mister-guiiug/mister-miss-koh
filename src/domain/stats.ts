@@ -15,6 +15,10 @@
  * troisième conseil a eu lieu.
  */
 import type { Referential, Round } from './referential';
+import { lastAiredEpisode } from './referential';
+import { returnedAfter } from './tribes';
+
+export { lastAiredEpisode };
 
 export interface Counted {
   readonly value: number;
@@ -28,14 +32,31 @@ function votingRounds(ref: Referential, upToEpisode: number): Round[] {
   );
 }
 
-/** Candidats sans départ connu jusqu'à la limite. */
+/**
+ * Candidats en jeu à la limite : aucune sortie jusque-là, ou REVENUS depuis
+ * la dernière.
+ *
+ * ON REVIENT. Maxime, éliminé au premier conseil d'All Stars, rentre dans
+ * Sebako au jour 9 ; compter toute sortie comme définitive le laissait
+ * « sorti·e » dans sa propre tribu. Le retour ne se lit que dans les séjours
+ * en tribu — voir `returnedAfter`. Et l'on ressort : Charlotte, revenue dans
+ * Taboga, est de nouveau éliminée à l'épisode 5. C'est donc la DERNIÈRE sortie
+ * avant la limite qui compte.
+ */
 export function inGame(ref: Referential, upToEpisode: number): string[] {
-  const gone = new Set(
-    ref.departures
-      .filter(d => d.episodeNumber !== null && d.episodeNumber <= upToEpisode)
-      .map(d => d.contestantId)
-  );
-  return ref.contestants.filter(c => !gone.has(c.id)).map(c => c.id);
+  const lastExit = new Map<string, number>();
+  for (const d of ref.departures) {
+    if (d.episodeNumber === null || d.episodeNumber > upToEpisode) continue;
+    const known = lastExit.get(d.contestantId);
+    if (known === undefined || d.episodeNumber > known)
+      lastExit.set(d.contestantId, d.episodeNumber);
+  }
+  return ref.contestants
+    .filter(c => {
+      const exit = lastExit.get(c.id);
+      return exit === undefined || returnedAfter(ref, c, exit, upToEpisode);
+    })
+    .map(c => c.id);
 }
 
 /** Voix reçues, hors tours annulés et hors voix barrées. */
@@ -100,12 +121,4 @@ export function councilsAttended(
     }
   }
   return episodes.size;
-}
-
-/** Dernier épisode diffusé, ou 0. */
-export function lastAiredEpisode(ref: Referential): number {
-  return ref.episodes.reduce(
-    (max, e) => (e.aired && e.number > max ? e.number : max),
-    0
-  );
 }

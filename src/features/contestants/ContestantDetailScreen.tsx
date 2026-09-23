@@ -13,8 +13,10 @@ import { PhotoShare } from '../../components/PhotoShare';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { PairBlock } from '../../components/PairBlock';
 import { TargetNotes } from '../../components/TargetNotes';
+import { TribeName } from '../../components/TribeName';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
-import { contestantById } from '../../domain/referential';
+import { contestantById, type Departure } from '../../domain/referential';
+import { comebacksOf, teamAt, type Comeback } from '../../domain/tribes';
 import {
   challengeWins,
   councilsAttended,
@@ -53,8 +55,16 @@ export function ContestantDetailScreen() {
       contestant,
       // Le binôme — source ou supposé — est tout entier dans `PairBlock` :
       // il dépend des suppositions, que cette dérivation n'a pas à connaître.
-      departure:
-        referential.departures.find(d => d.contestantId === id) ?? null,
+      //
+      // ON SORT, ON REVIENT, ON RESSORT : Charlotte quitte l'aventure à
+      // l'épisode 3, revient dans Taboga à l'épisode 4, et ressort au 5. Son
+      // statut est une CHRONOLOGIE, chaque ligne derrière sa garde.
+      events: chronology(
+        referential.departures.filter(d => d.contestantId === id),
+        comebacksOf(referential, contestant)
+      ),
+      // La tribu À LA LIMITE : celle que l'utilisateur a vue se former.
+      team: teamAt(referential, contestant, upTo),
       // Les avantages qu'il ou elle a tenus, dans l'ordre du tableau source.
       advantages: referential.advantages.filter(a => a.holderIds.includes(id)),
       received: votesReceived(referential, id, upTo),
@@ -87,10 +97,8 @@ export function ContestantDetailScreen() {
     );
   }
 
-  const { contestant, departure, advantages } = view;
+  const { contestant, events, team, advantages } = view;
   const favorite = favorites.includes(contestant.id);
-  const cause = contestantById(referential, departure?.causedById ?? null);
-  const team = referential.teams.find(t => t.id === contestant.teamId) ?? null;
   const source = referential.provenance;
 
   return (
@@ -135,7 +143,11 @@ export function ContestantDetailScreen() {
               <Badge tone={view.stillIn ? 'success' : 'muted'}>
                 {view.stillIn ? 'en jeu' : 'sorti·e'}
               </Badge>
-              {team && <Badge tone="info">{team.name}</Badge>}
+              {team && (
+                <Badge tone="info">
+                  <TribeName team={team} describe />
+                </Badge>
+              )}
               {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
             </p>
           </div>
@@ -236,24 +248,42 @@ export function ContestantDetailScreen() {
 
       <Card>
         <CardHeader title="Statut" />
-        {departure ? (
-          <SpoilerGuard episodeNumber={departure.episodeNumber}>
-            <p>
-              <Badge tone="danger">
-                Sorti·e à l’épisode {departure.episodeNumber}
-              </Badge>
-              {departure.day && <> · jour {departure.day}</>}
-              {cause && (
-                <>
-                  {' '}
-                  — à la suite de{' '}
-                  <Link to={`/candidats/${cause.id}`}>{cause.displayName}</Link>
-                </>
-              )}
-            </p>
-          </SpoilerGuard>
-        ) : (
+        {events.length === 0 ? (
           <Badge tone="success">Encore en jeu</Badge>
+        ) : (
+          events.map(event =>
+            event.kind === 'exit' ? (
+              <SpoilerGuard
+                key={`exit-${event.episodeNumber}`}
+                episodeNumber={event.episodeNumber}
+              >
+                <ExitLine
+                  referential={referential}
+                  departure={event.departure}
+                />
+              </SpoilerGuard>
+            ) : (
+              <SpoilerGuard
+                key={`back-${event.episodeNumber}`}
+                episodeNumber={event.episodeNumber}
+              >
+                <p>
+                  <Badge tone="success">
+                    De retour à l’épisode {event.episodeNumber}
+                  </Badge>
+                  {event.comeback.fromDay && (
+                    <> · jour {event.comeback.fromDay}</>
+                  )}
+                  {event.comeback.team && (
+                    <>
+                      {' '}
+                      — dans <TribeName team={event.comeback.team} describe />
+                    </>
+                  )}
+                </p>
+              </SpoilerGuard>
+            )
+          )
         )}
       </Card>
 
@@ -285,5 +315,70 @@ export function ContestantDetailScreen() {
         </Card>
       )}
     </div>
+  );
+}
+
+type StatusEvent =
+  | { kind: 'exit'; episodeNumber: number | null; departure: Departure }
+  | { kind: 'back'; episodeNumber: number; comeback: Comeback };
+
+/**
+ * Sorties et retours, dans l'ordre des épisodes.
+ *
+ * À épisode égal, le retour d'abord : revenir et ressortir dans la même
+ * soirée se raconte dans cet ordre. Une sortie sans épisode connu vient en
+ * dernier — sa garde la masque de toute façon, faute de savoir quand.
+ */
+function chronology(
+  departures: readonly Departure[],
+  comebacks: readonly Comeback[]
+): StatusEvent[] {
+  const events: StatusEvent[] = [
+    ...departures.map(d => ({
+      kind: 'exit' as const,
+      episodeNumber: d.episodeNumber,
+      departure: d,
+    })),
+    ...comebacks.map(c => ({
+      kind: 'back' as const,
+      episodeNumber: c.episodeNumber,
+      comeback: c,
+    })),
+  ];
+  const rank = (e: StatusEvent) => e.episodeNumber ?? Number.POSITIVE_INFINITY;
+  return events.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      (a.kind === 'back' ? -1 : 1) - (b.kind === 'back' ? -1 : 1)
+  );
+}
+
+/** Une sortie : l'épisode, le jour s'il est connu, et ce qui l'a causée. */
+function ExitLine({
+  referential,
+  departure,
+}: {
+  referential: NonNullable<
+    ReturnType<typeof useAppStore.getState>['referential']
+  >;
+  departure: Departure;
+}) {
+  const cause = contestantById(referential, departure.causedById);
+  // Zéro voix, et rien ne la cause : un abandon, une évacuation, une
+  // élimination à l'arène — la source ne dit pas lequel, l'écran non plus.
+  const silent = departure.kind !== 'vote' && !cause;
+  return (
+    <p>
+      <Badge tone="danger">Sorti·e à l’épisode {departure.episodeNumber}</Badge>
+      {departure.day && <> · jour {departure.day}</>}
+      {cause && (
+        <>
+          {' '}
+          — à la suite de{' '}
+          <Link to={`/candidats/${cause.id}`}>{cause.displayName}</Link>
+        </>
+      )}
+      {silent && <> — sans vote</>}
+    </p>
   );
 }

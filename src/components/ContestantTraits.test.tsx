@@ -11,7 +11,7 @@ const candidat = (patch: Partial<Contestant> = {}): Contestant => ({
   gender: 'f',
   age: 32,
   previousSeasons: [],
-  teamId: null,
+  teamStints: [],
   pairId: null,
   finalJury: null,
   ...patch,

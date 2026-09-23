@@ -30,6 +30,7 @@ import {
 } from './referential';
 import { groupingOf, type Grouping } from './rules';
 import { isSpoiler } from './spoiler';
+import { tribesSeenAt } from './tribes';
 
 export const PairGuessSchema = z.object({
   memberIds: z.tuple([z.string(), z.string()]),
@@ -250,4 +251,24 @@ export function groupingWithGuesses(
   guesses: readonly PairGuess[]
 ): Grouping {
   return guesses.length > 0 ? 'pair' : groupingOf(ref);
+}
+
+/**
+ * Regrouper À CETTE LIMITE.
+ *
+ * Une édition change de forme en cours de route : All Stars joue en duos dans
+ * une tribu unique jusqu'au jour 9, puis en deux tribus — Taboga, la jaune,
+ * et Sebako, la rouge. Dès que deux tribus au moins se montrent à la limite,
+ * ce sont elles qui rangent la liste : un duo dont les deux membres sont dans
+ * deux tribus rivales ne dit plus rien de la partie. Avant, c'est la règle de
+ * l'édition — et vos suppositions — qui décide.
+ */
+export function groupingAt(
+  ref: Referential,
+  guesses: readonly PairGuess[],
+  limit: number
+): Grouping {
+  return tribesSeenAt(ref, limit) >= 2
+    ? 'team'
+    : groupingWithGuesses(ref, guesses);
 }
