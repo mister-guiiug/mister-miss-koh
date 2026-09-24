@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
+import { NAVIGATE_FALLBACK_DENY_FILES } from '@mister-guiiug/dev-pwa-config/vite-pwa';
 // LA COULEUR DE LA BARRE VIENT DE L'APPLICATION, pas d'un littéral recopié
 // ici. Trois endroits la déclaraient et ne disaient pas la même chose ; c'est
 // `src/theme.ts` qui tranche, et ce fichier s'y branche pour les deux autres
@@ -233,7 +234,12 @@ export default defineConfig(({ command }) => {
               },
             },
           ],
-          navigateFallbackDenylist: [/^\/auth/, /supabase\.co/],
+          // Un fichier (sitemap.xml, llms.txt…) va au réseau, pas à index.html.
+          navigateFallbackDenylist: [
+            NAVIGATE_FALLBACK_DENY_FILES,
+            /^\/auth/,
+            /supabase\.co/,
+          ],
         },
         manifest: {
           id: basePath,
