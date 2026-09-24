@@ -421,17 +421,18 @@ export async function runImport(
     const teams = extractTeams(contestants.contestants, document.seasonSlug);
 
     let progress: ReturnType<typeof extractProgress> = { episodes: [], anomalies: [] };
+    // Sans déroulement, l'arrêt ne se décide qu'APRÈS la matrice des votes
+    // (plus bas) : les épisodes publiés ont pu en être DÉDUITS.
+    let deroulementAbsent: string | null = null;
     if (progressTable) {
       progress = extractProgress(progressTable.grid, document.seasonSlug);
     } else {
-      const quoi = section.progress
+      deroulementAbsent = section.progress
         ? "la section « Déroulement » ne porte aucun tableau épisode par épisode"
         : "la page n'a pas de section « Déroulement »";
-      const perdu = await regression("progress", quoi);
-      if (perdu) return await stop(perdu);
       absences.push({
         code: "section_absente",
-        message: `${quoi} : aucun épisode extrait`,
+        message: `${deroulementAbsent} : aucun épisode extrait`,
       });
     }
 
@@ -495,6 +496,38 @@ export async function runImport(
         message:
           `${deduits.length} épisode(s) déduits de la matrice des votes : numéro et éliminés seulement, ni date ni épreuve`,
       });
+    }
+
+    // ── Sans déroulement : régression, ou absence de naissance ? ──────────
+    //
+    // Le garde s'arrêtait dès qu'un épisode était publié. Or trois saisons
+    // (« La Légende », « La Revanche des héros », « Malaisie ») n'ont JAMAIS
+    // eu de déroulement : leurs épisodes publiés viennent de la déduction
+    // ci-dessus, qui les rend à l'identique. Depuis leur première publication,
+    // le 13/09/2026, chacun de leurs imports échouait — saisons figées.
+    //
+    // La PERTE, et elle seule, arrête : un épisode publié que la page ne rend
+    // plus, ou une donnée qu'aucune déduction ne fournit (date, épreuve, jour
+    // du conseil) — le signe d'un vrai déroulement disparu.
+    if (deroulementAbsent) {
+      const rendus = new Set(progress.episodes.map((e) => e.naturalKey));
+      const perdus = (await publishedRecords()).filter((r) => {
+        if (!r.published || r.entity !== "episode") return false;
+        if (!rendus.has(r.naturalKey)) return true;
+        const p = r.payload as {
+          airDate?: unknown;
+          departureDay?: unknown;
+          comfortWinners?: unknown[];
+          immunityWinners?: unknown[];
+        };
+        return p.airDate != null || p.departureDay != null ||
+          (p.comfortWinners?.length ?? 0) > 0 ||
+          (p.immunityWinners?.length ?? 0) > 0;
+      });
+      if (perdus.length > 0) {
+        const perdu = await regression("progress", deroulementAbsent);
+        if (perdu) return await stop(perdu);
+      }
     }
 
     const anomalies: Anomaly[] = [

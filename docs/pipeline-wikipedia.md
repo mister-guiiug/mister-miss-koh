@@ -708,6 +708,16 @@ de publié pour ce que la section alimente, l'absence est de naissance et
 l'import continue en le disant (`section_absente`) ; quelque chose de publié,
 la page a régressé et l'import s'arrête sans rien proposer.
 
+**Sauf quand la matrice rend ce qui est publié (24/09/2026).** Ce garde a figé
+trois saisons pendant onze jours. « La Légende », « La Revanche des héros » et
+« Malaisie » n'ont jamais eu de déroulement : leurs épisodes publiés sont
+DÉDUITS de la matrice des votes. Dès leur première publication, chaque import
+s'est arrêté sur « arrêt avant toute suppression », sans rien avoir à
+supprimer. Le garde décide désormais APRÈS la déduction, et seule une PERTE
+arrête : un épisode publié que la page ne rend plus, ou une donnée qu'aucune
+déduction ne fournit (date, épreuve, jour du conseil), signe d'un vrai
+déroulement disparu.
+
 ### Le relevé du 11/09/2026, sur les dix-huit pages réelles
 
 **Seize produisent un modèle**, contre sept avant. Les deux restantes —
