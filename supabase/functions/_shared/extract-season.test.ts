@@ -9,6 +9,7 @@ import {
   extractProgress,
   extractTeams,
   looksLikeProgress,
+  readTeamLine,
 } from "./extract-season.ts";
 import {
   parseAge,
@@ -153,6 +154,37 @@ Deno.test("fixture : le séjour en tribu porte ses bornes de JOURS", () => {
   assertEquals(camille.teams[0].name, "Tribu unique");
   assertEquals(camille.teams[0].fromDay, 1);
   assertEquals(camille.teams[0].toDay, null, "borne ouverte : elle y est encore");
+});
+
+Deno.test("un statut de la colonne « Tribu » n'est pas une tribu, même inconnu de la matrice", () => {
+  // Les onze lignes du relevé du 24/09/2026 qui passaient pour des tribus.
+  const genre = (ligne: string) => readTeamLine(ligne)?.kind;
+  assertEquals(
+    genre("Absente (jour 1 – 3)"),
+    "status",
+    "May, arrivée au jour 3 (« Fidji »)",
+  );
+  assertEquals(genre("Absent (jour 1 – 4)"), "status");
+  assertEquals(genre("Évincée (jour 33 – 34)"), "status", "Tania (« Le Feu sacré »)");
+  assertEquals(genre("Évincé (jour 32 – 34)"), "status");
+  // Le PREMIER MOT fait le statut : la phrase dit ce que dit « Éliminée ».
+  assertEquals(genre("Éliminée à l'épreuve initiale (jour 1 – )"), "status");
+  assertEquals(genre("Éliminé à l'épreuve initiale (jour 1 – 4)"), "status");
+  // Les statuts d'avant ne bougent pas.
+  assertEquals(genre("Bannie (jour 3 – )"), "status");
+  assertEquals(genre("Jury final (jour 38 – )"), "status");
+});
+
+Deno.test("une tribu à pastille noire reste une tribu : on y vit dès le premier jour", () => {
+  const genre = (ligne: string) => readTeamLine(ligne)?.kind;
+  assertEquals(
+    genre("Tribu maudite (jour 1 – 13)"),
+    "team",
+    "Vanessa (« La Tribu maudite »)",
+  );
+  assertEquals(genre("Héros (jour 1 – 9)"), "team", "Sara (« L'Île des héros »)");
+  assertEquals(genre("Tribu réunifiée (jour 23 – 33)"), "team");
+  assertEquals(genre("Lanta-naï (jour 1 – 12)"), "team");
 });
 
 Deno.test("fixture : « Bannie » n'est pas une tribu", () => {

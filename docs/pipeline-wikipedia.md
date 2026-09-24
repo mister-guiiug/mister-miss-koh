@@ -419,7 +419,15 @@ Trois conséquences, chacune tirée de ce tableau :
   correspondance que la page ne donne pas ;
 - **« Bannie » n'est pas une tribu.** La source range l'état du candidat après
   sa sortie dans la même colonne. Sans cette distinction, la publication
-  créerait une tribu « Bannie » et lui donnerait quatre membres ;
+  créerait une tribu « Bannie » et lui donnerait quatre membres. Le relevé du
+  24/09/2026 (version 13) en a trouvé onze de plus que le vocabulaire ne
+  connaissait pas, et que la colonne changeait donc en tribus, en silence :
+  « Absent(e) » avant la première tribu (arrivé plus tard), « Évincé(e) »
+  après une soirée, « Éliminé(e) à l'épreuve initiale ». C'est désormais le
+  PREMIER MOT qui fait le statut. Une « Évincée » glissée entre deux séjours
+  masquait une sortie : Tania (« Le Feu sacré »), revenue deux fois, ne
+  pouvait pas l'être à l'écran. « Tribu maudite » et « Héros », pastille noire
+  comme les statuts, restent des tribus : on y vit dès le premier jour ;
 - **un vainqueur est une tribu OU un candidat**, et la source n'écrit qu'un
   nom. Le recoupement classe chaque valeur ; les 38 qui ne désignent rien de
   connu — un nom d'épreuve, une équipe formée pour l'occasion — deviennent des

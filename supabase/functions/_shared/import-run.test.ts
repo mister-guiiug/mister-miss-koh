@@ -675,8 +675,8 @@ Deno.test("23/09 : une différence par TRIBU porte sa couleur, les séjours rest
   assertEquals(e5r1?.payload.kind, "annulled", "le « / » de l'épisode 5 est une égalité");
 });
 
-Deno.test("la version d'extraction est la 12 : les pages figées sont rejouées", () => {
+Deno.test("la version d'extraction est la 13 : les pages figées sont rejouées", () => {
   // Sans ce changement de version, une page qui ne bouge plus répondrait
-  // « révision déjà traitée », et les couleurs n'atteindraient jamais la base.
-  assertEquals(EXTRACTOR_VERSION, "12");
+  // « révision déjà traitée », et ses statuts resteraient des tribus.
+  assertEquals(EXTRACTOR_VERSION, "13");
 });
