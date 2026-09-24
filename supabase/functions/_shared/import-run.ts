@@ -99,8 +99,12 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *      que suit, dans la même soirée, un second tour contre la même personne
  *      est le premier tour d'une ÉGALITÉ (`annulled`), même quand la source ne
  *      barre pas ses voix — quatorze colonnes sur neuf pages au 23/09/2026
+ * 13 — un STATUT de la colonne « Tribu » n'est plus une tribu : « Absent(e) »,
+ *      « Évincé(e) », et tout nom dont le premier mot est un statut
+ *      (« Éliminée à l'épreuve initiale »). Onze lignes au 24/09/2026 ; une
+ *      « Évincée » glissée entre deux séjours masquait une sortie
  */
-export const EXTRACTOR_VERSION = "12";
+export const EXTRACTOR_VERSION = "13";
 
 export interface SourceDocument {
   readonly id: string;

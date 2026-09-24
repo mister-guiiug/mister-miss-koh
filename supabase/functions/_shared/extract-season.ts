@@ -47,9 +47,33 @@ export function readTeamLine(
   const name = line.replace(/\s*\([^)]*\)\s*$/, "").trim();
   if (!name) return null;
   return {
-    kind: STATUS_WORDS.has(fold(name)) ? "status" : "team",
+    kind: isTeamStatus(name) ? "status" : "team",
     stint: { name, fromDay: range.fromDay, toDay: range.toDay, colour },
   };
+}
+
+/**
+ * Les statuts que seule la colonne « Tribu » écrit.
+ *
+ * `STATUS_WORDS` sert AUSSI la matrice des votes, où un mot inconnu devient une
+ * anomalie à relire : il reste court. Ici, un mot inconnu devenait une TRIBU,
+ * en silence. Relevé du 24/09/2026 sur toutes les pages : onze lignes de
+ * statut passaient pour des tribus — « Absent(e) » avant la première tribu
+ * (arrivé plus tard), « Évincé(e) » après une soirée, et « Éliminé(e) à
+ * l'épreuve initiale ». La dernière dit ce que dit « Éliminée » : c'est le
+ * PREMIER MOT qui fait le statut.
+ *
+ * « Tribu maudite » et « Héros », pastille noire comme les statuts, restent des
+ * tribus : on y vit dès le premier jour, avec d'autres (Vanessa, « Tribu
+ * maudite 1–13 » ; Sara, « Héros 1–9 », puis Lawaki).
+ */
+const STATUTS_DE_TRIBU = new Set(["absent", "absente", "evince", "evincee"]);
+
+function isTeamStatus(name: string): boolean {
+  const folded = fold(name);
+  const first = folded.split(/\s+/)[0];
+  return STATUS_WORDS.has(folded) || STATUS_WORDS.has(first) ||
+    STATUTS_DE_TRIBU.has(first);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
