@@ -270,6 +270,64 @@ Deno.test("SECTION JAMAIS EUE : import partiel, et l'absence est dite", async ()
   );
 });
 
+/** Les épisodes d'une exécution, tels que `loadPublished` les rendrait publiés. */
+function episodesPublies(
+  records: readonly { entity: string; naturalKey: string; payload: unknown }[],
+) {
+  return records
+    .filter((r) => r.entity === "episode")
+    .map((r) => ({ ...r, published: true }) as StoredRecord);
+}
+
+const SANS_DEROULEMENT = [
+  { index: "4", line: "Candidats" },
+  { index: "7", line: "Détails des votes" },
+];
+
+Deno.test("DÉROULEMENT JAMAIS EU, épisodes déduits déjà publiés : on continue", async () => {
+  // « La Légende », « La Revanche des héros », « Malaisie » : figées du 13 au
+  // 24/09/2026. Chaque import s'arrêtait sur « arrêt avant toute suppression »,
+  // alors que la matrice rendait à l'identique les épisodes publiés.
+  const premier = fakePort({ published: [] });
+  await runImport(premier.port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({ sections: SANS_DEROULEMENT }),
+  });
+  const published = episodesPublies(premier.calls.records);
+  assert(published.length > 0, "la matrice a bien donné des épisodes");
+
+  const { port, calls } = fakePort({ published });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({ sections: SANS_DEROULEMENT }),
+  });
+  assertEquals(outcome.status, "diffed");
+  assertEquals(
+    calls.differences.filter((d) => d.entity === "episode" && d.operation === "delete"),
+    [],
+    "aucun épisode publié n'est proposé à la suppression",
+  );
+  assert(outcome.anomalies?.some((a) => a.code === "episodes_deduits"));
+});
+
+Deno.test("DÉROULEMENT PERDU, épisodes DATÉS publiés : arrêt, même si la matrice en déduirait", async () => {
+  // Le garde reste entier pour ce qu'il protège : une page qui PERD son
+  // déroulement ne donnerait plus que des épisodes sans date ni épreuve.
+  const complet = fakePort({ published: [] });
+  await runImport(complet.port, { ...baseOptions, fetchImpl: fakeFetch() });
+  const published = episodesPublies(complet.calls.records);
+
+  const { port, calls } = fakePort({ published });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({ sections: SANS_DEROULEMENT }),
+  });
+  assertEquals(outcome.status, "failed");
+  assert(outcome.message.includes("Déroulement"));
+  assert(outcome.message.includes("déjà"), "le motif dit POURQUOI on s'arrête");
+  assertEquals(calls.differences, []);
+});
+
 Deno.test("STRUCTURE INCOMPRISE : arrêt avant le diff, référentiel intact", async () => {
   const published: StoredRecord[] = [
     {
