@@ -34,7 +34,7 @@ Un épisode s'organise en général autour d'épreuves, souvent de confort et d'
 
 ## Comment Mister & Miss Koh vous aide
 
-Mister & Miss Koh suit la saison épisode par épisode, et son réglage central est l'anti-spoiler.
+[Mister & Miss Koh](https://mister-guiiug.github.io/mister-miss-koh/) suit la saison épisode par épisode, et son réglage central est l'anti-spoiler.
 
 - **Cochez les épisodes vus** : tout ce qui vient après est masqué. Éliminations, votes, changements de tribu et compteurs de l'accueil s'arrêtent à votre limite. Cocher l'épisode 5 marque aussi les quatre premiers comme vus.
 - **Trois réglages** : « Masquer ce que je n'ai pas vu », le réglage par défaut et le plus sûr ; « Masquer les épisodes du jour et à venir », qui considère l'épisode diffusé le jour même comme un spoiler ; « Tout voir ».
