@@ -149,6 +149,37 @@ function makePort(admin: SupabaseClient): ImportPort {
           differences_ambiguous: patch.differencesAmbiguous ?? 0,
         })
         .eq("id", runId);
+
+      // La révision lue se note même quand rien n'est publié. Sans ça, le site
+      // affiche la dernière publication et a l'air à jour alors qu'une
+      // relecture plus récente attend (le cas du 11 septembre).
+      if (patch.revision) {
+        const { data } = await admin
+          .from("import_runs")
+          .select("source_document_id")
+          .eq("id", runId)
+          .maybeSingle();
+        const documentId = data?.source_document_id;
+        if (documentId) {
+          const ambiguous = patch.differencesAmbiguous ?? 0;
+          const forme = (patch.error ?? "").includes("aucun tableau");
+          const hold = forme
+            ? "forme_non_prise_en_charge"
+            : patch.status === "failed"
+            ? "echec"
+            : ambiguous > 0
+            ? "en_attente"
+            : null;
+          await admin
+            .from("source_documents")
+            .update({
+              observed_revision: patch.revision,
+              observed_at: new Date().toISOString(),
+              hold_reason: hold,
+            })
+            .eq("id", documentId);
+        }
+      }
     },
 
     // `insert` NE LÈVE PAS : il rend `{ error }`. Ne pas le regarder revient à

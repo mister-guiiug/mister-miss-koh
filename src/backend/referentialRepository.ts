@@ -123,6 +123,11 @@ const remote: Partial<Backend> =
       }
     : {};
 
+/** La dernière copie valide de cette saison, sans réseau. */
+export function peekCachedReferential(seasonSlug?: string): Referential | null {
+  return readCache(seasonSlug);
+}
+
 export const backend: Backend = composeBackend(local, remote);
 
 export const coverage: BackendCoverage = backendCoverage(

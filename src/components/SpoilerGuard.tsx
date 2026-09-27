@@ -1,25 +1,29 @@
 /**
  * Masque ce qui dépasse la limite anti-spoiler, et le DIT.
  *
- * Un contenu masqué qui ne se signale pas passe pour absent ; l'utilisateur
- * ne sait pas qu'il y a quelque chose à découvrir, ni comment. Le garde rend
- * donc un bouton qui nomme l'épisode et propose de le marquer vu.
+ * Un contenu masqué qui ne se signale pas passe pour absent. Le garde le dit,
+ * SANS NOMMER L'ÉPISODE : « à l'épisode 5 » apprenait déjà qu'il s'était passé
+ * quelque chose ce soir-là. Le bouton n'avance QUE D'UN ÉPISODE — marquer le 5
+ * alors qu'on en est à 0 révélait tout d'un coup, parce que la limite est le
+ * maximum des épisodes cochés.
  */
 import { useState, type ReactNode } from 'react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { isSpoiler } from '../domain/spoiler';
+import { lastAiredEpisode } from '../domain/referential';
 import { useAppStore } from '../store/useAppStore';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';
 
 interface Props {
   episodeNumber: number | null;
   children: ReactNode;
-  /** Ce que le bouton propose : « Marquer l'épisode 3 comme vu » par défaut. */
-  label?: string;
+  /** Plusieurs faits masqués d'un coup : un seul bandeau, pas une pile. */
+  count?: number;
 }
 
-export function SpoilerGuard({ episodeNumber, children, label }: Props) {
+export function SpoilerGuard({ episodeNumber, children, count = 1 }: Props) {
   const limit = useSpoilerLimit();
+  const referential = useAppStore(s => s.referential);
   const toggleWatched = useAppStore(s => s.toggleWatched);
   const spoiler = isSpoiler(episodeNumber, limit);
 
@@ -49,19 +53,21 @@ export function SpoilerGuard({ episodeNumber, children, label }: Props) {
       aria-label="Contenu masqué (anti-spoiler)"
     >
       <p>
-        {episodeNumber === null
-          ? 'Masqué : cet événement dépasse ce que vous avez marqué comme vu.'
-          : `Masqué : cet événement a lieu à l’épisode ${episodeNumber}.`}
+        {count > 1
+          ? `Masqué : ${count} faits se passent après ce que vous avez vu.`
+          : 'Masqué : cela se passe après ce que vous avez vu.'}
       </p>
-      {episodeNumber !== null && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => toggleWatched(episodeNumber)}
-        >
-          {label ?? `Marquer l’épisode ${episodeNumber} comme vu`}
-        </Button>
-      )}
+      {referential &&
+        Number.isFinite(limit) &&
+        limit + 1 <= lastAiredEpisode(referential) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toggleWatched(limit + 1)}
+          >
+            Avancer d’un épisode
+          </Button>
+        )}
     </div>
   );
 }

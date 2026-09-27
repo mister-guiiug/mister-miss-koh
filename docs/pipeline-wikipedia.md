@@ -754,10 +754,10 @@ C'est le genre de panne qu'une CI verte ne voit pas : tout le code marchait.
 
 **Deux tâches `pg_cron`** (migration `0026`) :
 
-| tâche                  | quand                    | quoi                     |
-| ---------------------- | ------------------------ | ------------------------ |
-| `koh-import-quotidien` | `17 4 * * *` UTC         | les 18 pages de saison   |
-| `koh-import-diffusion` | `*/30 14-22 * * 2,3` UTC | la seule saison `airing` |
+| tâche                  | quand                  | quoi                     |
+| ---------------------- | ---------------------- | ------------------------ |
+| `koh-import-quotidien` | `17 4 * * *` UTC       | les 18 pages de saison   |
+| `koh-import-diffusion` | `*/30 14-22 * * *` UTC | la seule saison `airing` |
 
 **L'heure de la fenêtre serrée est celle de PARIS**, pas celle du serveur.
 `pg_cron` lit ses expressions dans le fuseau de la base — UTC — et la France
@@ -766,6 +766,14 @@ heure la moitié de l'année. En été, 22 h UTC est déjà minuit passé à Par
 planification ouvre donc large, sur l'union des deux saisons, et
 `importer_saison_en_diffusion()` tranche sur l'heure locale. La bordure est
 exacte toute l'année, au prix d'un réveil par tour qui ne fait rien.
+
+Depuis la migration `0032`, la fenêtre n'est plus limitée au mardi et au
+mercredi. Une saison en diffusion bouge aussi le jeudi : le dimanche 27
+septembre 2026, la page avait déjà une révision de plus (239859339) que celle
+publiée (239752857), et le prochain passage serré n'était que le mardi. Chaque
+soir, 16 h à minuit, heure de Paris. La même migration note
+`observed_revision` à chaque lecture, publiée ou non, pour que le site dise
+quand une révision plus récente attend.
 
 **Trois secrets dans le Vault, posés par la CI** — ils n'entrent jamais dans
 git, et personne n'a à les taper : `supabase-migrate.yml` les écrit après chaque

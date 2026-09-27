@@ -744,6 +744,14 @@ a.brand-link {
   text-decoration: none;
 }
 
+/* L'accès notes de l'en-tête est un bouton fantôme. Sur sa page, il prend la
+   couleur primaire : sinon rien ne dit qu'on y est, la barre basse ne le porte
+   plus. */
+a[data-dwc='button'][aria-current='page'] {
+  color: var(--primary);
+  background: var(--dwc-primary-soft);
+}
+
 @media (hover: hover) {
   a.brand-link:hover {
     text-decoration: underline;
@@ -1557,6 +1565,61 @@ a.brand-link {
 .tiles-note {
   margin: 0.5rem 0 0;
   font-size: var(--text-xs);
+}
+
+/* Le rattrapage est l'action de l'accueil quand l'anti-spoiler est en retard
+   sur les épisodes diffusés. Le bouton principal est un lien, le second un
+   réglage : les deux restent des cibles de 2,75 rem. */
+.catch-up {
+  margin-top: 0.85rem;
+  padding: 0.85rem 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.catch-up p {
+  margin: 0;
+}
+
+.catch-up-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+/* `a.catch-up-primary`, pas `.catch-up-primary` : `a:not([data-dwc='button'])`
+   a la spécificité (0,1,1). Une classe seule perd, et le libellé restait de la
+   couleur du fond. */
+a.catch-up-primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.catch-up-primary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.local-jot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.local-jot .field span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* ── Choisir qui peut lire ────────────────────────────────────────────────
