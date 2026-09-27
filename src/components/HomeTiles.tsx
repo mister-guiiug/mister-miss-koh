@@ -1,25 +1,19 @@
 /**
- * L'accueil en tuiles : quatre chiffres, quatre destinations.
+ * L'accueil en tuiles : des chiffres, pas des raccourcis.
  *
  * CHAQUE TUILE PORTE UN CHIFFRE, sans quoi elle ne serait qu'un raccourci vers
- * un écran que la barre basse atteint déjà. « 12 en jeu sur 18 » dit où en est
- * la saison ; « Candidats » ne dit rien de plus qu'un onglet.
+ * un écran que la barre basse atteint déjà. Le tableau de bord a son onglet
+ * (« Suivi ») : le poser ici en fausse mesure (« → ») le mêlait aux comptes.
  *
- * LE TABLEAU DE BORD A SA TUILE PARCE QU'IL N'A PAS D'ONGLET : c'est le seul
- * écran de l'application qu'on ne rejoint que depuis ici. Le perdre dans une
- * ligne de liens le rendait invisible.
- *
- * LA TUILE ENTIÈRE EST CLIQUABLE, et c'est un `<Link>` qui l'englobe — pas une
- * carte avec un lien dedans. Une zone tactile de la taille d'une tuile vaut
- * mieux qu'un mot souligné, et le lecteur d'écran annonce alors une seule
- * cible au lieu d'un décor suivi d'un lien.
+ * LA TUILE ENTIÈRE EST CLIQUABLE, et c'est un `<Link>` qui l'englobe.
  *
  * LES NOTES NE DÉCLENCHENT AUCUNE LECTURE. La tuile lit le magasin partagé
- * s'il est déjà rempli, et se contente d'un libellé sinon : l'accueil n'a pas
- * à ouvrir une session ni à interroger le serveur pour s'afficher.
+ * s'il est déjà rempli, et se tait sinon.
  */
 import { Link } from 'react-router-dom';
-import { BarChart3, NotebookPen, Star, Tv, Users } from 'lucide-react';
+import { NotebookPen, Star, Tv, Users } from 'lucide-react';
+import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
+import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../store/useAppStore';
 import { useNotesStore } from '../store/useNotesStore';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';
@@ -37,6 +31,8 @@ export function HomeTiles() {
   const referential = useAppStore(s => s.referential);
   const favorites = useAppStore(s => s.favorites);
   const watched = useAppStore(s => s.watched);
+  const spoiler = useAppStore(s => s.spoiler);
+  const setSpoiler = useAppStore(s => s.setSpoiler);
   const notes = useNotesStore(s => s.notes);
   const limit = useSpoilerLimit();
 
@@ -68,17 +64,10 @@ export function HomeTiles() {
       label: f.favorites > 1 ? 'favoris' : 'favori',
       detail: f.favorites === 0 ? 'aucun pour l’instant' : 'que vous suivez',
     },
-    {
-      to: '/tableau-de-bord',
-      icon: <BarChart3 size={20} aria-hidden />,
-      value: '→',
-      label: 'Tableau de bord',
-      detail: 'voix, épreuves, conseils',
-    },
   ];
 
   if (notes !== null) {
-    tiles.splice(3, 0, {
+    tiles.push({
       to: '/notes',
       icon: <NotebookPen size={20} aria-hidden />,
       value: String(notes.length),
@@ -104,11 +93,51 @@ export function HomeTiles() {
       {/* Le chiffre « en jeu » s'arrête à la limite anti-spoiler : le dire
           évite de faire passer une précaution pour une erreur de compte. */}
       {f.upTo < f.aired && (
-        <p className="muted tiles-note">
-          Ces comptes s’arrêtent à l’épisode {f.upTo} : c’est votre réglage
-          anti-spoiler, pas la fin de la saison.
-        </p>
+        <div className="catch-up">
+          <p>
+            Vous en êtes à l’épisode {f.upTo}, {f.aired}{' '}
+            {f.aired > 1 ? 'sont diffusés' : 'est diffusé'}. Les comptes
+            ci-dessus s’arrêtent là : c’est votre réglage anti-spoiler, pas la
+            fin de la saison.
+          </p>
+          <div className="catch-up-actions">
+            <Link to="/episodes" className="catch-up-primary">
+              Rattraper les épisodes
+            </Link>
+            {spoiler !== 'hide_future' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSpoiler('hide_future')}
+              >
+                Suivre la saison diffusée, sans le prochain épisode
+              </Button>
+            )}
+          </div>
+        </div>
       )}
+      {referential.provenance.kind === 'wikipedia' &&
+        referential.provenance.fetchedAt && (
+          <p className="muted tiles-note">
+            Wikipédia, lu le {formatDate(referential.provenance.fetchedAt)}
+            {referential.provenance.pendingRevision &&
+              referential.provenance.pendingRevision !==
+                referential.provenance.revision &&
+              ' — une révision plus récente est en attente de publication'}
+            {readingIsLate(referential.provenance.fetchedAt) &&
+              referential.season.status === 'airing' &&
+              !referential.provenance.pendingRevision &&
+              ' — cette lecture a plus d’un jour, la page a pu bouger'}
+            .
+          </p>
+        )}
     </>
   );
+}
+
+/** Plus d’un jour depuis la lecture : le cron du soir n’a pas encore repris. */
+function readingIsLate(fetchedAt: string): boolean {
+  const then = Date.parse(fetchedAt);
+  if (Number.isNaN(then)) return false;
+  return Date.now() - then > 36 * 60 * 60 * 1000;
 }

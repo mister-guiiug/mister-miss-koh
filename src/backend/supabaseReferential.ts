@@ -190,6 +190,8 @@ const ProvenanceRow = z.object({
   title: z.string().nullable().default(null),
   last_seen_revision: z.string().nullable(),
   last_seen_at: z.string().nullable(),
+  observed_revision: z.string().nullable().default(null),
+  hold_reason: z.string().nullable().default(null),
   reference_sources: z.object({ label: z.string() }).nullable(),
 });
 
@@ -560,6 +562,12 @@ export function mapReferential(input: unknown, today: string): Referential {
       url: rows.provenance?.url ?? null,
       revision: rows.provenance?.last_seen_revision ?? null,
       fetchedAt: rows.provenance?.last_seen_at ?? null,
+      pendingRevision:
+        rows.provenance?.hold_reason === 'en_attente' &&
+        rows.provenance.observed_revision &&
+        rows.provenance.observed_revision !== rows.provenance.last_seen_revision
+          ? rows.provenance.observed_revision
+          : null,
       version: rows.version,
     },
   };
@@ -610,6 +618,33 @@ export async function fetchSeasonOptions(
  * retombe sur la plus récente plutôt que sur un écran vide : le choix de
  * l'utilisateur ne doit pas pouvoir casser l'application.
  */
+const PROVENANCE_COLONNES =
+  'url, title, last_seen_revision, last_seen_at, observed_revision, hold_reason, reference_sources(label)';
+const PROVENANCE_COLONNES_ANCIENNES =
+  'url, title, last_seen_revision, last_seen_at, reference_sources(label)';
+
+/**
+ * La lecture notée (`observed_revision`) n'existe qu'après la migration 0032.
+ * Tant qu'elle n'est pas appliquée, PostgREST refuse la colonne : on relit
+ * l'ancienne forme plutôt que de rendre tout le référentiel illisible.
+ */
+function loadProvenance(client: SupabaseClient, documentId: string) {
+  return client
+    .from('source_documents')
+    .select(PROVENANCE_COLONNES)
+    .eq('id', documentId)
+    .maybeSingle()
+    .then(result => {
+      const message = result.error?.message ?? '';
+      if (!/observed_revision|hold_reason/.test(message)) return result;
+      return client
+        .from('source_documents')
+        .select(PROVENANCE_COLONNES_ANCIENNES)
+        .eq('id', documentId)
+        .maybeSingle();
+    });
+}
+
 export async function fetchRows(
   client: SupabaseClient,
   slug?: string
@@ -688,13 +723,7 @@ export async function fetchRows(
         .limit(1)
         .maybeSingle(),
       season.source_document_id
-        ? client
-            .from('source_documents')
-            .select(
-              'url, title, last_seen_revision, last_seen_at, reference_sources(label)'
-            )
-            .eq('id', season.source_document_id)
-            .maybeSingle()
+        ? loadProvenance(client, season.source_document_id)
         : Promise.resolve({ data: null, error: null }),
     ]);
 

@@ -28,6 +28,8 @@ import {
 interface Row extends Contestant {
   inGame: boolean;
   favorite: boolean;
+  /** Couleur de tribu visible à la limite, pour la vignette. */
+  colour: string | null;
 }
 
 interface Group {
@@ -170,6 +172,7 @@ export function ContestantsScreen() {
         ...c,
         inGame: still.has(c.id),
         favorite: favorites.includes(c.id),
+        colour: teamAt(referential, c, upTo)?.colour ?? null,
       }))
       .filter(c => !q || c.displayName.toLowerCase().includes(q))
       .filter(c => matchesFilter(status, c.inGame));
@@ -248,7 +251,7 @@ export function ContestantsScreen() {
             <ul className="list">
               {group.rows.map(c => (
                 <li key={c.id} className="row">
-                  <Avatar contestant={c} />
+                  <Avatar contestant={c} colour={c.colour} />
                   {/* Le lien ne porte QUE le nom : y enfermer l'âge et le sexe
                       allongerait son nom accessible sans rien y ajouter. */}
                   <span className="row-main">

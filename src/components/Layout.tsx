@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
+  BarChart3,
   Home,
   Moon,
   NotebookPen,
@@ -28,9 +29,9 @@ const NAV = [
   },
   { href: '/episodes', label: 'Épisodes', icon: <Tv size={20} aria-hidden /> },
   {
-    href: '/notes',
-    label: 'Notes',
-    icon: <NotebookPen size={20} aria-hidden />,
+    href: '/tableau-de-bord',
+    label: 'Suivi',
+    icon: <BarChart3 size={20} aria-hidden />,
   },
   {
     href: '/reglages',
@@ -38,6 +39,28 @@ const NAV = [
     icon: <Settings size={20} aria-hidden />,
   },
 ];
+
+/**
+ * Les notes ne sont pas un onglet : six destinations ouvraient un « Plus » et
+ * cachaient la barre. Ici elles restent à un geste, sur chaque écran.
+ */
+function NotesLink() {
+  const { pathname } = useLocation();
+  const here = pathname === '/notes' || pathname.startsWith('/notes/');
+  return (
+    <Link
+      to="/notes"
+      data-dwc="button"
+      data-variant="ghost"
+      data-size="sm"
+      data-icon-only=""
+      aria-label="Notes"
+      aria-current={here ? 'page' : undefined}
+    >
+      <NotebookPen size={20} aria-hidden />
+    </Link>
+  );
+}
 
 function ThemeButton() {
   const theme = useThemeContext();
@@ -106,7 +129,12 @@ export function Layout() {
             alt=""
           />
         }
-        actions={<ThemeButton />}
+        actions={
+          <>
+            <NotesLink />
+            <ThemeButton />
+          </>
+        }
         linkComponent={Link}
         hrefProp="to"
       >
@@ -136,7 +164,11 @@ export function Layout() {
         </div>
         {/* Une `region`, pas une boîte modale : elle ne recouvre rien et ne
             piège pas le focus. Ne rend RIEN sans `VITE_POSTHOG_KEY`. */}
+        {/* `fixed` : le bandeau flotte AU-DESSUS de la barre basse. Dans le
+            flux, il finissait sous elle — les boutons Accepter et Refuser
+            n'étaient plus atteignables en bas de fiche. */}
         <ConsentBanner
+          placement="fixed"
           posthogKey={import.meta.env.VITE_POSTHOG_KEY}
           loader={() => import('posthog-js/dist/module.slim.js')}
         />

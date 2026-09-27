@@ -382,6 +382,7 @@ describe('mapReferential', () => {
   it('la provenance dit la source, la page, la révision et la version — et rien sur une licence', () => {
     expect(ref.provenance).toEqual({
       kind: 'wikipedia',
+      pendingRevision: null,
       label: 'Wikipédia (fr)',
       title: 'Page fictive',
       url: 'https://exemple.test/page',

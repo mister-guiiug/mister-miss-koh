@@ -39,8 +39,8 @@ select is(
 -- resserre « pour faire propre » en cassant la moitié de l'année.
 select is(
   (select schedule from cron.job where jobname = 'koh-import-diffusion'),
-  '*/30 14-22 * * 2,3',
-  'la diffusion tourne toutes les 30 min, mardi et mercredi, sur la fenêtre UTC élargie'
+  '*/30 14-22 * * *',
+  'la diffusion tourne toutes les 30 min, tous les soirs, sur la fenêtre UTC élargie'
 );
 
 select is(
@@ -66,8 +66,7 @@ returns boolean
 language sql
 immutable
 as $$
-  select extract(isodow from timezone('Europe/Paris', p_utc)) in (2, 3)
-     and extract(hour   from timezone('Europe/Paris', p_utc)) >= 16;
+  select extract(hour from timezone('Europe/Paris', p_utc)) >= 16;
 $$;
 
 -- Été (UTC+2). Mardi 8 septembre 2026.
@@ -117,13 +116,13 @@ select ok(
 );
 
 select ok(
-  not pg_temp.dans_la_fenetre('2026-09-10 18:00:00+00'),
-  'jeudi soir ne l''est pas'
+  pg_temp.dans_la_fenetre('2026-09-10 18:00:00+00'),
+  'jeudi soir est dans la fenêtre'
 );
 
 select ok(
-  not pg_temp.dans_la_fenetre('2026-09-07 18:00:00+00'),
-  'lundi soir ne l''est pas'
+  pg_temp.dans_la_fenetre('2026-09-07 18:00:00+00'),
+  'lundi soir est dans la fenêtre'
 );
 
 -- ── Ce que personne ne doit pouvoir appeler ───────────────────────────────

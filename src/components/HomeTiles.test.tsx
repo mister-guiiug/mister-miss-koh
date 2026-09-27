@@ -43,20 +43,16 @@ describe('les tuiles de l’accueil', () => {
 
     expect(tuile('/candidats').getByText('en jeu')).toBeInTheDocument();
     expect(tuile('/episodes').getByText(`0/${AIRED}`)).toBeInTheDocument();
-    expect(
-      tuile('/tableau-de-bord').getByText('Tableau de bord')
-    ).toBeInTheDocument();
   });
 
-  it('mènent au tableau de bord, seul écran sans onglet', () => {
-    // La barre basse ne le propose pas : perdu dans une ligne de liens, il
-    // devenait invisible.
+  it('ne mêlent pas le tableau de bord aux comptes', () => {
+    // Il a son onglet. Une tuile « → » n'était pas un chiffre.
     renderTiles();
     expect(
       screen
         .getAllByRole('link')
         .some(a => a.getAttribute('href') === '/tableau-de-bord')
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('comptent les épisodes vus parmi les diffusés', () => {
@@ -88,8 +84,9 @@ describe('les tuiles de l’accueil', () => {
     useAppStore.setState({ spoiler: 'hide_unwatched', watched: [] });
     renderTiles();
 
+    expect(screen.getByText(/vous en êtes à l’épisode/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/c’est votre réglage\s+anti-spoiler/)
+      screen.getByRole('link', { name: /rattraper les épisodes/i })
     ).toBeInTheDocument();
   });
 

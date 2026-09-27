@@ -236,6 +236,11 @@ export const ProvenanceSchema = z.object({
   url: z.string().nullable(),
   revision: z.string().nullable(),
   fetchedAt: z.string().nullable(),
+  /**
+   * Une révision lue mais pas encore publiée. `null` : la lecture publiée
+   * est la dernière qu'on a vue.
+   */
+  pendingRevision: z.string().nullable().default(null),
   version: z.number().int().nonnegative(),
 });
 

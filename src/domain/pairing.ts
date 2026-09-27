@@ -30,7 +30,7 @@ import {
 } from './referential';
 import { groupingOf, type Grouping } from './rules';
 import { isSpoiler } from './spoiler';
-import { tribesSeenAt } from './tribes';
+import { inGameAt, tribesSeenAt } from './tribes';
 
 export const PairGuessSchema = z.object({
   memberIds: z.tuple([z.string(), z.string()]),
@@ -131,6 +131,9 @@ export function refuseGuess(
  * La liste se calcule à la limite anti-spoiler courante : quelqu'un dont le
  * duo est révélé PLUS TARD reste proposable. Le retirer reviendrait à dire
  * « celui-là a déjà un binôme », donc à divulguer ce que l'écran masque.
+ *
+ * Quelqu'un DÉJÀ SORTI à cette limite, lui, n'est plus un binôme possible :
+ * on le sait, ce n'est pas un secret.
  */
 export function eligiblePartners(
   ref: Referential,
@@ -141,7 +144,9 @@ export function eligiblePartners(
   const pairs = effectivePairs(ref, guesses, limit);
   if (pairs.some(p => p.memberIds.includes(contestantId))) return [];
   const held = new Set(pairs.flatMap(p => [...p.memberIds]));
-  return ref.contestants.filter(c => c.id !== contestantId && !held.has(c.id));
+  return ref.contestants.filter(
+    c => c.id !== contestantId && !held.has(c.id) && inGameAt(ref, c, limit)
+  );
 }
 
 export type PairOrigin = 'source' | 'guess';

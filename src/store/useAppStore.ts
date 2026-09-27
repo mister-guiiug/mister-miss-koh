@@ -34,6 +34,7 @@ import {
 import {
   backend,
   DEFAULT_SEASON_SLUG,
+  peekCachedReferential,
   type Origin,
   type SeasonOption,
 } from '../backend/referentialRepository';
@@ -92,6 +93,13 @@ const PersonalSchema = z.object({
    * de la tournée et il faudrait tout recommencer.
    */
   portraitQueue: z.array(z.string()).default([]),
+  /**
+   * Un mot par candidat, sur cet appareil, sans compte.
+   *
+   * Les notes du serveur restent les notes. Ceci est le premier avis, du même
+   * ordre que les favoris : il ne part pas, et un compte ne l'efface pas.
+   */
+  jots: z.record(z.string(), z.string().max(280)).default({}),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -121,6 +129,7 @@ const GRAINE: Personal = {
   pairGuesses: [],
   contestantFilter: DEFAULT_CONTESTANT_FILTER,
   portraitQueue: [],
+  jots: {},
 };
 
 const personalStore = createVersionedStore<Personal>({
@@ -183,7 +192,9 @@ interface AppState {
   contestantFilter: ContestantFilter;
   /** Les portraits qui attendent une place libre pour être confiés. */
   portraitQueue: readonly string[];
+  jots: Readonly<Record<string, string>>;
   init(): Promise<void>;
+  setJot(contestantId: string, text: string): void;
   reload(): Promise<void>;
   setSpoiler(mode: SpoilerMode): void;
   setAnimations(enabled: boolean): void;
@@ -248,6 +259,7 @@ export const useAppStore = create<AppState>((set, get) => {
       pairGuesses,
       contestantFilter,
       portraitQueue,
+      jots,
     } = get();
     personalStore.save({
       spoiler,
@@ -265,10 +277,17 @@ export const useAppStore = create<AppState>((set, get) => {
       pairGuesses: [...pairGuesses],
       contestantFilter,
       portraitQueue: [...portraitQueue],
+      jots: { ...jots },
     });
   };
 
   const load = async () => {
+    // La copie locale s'affiche tout de suite. Le serveur la remplace s'il
+    // répond ; s'il tarde, l'écran n'attend plus derrière la boussole.
+    const cached = peekCachedReferential(get().season);
+    if (cached && !get().referential) {
+      set({ referential: cached, origin: 'cache', ready: true });
+    }
     set({ loading: true });
     try {
       const { referential, origin, notice } = await backend.referential.load(
@@ -334,6 +353,14 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     setPortraitQueue(ids) {
       set({ portraitQueue: [...ids] });
+      persist();
+    },
+    setJot(contestantId, text) {
+      const trimmed = text.trim().slice(0, 280);
+      const jots = { ...get().jots };
+      if (trimmed) jots[contestantId] = trimmed;
+      else delete jots[contestantId];
+      set({ jots });
       persist();
     },
     toggleWatched(episodeNumber) {

@@ -22,7 +22,7 @@ import { useState } from 'react';
 import { Sheet } from '@mister-guiiug/dev-pwa-config/react/sheet';
 import type { Contestant } from '../domain/referential';
 import { usePhotosStore } from '../store/usePhotosStore';
-import { initialsOf, tintOf } from './avatarInitials';
+import { initialsOf, inkOn, tintOf } from './avatarInitials';
 
 interface Props {
   contestant: Contestant;
@@ -30,9 +30,16 @@ interface Props {
   size?: 'sm' | 'lg';
   /** Cliquer la photo l'ouvre en grand. Sans effet sur des initiales. */
   zoomable?: boolean;
+  /** Couleur de tribu à la limite anti-spoiler. Les initiales s'y posent. */
+  colour?: string | null;
 }
 
-export function Avatar({ contestant, size = 'sm', zoomable = false }: Props) {
+export function Avatar({
+  contestant,
+  size = 'sm',
+  zoomable = false,
+  colour = null,
+}: Props) {
   const url = usePhotosStore(s => s.urls[contestant.id]);
   const [zoom, setZoom] = useState(false);
 
@@ -41,7 +48,10 @@ export function Avatar({ contestant, size = 'sm', zoomable = false }: Props) {
       <span
         className="avatar avatar-initials"
         data-size={size}
-        data-tint={tintOf(contestant.id)}
+        data-tint={colour ? undefined : tintOf(contestant.id)}
+        style={
+          colour ? { background: colour, color: inkOn(colour) } : undefined
+        }
         aria-hidden="true"
       >
         {initialsOf(contestant.displayName)}

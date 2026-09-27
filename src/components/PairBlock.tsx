@@ -80,10 +80,7 @@ export function PairBlock({ contestant }: { contestant: Contestant }) {
         // La source ne liste pas les duos : celui-ci n'est connu que parce
         // qu'un départ l'a nommé. Le montrer plus tôt divulgâcherait ce
         // départ — d'où le garde, inchangé.
-        <SpoilerGuard
-          episodeNumber={sourcePair.revealEpisodeNumber}
-          label="Révéler le binôme"
-        >
+        <SpoilerGuard episodeNumber={sourcePair.revealEpisodeNumber}>
           <p>
             Binôme :{' '}
             {view.partner ? (

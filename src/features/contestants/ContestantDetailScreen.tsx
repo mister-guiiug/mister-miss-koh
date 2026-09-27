@@ -15,7 +15,12 @@ import { PairBlock } from '../../components/PairBlock';
 import { TargetNotes } from '../../components/TargetNotes';
 import { TribeName } from '../../components/TribeName';
 import { useSpoilerLimit } from '../../hooks/useSpoilerLimit';
-import { contestantById, type Departure } from '../../domain/referential';
+import { isSpoiler } from '../../domain/spoiler';
+import {
+  contestantById,
+  type Advantage,
+  type Departure,
+} from '../../domain/referential';
 import { comebacksOf, teamAt, type Comeback } from '../../domain/tribes';
 import {
   challengeWins,
@@ -136,7 +141,12 @@ export function ContestantDetailScreen() {
           }
         />
         <div className="identity">
-          <Avatar contestant={contestant} size="lg" zoomable />
+          <Avatar
+            contestant={contestant}
+            size="lg"
+            zoomable
+            colour={team?.colour}
+          />
           <div className="identity-main">
             <ContestantTraits contestant={contestant} size="md" />
             <p className="chips-row">
@@ -251,74 +261,65 @@ export function ContestantDetailScreen() {
         {events.length === 0 ? (
           <Badge tone="success">Encore en jeu</Badge>
         ) : (
-          events.map(event =>
-            event.kind === 'exit' ? (
+          <>
+            {events
+              .filter(event => !isSpoiler(event.episodeNumber, limit))
+              .map(event =>
+                event.kind === 'exit' ? (
+                  <ExitLine
+                    key={`exit-${event.episodeNumber}`}
+                    referential={referential}
+                    departure={event.departure}
+                  />
+                ) : (
+                  <ComebackLine
+                    key={`back-${event.episodeNumber}`}
+                    event={event}
+                  />
+                )
+              )}
+            {/* UN SEUL BANDEAU pour tout ce qui dépasse la limite. Une pile
+                « épisode 3, 4, 5 » disait déjà le calendrier des départs. */}
+            {events.some(event => isSpoiler(event.episodeNumber, limit)) && (
               <SpoilerGuard
-                key={`exit-${event.episodeNumber}`}
-                episodeNumber={event.episodeNumber}
+                episodeNumber={
+                  events.find(event => isSpoiler(event.episodeNumber, limit))
+                    ?.episodeNumber ?? null
+                }
+                count={
+                  events.filter(event => isSpoiler(event.episodeNumber, limit))
+                    .length
+                }
               >
-                <ExitLine
-                  referential={referential}
-                  departure={event.departure}
-                />
+                {null}
               </SpoilerGuard>
-            ) : (
-              <SpoilerGuard
-                key={`back-${event.episodeNumber}`}
-                episodeNumber={event.episodeNumber}
-              >
-                <p>
-                  {/* L'épisode ne s'écrit que s'il est SÛR : estimé, il n'est
-                      qu'une garde anti-spoiler, pas une date à afficher. */}
-                  <Badge tone="success">
-                    {event.comeback.episodeKnown
-                      ? `De retour à l’épisode ${event.episodeNumber}`
-                      : 'De retour'}
-                  </Badge>
-                  {event.comeback.fromDay && (
-                    <>
-                      {event.comeback.episodeKnown ? ' · jour ' : ' au jour '}
-                      {event.comeback.fromDay}
-                    </>
-                  )}
-                  {event.comeback.team && (
-                    <>
-                      {' '}
-                      — dans <TribeName team={event.comeback.team} describe />
-                    </>
-                  )}
-                </p>
-              </SpoilerGuard>
-            )
-          )
+            )}
+          </>
         )}
       </Card>
 
       {advantages.length > 0 && (
         <Card>
           <CardHeader title="Avantages" />
-          {advantages.map(a => (
+          {advantages
+            .filter(a => !isSpoiler(a.revealEpisodeNumber, limit))
+            .map(a => (
+              <AdvantageLine key={a.id} advantage={a} />
+            ))}
+          {advantages.some(a => isSpoiler(a.revealEpisodeNumber, limit)) && (
             <SpoilerGuard
-              key={a.id}
-              episodeNumber={a.revealEpisodeNumber}
-              label="Révéler l’avantage"
+              episodeNumber={
+                advantages.find(a => isSpoiler(a.revealEpisodeNumber, limit))
+                  ?.revealEpisodeNumber ?? null
+              }
+              count={
+                advantages.filter(a => isSpoiler(a.revealEpisodeNumber, limit))
+                  .length
+              }
             >
-              <p>
-                <Badge tone="info">Collier d’immunité</Badge>{' '}
-                {a.label && <>trouvé au « {a.label} »</>}
-                {a.foundDay && <> · jour {a.foundDay}</>}
-                {' — '}
-                {a.status === 'used' && a.playedEpisodeNumber
-                  ? `joué à l’épisode ${a.playedEpisodeNumber}`
-                  : a.status === 'used'
-                    ? 'joué'
-                    : a.status === 'not_used'
-                      ? 'pas encore joué'
-                      : 'la source ne dit pas ce qu’il est devenu'}
-                {a.holderIds.length > 1 && <> · trouvé à deux</>}
-              </p>
+              {null}
             </SpoilerGuard>
-          ))}
+          )}
         </Card>
       )}
     </div>
@@ -386,6 +387,53 @@ function ExitLine({
         </>
       )}
       {silent && <> — sans vote</>}
+    </p>
+  );
+}
+
+function ComebackLine({
+  event,
+}: {
+  event: Extract<StatusEvent, { kind: 'back' }>;
+}) {
+  return (
+    <p>
+      <Badge tone="success">
+        {event.comeback.episodeKnown
+          ? `De retour à l’épisode ${event.episodeNumber}`
+          : 'De retour'}
+      </Badge>
+      {event.comeback.fromDay && (
+        <>
+          {event.comeback.episodeKnown ? ' · jour ' : ' au jour '}
+          {event.comeback.fromDay}
+        </>
+      )}
+      {event.comeback.team && (
+        <>
+          {' '}
+          — dans <TribeName team={event.comeback.team} describe />
+        </>
+      )}
+    </p>
+  );
+}
+
+function AdvantageLine({ advantage }: { advantage: Advantage }) {
+  return (
+    <p>
+      <Badge tone="info">Collier d’immunité</Badge>{' '}
+      {advantage.label && <>trouvé au « {advantage.label} »</>}
+      {advantage.foundDay && <> · jour {advantage.foundDay}</>}
+      {' — '}
+      {advantage.status === 'used' && advantage.playedEpisodeNumber
+        ? `joué à l’épisode ${advantage.playedEpisodeNumber}`
+        : advantage.status === 'used'
+          ? 'joué'
+          : advantage.status === 'not_used'
+            ? 'pas encore joué'
+            : 'la source ne dit pas ce qu’il est devenu'}
+      {advantage.holderIds.length > 1 && <> · trouvé à deux</>}
     </p>
   );
 }

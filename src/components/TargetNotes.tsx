@@ -16,6 +16,7 @@ import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import type { Note, NoteTarget } from '../backend/notes';
 import { useNotes } from '../hooks/useNotes';
 import { useNotesStore } from '../store/useNotesStore';
+import { useAppStore } from '../store/useAppStore';
 import { useUndo } from '../hooks/useUndo';
 import { NoteEditor, type NoteValues } from './NoteEditor';
 
@@ -69,12 +70,7 @@ export function TargetNotes({
 
   if (!available) return null;
   if (account === null) {
-    return invite ? (
-      <p className="muted target-notes-invite">
-        <NotebookPen size={16} aria-hidden />{' '}
-        <Link to="/compte">Connectez-vous</Link> pour noter {label}.
-      </p>
-    ) : null;
+    return invite ? <LocalJot contestantId={targetId} label={label} /> : null;
   }
   if (account === undefined) return null;
 
@@ -217,5 +213,48 @@ export function TargetNotes({
         </Button>
       )}
     </section>
+  );
+}
+
+/** Le premier avis, sans compte : il reste sur l'appareil, comme un favori. */
+function LocalJot({
+  contestantId,
+  label,
+}: {
+  contestantId: string;
+  label: string;
+}) {
+  const jot = useAppStore(s => s.jots[contestantId] ?? '');
+  const setJot = useAppStore(s => s.setJot);
+  const [draft, setDraft] = useState(jot);
+
+  return (
+    <form
+      className="local-jot"
+      onSubmit={event => {
+        event.preventDefault();
+        setJot(contestantId, draft);
+      }}
+    >
+      <label className="field">
+        <span>
+          <NotebookPen size={16} aria-hidden /> Un mot sur {label}, sur cet
+          appareil
+        </span>
+        <input
+          value={draft}
+          maxLength={280}
+          onChange={event => setDraft(event.target.value)}
+        />
+      </label>
+      <Button type="submit" variant="outline" size="sm">
+        Garder
+      </Button>
+      {jot && <p className="muted">Conservé sur cet appareil.</p>}
+      <p className="muted">
+        <Link to="/compte">Connectez-vous</Link> pour une note qui vous suit
+        d’un appareil à l’autre.
+      </p>
+    </form>
   );
 }
