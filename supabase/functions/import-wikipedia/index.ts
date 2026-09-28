@@ -3,8 +3,9 @@
  *
  * CE FICHIER NE DÉCIDE RIEN. Il authentifie, il traduit le port en SQL, il
  * rend une réponse. Toutes les décisions — s'arrêter sur une révision connue,
- * refuser une structure incomprise, classer une différence, valider ou non —
- * vivent dans `_shared/import-run.ts`, qui se teste sans base. Ce qui reste
+ * refuser une structure incomprise, classer une différence, valider, et
+ * publier un lot entièrement certain — vivent dans `_shared/import-run.ts`,
+ * qui se teste sans base. Ce qui reste
  * ici est du câblage, et le câblage se relit ; il ne se prouve pas par un test
  * unitaire.
  *
@@ -25,6 +26,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
   type ImportPolicy,
   type ImportPort,
+  PLAFOND_RELECTURE,
   runImport,
   type SourceDocument,
 } from "../_shared/import-run.ts";
@@ -272,6 +274,51 @@ function makePort(admin: SupabaseClient): ImportPort {
           .eq("entity", entity)
           .eq("natural_key", rest.join(":"));
       }
+    },
+
+    async replayUnpublished(documentId, revisionId) {
+      const { data: doc } = await admin
+        .from("source_documents")
+        .select("last_seen_revision")
+        .eq("id", documentId)
+        .maybeSingle();
+      if (doc?.last_seen_revision === revisionId) return false;
+
+      const { data: run } = await admin
+        .from("import_runs")
+        .select("id, status")
+        .eq("source_document_id", documentId)
+        .eq("source_revision", revisionId)
+        .in("status", ["diffed", "published", "unchanged"])
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!run || run.status !== "diffed") return false;
+
+      const { data: diffs } = await admin
+        .from("import_differences")
+        .select("class, operation")
+        .eq("run_id", run.id);
+      const rows = diffs ?? [];
+      if (rows.length === 0 || rows.length > PLAFOND_RELECTURE) return false;
+      return rows.every((row) =>
+        row.class === "unambiguous" && row.operation !== "delete"
+      );
+    },
+
+    async publishRun(runId) {
+      const { error } = await admin.rpc("publish_run", {
+        p_run_id: runId,
+        p_notes: "relecture automatique",
+      });
+      if (error) throw new Error(error.message);
+    },
+
+    async holdRevision(documentId) {
+      await admin
+        .from("source_documents")
+        .update({ hold_reason: "en_attente" })
+        .eq("id", documentId);
     },
 
     async loadPolicy(documentId): Promise<ImportPolicy> {

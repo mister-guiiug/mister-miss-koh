@@ -290,6 +290,10 @@ export function SettingsScreen() {
               </select>
             </label>
           )}
+          <p className="muted">
+            Chaque soir, un lot entièrement certain est publié. Actualiser
+            recharge cette version.
+          </p>
           {reviewer && (
             <div className="stack">
               <Button
@@ -302,8 +306,7 @@ export function SettingsScreen() {
                 Relire Wikipédia
               </Button>
               <p className="muted">
-                Relit la page et publie le changement s’il est entièrement
-                certain.
+                Relit la page tout de suite, sans attendre le soir.
               </p>
             </div>
           )}

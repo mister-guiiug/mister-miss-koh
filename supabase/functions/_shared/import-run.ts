@@ -8,9 +8,11 @@
  *
  * DEUX ARRÊTS D'URGENCE, avant tout diff :
  *
- *  1. **révision inchangée** — la page n'a pas bougé depuis le dernier import
- *     réussi : on s'arrête en `unchanged`, sans rien lire de plus. C'est aussi
- *     ce qui rend une planification fréquente inoffensive ;
+ *  1. **révision déjà en ligne** — la page n'a pas bougé depuis le dernier import
+ *     publié, ou le lot lu n'est pas publiable seul : on s'arrête en
+ *     `unchanged`. Une révision lue mais non publiée, dont chaque différence
+ *     est sans ambiguïté et tient sous le plafond, est rejouée pour être
+ *     publiée. C'est aussi ce qui rend une planification fréquente inoffensive ;
  *  2. **structure incomprise** — un en-tête a disparu, un tableau est absent.
  *     On s'arrête en `failed` SANS produire de différences. C'est le garde le
  *     plus important du pipeline : une extraction vide, passée au diff,
@@ -119,25 +121,21 @@ export interface ImportPolicy {
 }
 
 /**
- * Plafond d'un clic « Relire Wikipédia ». Un conseil et ses voix tiennent ;
- * une première ingestion d'une saison, non.
+ * Plafond d'une relecture automatique. Un conseil et ses voix tiennent ;
+ * une première ingestion d'une saison, non. Le même chiffre borne la
+ * fonction SQL qui laisse le rôle de service publier.
  */
-const PLAFOND_CLIC = 80;
+export const PLAFOND_RELECTURE = 80;
 
 /**
- * Une relecture demandée (`force`) valide les différences sans ambiguïté de
- * ce lot, même quand la politique stockée ne le fait pas. La ligne en base
- * ne change pas : la planification du soir continue de proposer, pas de
- * publier.
+ * La relecture, planifiée ou demandée, valide les différences sans ambiguïté
+ * de ce lot, jusqu'au plafond. La ligne en base ne change pas : un lot
+ * ambigu, trop gros ou suspect reste proposé, et n'est pas publié.
  */
-export function policyForManual(
-  stored: ImportPolicy,
-  force: boolean,
-): ImportPolicy {
-  if (!force) return stored;
+export function policyForManual(stored: ImportPolicy): ImportPolicy {
   return {
     autoValidateUnambiguous: true,
-    maxAutoChanges: Math.max(stored.maxAutoChanges, PLAFOND_CLIC),
+    maxAutoChanges: Math.max(stored.maxAutoChanges, PLAFOND_RELECTURE),
   };
 }
 
@@ -175,6 +173,17 @@ export interface ImportPort {
   ): Promise<readonly StoredRecord[]>;
   saveDifferences(runId: string, differences: readonly Difference[]): Promise<void>;
   autoValidateDifferences(runId: string, keys: readonly string[]): Promise<void>;
+  /**
+   * La révision est déjà connue. Vrai seulement si elle n'est pas en ligne
+   * et que son dernier lot est entièrement certain, sous le plafond : on la
+   * rejoue pour la publier. Faux si elle est publiée, ou si un humain doit
+   * encore trancher.
+   */
+  replayUnpublished(documentId: string, revisionId: string): Promise<boolean>;
+  /** Publie un lot dont toutes les différences viennent d'être validées. */
+  publishRun(runId: string): Promise<void>;
+  /** La publication a échoué : la lecture reste visible comme en attente. */
+  holdRevision(documentId: string): Promise<void>;
   loadPolicy(documentId: string): Promise<ImportPolicy>;
   log(action: string, summary: string, targetId?: string): Promise<void>;
 }
@@ -196,6 +205,8 @@ export interface RunOutcome {
   readonly message: string;
   readonly counts?: Readonly<Record<string, number>>;
   readonly anomalies?: readonly Anomaly[];
+  /** Le lot certain a été publié pendant cette exécution. */
+  readonly published?: boolean;
 }
 
 const ENTITIES = [
@@ -339,10 +350,11 @@ export async function runImport(
     // enrichie doit rejouer une page qui n'a pas bougé, sinon la correction
     // n'atteint jamais le référentiel.
     const knownVersion = await port.lastExtractorVersion(document.id);
-    if (
-      !options.force && known === revision.revId &&
-      knownVersion === EXTRACTOR_VERSION
-    ) {
+    const revisionConnue = !options.force && known === revision.revId &&
+      knownVersion === EXTRACTOR_VERSION;
+    const rejouer = revisionConnue &&
+      await port.replayUnpublished(document.id, revision.revId);
+    if (revisionConnue && !rejouer) {
       await port.finishRun(runId, {
         status: "unchanged",
         revision: revision.revId,
@@ -680,11 +692,12 @@ export async function runImport(
     const result = diffRecords(published, records);
     await port.saveDifferences(runId, result.differences);
 
-    // ── 7. Validation automatique, si et seulement si elle est autorisée ──
-    const policy = policyForManual(
-      await port.loadPolicy(document.id),
-      options.force === true,
-    );
+    // ── 7. Validation automatique, puis publication si le lot est entier ──
+    //
+    // On ne publie que lorsque chaque différence a été validée. Un reste
+    // ambigu, une suppression ou un lot suspect reste proposé : publier
+    // quand même avancerait « lu le … » et cacherait ce qui attend.
+    const policy = policyForManual(await port.loadPolicy(document.id));
     const auto = autoValidatable(result, {
       enabled: policy.autoValidateUnambiguous,
       maxAutoChanges: policy.maxAutoChanges,
@@ -697,6 +710,7 @@ export async function runImport(
     }
 
     const ambiguous = result.differences.length - auto.length;
+    const lotEntier = auto.length > 0 && ambiguous === 0;
     await port.finishRun(runId, {
       status: "diffed",
       revision: revision.revId,
@@ -706,9 +720,24 @@ export async function runImport(
       differencesTotal: result.differences.length,
       differencesAmbiguous: ambiguous,
     });
+
+    let publie = false;
+    if (lotEntier) {
+      try {
+        await port.publishRun(runId);
+        publie = true;
+      } catch (error) {
+        const motif = error instanceof Error ? error.message : String(error);
+        await port.holdRevision(document.id);
+        await port.log("import.publish_refused", motif, runId);
+      }
+    }
+
     await port.log(
       "import.diffed",
-      `${result.differences.length} différence(s), dont ${auto.length} validée(s) automatiquement`,
+      publie
+        ? `${auto.length} différence(s) publiée(s)`
+        : `${result.differences.length} différence(s), dont ${auto.length} validée(s) automatiquement`,
       runId,
     );
 
@@ -716,7 +745,10 @@ export async function runImport(
       runId,
       status: "diffed",
       revision: revision.revId,
-      message: `${result.differences.length} différence(s) proposée(s)`,
+      published: publie,
+      message: publie
+        ? `${auto.length} différence(s) publiée(s)`
+        : `${result.differences.length} différence(s) proposée(s)`,
       counts: { ...result.summary, autoValidated: auto.length },
       anomalies,
     };

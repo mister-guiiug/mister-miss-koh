@@ -27,6 +27,17 @@ describe('suiteDuLot', () => {
     ).toBe('held');
   });
 
+  it('ne rappelle pas la publication quand la fonction l’a déjà faite', () => {
+    expect(
+      suiteDuLot({
+        status: 'diffed',
+        runId: 'run-1',
+        published: true,
+        counts: { autoValidated: 3, unambiguous: 3 },
+      })
+    ).toBe('published');
+  });
+
   it('ne publie pas une révision déjà traitée', () => {
     expect(suiteDuLot({ status: 'unchanged', runId: 'run-1' })).toBe(
       'unchanged'
