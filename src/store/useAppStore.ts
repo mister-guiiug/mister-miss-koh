@@ -290,10 +290,11 @@ export const useAppStore = create<AppState>((set, get) => {
     }
     set({ loading: true });
     try {
-      const { referential, origin, notice } = await backend.referential.load(
-        get().season,
-        options
-      );
+      // Sans option, un seul argument : un `undefined` explicite change
+      // l'appel, et le test qui vérifie la saison choisie le verrait.
+      const { referential, origin, notice } = await (options
+        ? backend.referential.load(get().season, options)
+        : backend.referential.load(get().season));
       set({
         referential,
         origin,
