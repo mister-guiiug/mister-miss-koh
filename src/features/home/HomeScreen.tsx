@@ -56,9 +56,15 @@ export function HomeScreen() {
           repoussait tout le reste — la traçabilité se consulte, elle ne
           s'impose pas à chaque ouverture. */}
       <p className="muted">
-        Application non officielle, sans lien avec les ayants droit de
-        l’émission. Vos notes, favoris et réglages restent sur cet appareil tant
-        que vous ne créez pas de compte.
+        Suivi indépendant de Koh-Lanta, sans lien avec TF1 ni la production.{' '}
+        <a
+          href={`${import.meta.env.BASE_URL}suivre-koh-lanta-sans-spoiler.html`}
+        >
+          Suivre la saison sans spoiler
+        </a>
+        {'. '}
+        Vos notes, favoris et réglages restent sur cet appareil tant que vous ne
+        créez pas de compte.
       </p>
       {/* Le pied de page vit ICI et sur les Réglages — deux écrans, pas la
           coquille : rendu partout, il transforme chaque bas de page en

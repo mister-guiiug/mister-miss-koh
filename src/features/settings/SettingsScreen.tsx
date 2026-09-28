@@ -426,11 +426,11 @@ export function SettingsScreen() {
       <Card>
         <CardHeader title="À propos" />
         <p className="muted">
-          Mister &amp; Miss Koh est une application non officielle, sans lien
-          avec les ayants droit de l’émission. Les données référentielles sont
-          des faits relevés sur une source collaborative — chacun porte sa page,
-          sa révision et sa date de lecture — et ne sont jamais présentés comme
-          officiels.
+          Mister &amp; Miss Koh est une application indépendante de suivi de
+          Koh-Lanta, sans lien avec TF1 ni avec la production. Les données
+          référentielles sont des faits relevés sur une source collaborative —
+          chacun porte sa page, sa révision et sa date de lecture — et ne sont
+          jamais présentés comme officiels.
         </p>
       </Card>
       {/* Le second des DEUX écrans qui portent le pied de page : l'accueil,

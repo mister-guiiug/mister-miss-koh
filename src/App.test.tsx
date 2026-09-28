@@ -40,8 +40,14 @@ describe('App', () => {
     expect(
       screen.getByText('Donnée fictive de démonstration')
     ).toBeInTheDocument();
-    // Et l'app se déclare non officielle.
-    expect(screen.getByText(/non officielle/i)).toBeInTheDocument();
+    // L'accueil nomme Koh-Lanta et mène à la page qui en parle.
+    expect(screen.getByText(/Koh-Lanta/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Suivre la saison sans spoiler' })
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('suivre-koh-lanta-sans-spoiler.html')
+    );
   });
 
   it('l’en-tête porte la MARQUE, pas une icône qui lui ressemble', async () => {
@@ -74,6 +80,9 @@ describe('App', () => {
     window.location.hash = '#/reglages';
     render(<App />);
     expect(await screen.findByText('Source de vérité')).toBeInTheDocument();
+    expect(
+      screen.getByText(/application indépendante de suivi de Koh-Lanta/i)
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('link', { name: 'Mister & Miss Koh' }));
 

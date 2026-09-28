@@ -251,7 +251,7 @@ export default defineConfig(({ command }) => {
           // faut, mais il tronquera un nom entier, pas un nom déjà coupé.
           short_name: 'Mister & Miss Koh',
           description:
-            'Suivez une saison d’aventure : candidats, épisodes, épreuves, conseils et votes — avec vos notes privées et vos favoris. Non officiel.',
+            'Suivez Koh-Lanta épisode par épisode : candidats, conseils et votes, sans spoiler. Application indépendante, sans lien avec TF1 ni la production.',
           // La même valeur que les balises du document : voir `src/theme.ts`.
           theme_color: THEME_COLOR.light,
           background_color: '#f4efe4',
