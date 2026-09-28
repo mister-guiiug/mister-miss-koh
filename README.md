@@ -5,10 +5,12 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **25 migrations** sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Les quatre suites
-> pgTAP passent contre cette base — isolation (34), publication (43), suivi du
-> compte (21), partage éphémère (26) —, jouées le 07/09/2026.
+> Les **33 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Cinq suites pgTAP,
+> 188 assertions (isolation 34, publication 86, suivi du compte 21, partage
+> éphémère 26, planification 21), passent sur une pile jetable à chaque PR qui
+> touche aux migrations ou aux tests (`supabase-tests.yml`, vertes le
+> 28/09/2026) ; les mêmes se rejouent à la main contre cette base.
 >
 > **Les migrations s'appliquent toutes seules** depuis le 11/09/2026
 > (`.github/workflows/supabase-migrate.yml`) : une poussée sur `main` qui touche
@@ -21,8 +23,8 @@ favoris et partage révocable.
 > La fonction Edge est **déployée**, un premier import réel a tourné, et son lot
 > de 78 différences a été relu puis **publié** : le site affiche la vraie saison,
 > avec sa provenance et son anti-spoiler. Le retour arrière a servi pour de
-> vrai, à corriger trois défauts de la publication — voir
-> [Ce qui reste à faire](#ce-qui-reste-à-faire).
+> vrai, à corriger trois défauts de la publication : voir
+> [docs/pipeline-wikipedia.md](./docs/pipeline-wikipedia.md#trois-défauts-que-seule-la-publication-pouvait-révéler).
 
 ## Ce que c'est, et ce que ce n'est pas
 
@@ -90,7 +92,9 @@ affiche les deux tailles côte à côte plutôt que de le laisser croire.
 **Et vous pouvez les reprendre tous d'un coup.** « Exporter les portraits »,
 dans les Réglages, rassemble ceux que vous avez déposés dans une **archive
 ZIP** — le même geste qu'« Enregistrer l'image » sur une fiche, mais pour tous.
-Rien n'est envoyé nulle part : les octets viennent du dépôt local. L'archive
+L'archive ne quitte pas l'appareil : les octets viennent du dépôt local. Si
+vous avez accepté la mesure d'audience, seul le geste est compté, sans nom ni
+nombre de portraits. L'archive
 est « stored », sans compression : des images déjà encodées ne se compressent
 pas, et une bibliothèque de plus coûterait du bundle pour rien. Deux candidats
 homonymes reçoivent des noms distincts, sans quoi l'extraction n'en garderait
@@ -111,12 +115,11 @@ binôme et la source. Ils se déplient d'un clic sous « Photo et partage ». La
 vignette, elle, **s'ouvre en grand d'un clic** — sur la fiche seulement : dans
 une liste, elle jouxte déjà un lien vers cette fiche.
 
-**Les Réglages disent quel build tourne, et de quoi il est fait.** Un numéro de
-version ne distingue pas deux déploiements du même jour : la carte « Version
-installée » porte aussi le commit et l'heure de compilation, et un repli donne
-les versions **réellement installées** des bibliothèques — `^4.5.0` ne dit pas
-si l'on tourne sur la 4.5.0 ou la 4.9.2, et c'est précisément la question qu'on
-se pose quand un build se comporte autrement qu'un autre.
+**Les Réglages rechargent l'application, ils ne décrivent plus le build.** La
+carte « Version installée », qui donnait le commit, l'heure de compilation et
+les versions des bibliothèques, a été retirée le 17/09/2026. Reste « Recharger
+l'application », qui remplace la copie gardée sur l'appareil sans toucher aux
+données, aux notes ni aux réglages.
 
 **Un pseudonyme se choisit, il ne s'invente pas.** Aucun profil n'est créé
 automatiquement : `pseudonym` est obligatoire, et le fabriquer depuis une
@@ -143,13 +146,13 @@ notes que vous avez marquées « partagée » — telles qu'elles sont à l'inst
 où on l'ouvre : en retirer une la fait disparaître aussitôt, sans révoquer le
 lien ni en refaire un.
 
-**L'accueil montre des chiffres, pas un menu.** Quatre tuiles — en jeu,
-épisodes vus, favoris, tableau de bord — parce qu'une tuile qui ne porte qu'un
-nom ne vaut pas mieux que l'onglet du bas. Le **tableau de bord** y a sa place
-propre : c'est le seul écran que la barre basse ne propose pas. Et ces comptes
-respectent l'**anti-spoiler** : « 16 en jeu » s'arrête à la limite que vous avez
-réglée, ce que l'écran dit sous les tuiles plutôt que de laisser croire à une
-erreur de calcul.
+**L'accueil montre des chiffres, pas un menu.** Trois tuiles (en jeu, épisodes
+vus, favoris), et une quatrième pour les notes quand elles sont déjà chargées,
+parce qu'une tuile qui ne porte qu'un nom ne vaut pas mieux que l'onglet du
+bas. Le **tableau de bord** a le sien, « Suivi », dans la barre basse. Et ces
+comptes respectent l'**anti-spoiler** : « 16 en jeu » s'arrête à la limite que
+vous avez réglée, ce que l'écran dit sous les tuiles plutôt que de laisser
+croire à une erreur de calcul.
 
 **Les candidats se rangent comme la saison se joue, à l'épisode où vous en
 êtes.** All Stars se joue en duos dans une tribu unique jusqu'au jour 9, puis
@@ -168,8 +171,19 @@ chaque ligne derrière sa garde anti-spoiler.
 
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
-démonstration » — aucun de ses prénoms n'est réel. C'est le comportement de la
-page publique, hors ligne, sans compte.
+démonstration » : aucun de ses prénoms n'est réel. C'est le comportement d'une
+copie lancée sans `.env`. La page publique, elle, lit la saison publiée sur
+Supabase, et hors ligne la dernière version enregistrée sur l'appareil,
+annoncée comme telle.
+
+**Deux services tiers, et un seul attend votre accord.** Dès l'ouverture, et
+sans consentement, l'application signale sa session à Sentry (région
+européenne), qui reçoit ensuite un rapport quand une erreur survient : message,
+pile d'appels, navigateur, version de l'application. La mesure d'audience,
+PostHog sur son nuage européen, ne se charge qu'après « Accepter » dans le
+bandeau de consentement : des vues d'écran et quelques gestes comptés
+(installation, mise à jour, note écrite, lien créé, partage, export), jamais le
+texte d'une note, une image ni le nom d'un candidat, et aucun cookie.
 
 ## Démarrer
 
@@ -181,25 +195,35 @@ npm install
 npm run dev
 ```
 
-Le serveur de développement écoute sur le port 5236 (configuration
-`.claude/launch.json` du dépôt parent). L'installation lit
+`npm run dev` sert sur 5173, le port par défaut de Vite : `vite.config.ts` n'en
+fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
+[Comptes et notes](#comptes-et-notes)), lancer
+`npm run dev -- --port 5236 --strictPort`, comme le fait
+`.claude/launch.json`. L'installation lit
 `@mister-guiiug/dev-pwa-config` sur GitHub Packages : exporter
 `NODE_AUTH_TOKEN` (un jeton avec `read:packages`) avant `npm install`.
 
 ## Vérifier
 
-| Commande                          | Ce qu'elle vérifie                                     | État au 06/09/2026         |
-| --------------------------------- | ------------------------------------------------------ | -------------------------- |
-| `npm run lint`                    | ESLint (socle : react-hooks, jsx-a11y, react-refresh)  | 0 erreur, 0 avertissement  |
-| `npm run type-check`              | TypeScript strict, `tsc -b`                            | propre                     |
-| `npm test`                        | Vitest — cœur métier, adaptateur, écrans, composants   | 368 tests verts            |
-| `npm run test:edge`               | Deno — pipeline d'import, catalogue, lieu de tournage  | 133 tests verts            |
-| `npm run test:rls:remote`         | pgTAP — RLS et partages, contre la base liée           | 34 assertions vertes       |
-| `npm run test:publication:remote` | pgTAP — publication, lieu et retour arrière            | 43 assertions vertes       |
-| `npm run test:personnel:remote`   | pgTAP — suivi multi-appareils, suppression, annulation | 21 assertions vertes       |
-| `npm run test:photo:remote`       | pgTAP — partage éphémère : brûlure, péremption, quota  | 26 assertions vertes       |
-| `npm run build`                   | `tsc -b`, Vite, budget (305 kB gzip, index ≤ 110 kB)   | 289,7 kB gzip, index 90 kB |
-| `npm run doctor`                  | `pwa-doctor` du socle                                  | 0 défaut, 0 dette, 0 info  |
+| Commande                            | Ce qu'elle vérifie                                                       | État au 28/09/2026                 |
+| ----------------------------------- | ------------------------------------------------------------------------ | ---------------------------------- |
+| `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement          |
+| `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                             |
+| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 464 tests verts                    |
+| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 169 tests verts                    |
+| `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes               |
+| `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes               |
+| `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes               |
+| `npm run test:photo:remote`         | pgTAP : partage éphémère, brûlure, péremption, quota                     | 26 assertions vertes               |
+| `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 21 assertions vertes               |
+| `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 117 kB, préchargé ≤ 223 kB) | 513 kB gzip, index 115 kB          |
+| `npm run doctor`                    | `pwa-doctor` du socle                                                    | 0 défaut, 0 dette, 1 info, 1 refus |
+
+La colonne « État » vient des journaux de la CI de `main` du 28/09/2026 :
+`ci.yml` (lint, types, Vitest, Deno, build, docteur en `--strict`), `deploy.yml`
+pour le poids, et `supabase-tests.yml`, qui joue les cinq suites pgTAP sur une
+pile jetable. Leurs variantes `:remote`, elles, se lancent à la main contre la
+base liée.
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
 > `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et
@@ -230,7 +254,7 @@ Voir [docs/attribution.md](./docs/attribution.md).
 
 ## Socle
 
-L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 4.5.0),
+L'application consomme **`@mister-guiiug/dev-pwa-config`** (version 6.18.0),
 paquet de configuration et de composants de la famille `miss-*` / `mister-*`.
 
 > Jusqu'au 05/09/2026, ce paquet s'appelait `dev-wpa-config` : une coquille
@@ -246,9 +270,11 @@ Ce qu'il apporte et qui est **réellement branché** : `ThemeProvider`,
 données personnelles, `storage` pour le cache, `backend` pour la sélection du
 backend et sa couverture, `image` pour ré-encoder un portrait déposé, `share`
 (partage natif et repli presse-papiers), `download`, `qr` (peer optionnelle
-`qrcode`, chargée seulement à l'ouverture d'un QR code), `format` (`slugify`,
-`formatBytes`), `vite-pwa` / `vite-csp` / `pwaSeoPlugin`, les workflows CI,
-déploiement, Lighthouse et nettoyage, `pwa-icons`, `pwa-bundle-budget`,
+`uqr`, chargée seulement à l'ouverture d'un QR code), `format` (`slugify`,
+`formatBytes`), `react/observability` (Sentry), `react/consent-banner` et
+`analytics` (PostHog, après accord), `vite-pwa` / `vite-csp` / `pwaSeoPlugin`,
+les workflows CI, déploiement, Lighthouse, nettoyage, migrations et tests
+Supabase, anti-pause (tous en `@v6`), `pwa-icons`, `pwa-bundle-budget`,
 `pwa-doctor`.
 
 ## Architecture
@@ -318,9 +344,12 @@ supabase/
                  0028 tribus colorées, jour du conseil, deux sorties
                  possibles pour un même candidat · 0029 rang de chaque
                  sortie dans sa soirée · 0030 sorties écrasées avant 0028
-                 rendues · 0031 jour du conseil des épisodes déjà publiés
+                 rendues · 0031 jour du conseil des épisodes déjà publiés ·
+                 0032 révision lue notée même sans publication, relecture
+                 chaque soir · 0033 publication d'un lot certain sans relecteur
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
-  tests/         isolation RLS, publication, et le suivi du compte (pgTAP)
+  tests/         isolation RLS, publication, suivi du compte, partage
+                 éphémère, planification (pgTAP)
 ```
 
 Six choix qui structurent le code :
@@ -352,8 +381,10 @@ Six choix qui structurent le code :
   suppositions du même duo cesseraient d'être égales ;
 - **donner et publier ne sont pas le même geste, et l'écran ne les confond
   pas.** Envoyer une image par la feuille du système, l'enregistrer, en montrer
-  le QR : rien de tout cela ne touche un serveur — un texte ou un fichier de
-  notes non plus. **Une seule route publie une image, et elle est à part** : le
+  le QR : rien de tout cela ne dépose l'image sur un serveur, pas plus qu'un
+  texte ou un fichier de notes (si la mesure d'audience est acceptée, l'envoi
+  ou l'export de notes est compté, jamais son contenu). **Une seule route
+  publie une image, et elle est à part** : le
   partage éphémère (voir plus bas). Ce qui publie le dit avant, et se révoque. Les détails qui font que ça tient : le fichier est relu depuis
   IndexedDB **avant** que le bouton n'apparaisse (Safari veut que
   `navigator.share` parte du geste) ; la charge examinée par `canShare` est
@@ -407,8 +438,11 @@ des deux échéances : **une ouverture**, ou **un jour**.
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les dix-huit migrations y
-sont appliquées ; `src/backend/database.types.ts` en est généré.
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les trente-trois
+migrations y sont appliquées, par `supabase-migrate.yml` à chaque poussée qui
+les touche. `src/backend/database.types.ts` en avait été généré, mais il
+s'arrête à `0021` et n'a reçu depuis que des retouches à la main : il ignore
+`photo_shares` et les fonctions qui suivent. Le régénérer avant de s'y fier.
 
 ```bash
 supabase link --project-ref oqldfzrsandcguajyxbh
@@ -451,8 +485,11 @@ la fonction Edge relit la catégorie et ajoute ce qui manque, sans jamais rien
 supprimer.
 
 Chaque saison découverte naît en `unknown` / `pending_review` : on sait qu'une
-page existe, pas ce qu'elle contient. C'est un import relu **puis publié** qui
-la rend visible.
+page existe, pas ce qu'elle contient. C'est une **publication** qui la rend
+visible : celle d'un relecteur (`admin` ou `validator`), ou, depuis le
+28/09/2026, celle de la planification, quand le lot n'apporte que des faits
+neufs et sans ambiguïté (au plus 80 différences, aucune suppression, rien de
+rétroactif). Tout autre lot attend un relecteur.
 
 ### La fonction d'import
 
@@ -462,11 +499,16 @@ Déployée sur le projet hébergé, sans Docker :
 supabase functions deploy import-wikipedia --project-ref oqldfzrsandcguajyxbh --use-api
 ```
 
-Elle s'ouvre par un secret de planification (`IMPORT_CRON_SECRET`, posé avec
-`supabase secrets set --env-file`, conservé en local dans `.env.supabase.local`)
-ou par un compte portant le rôle `admin` ou `validator`, **vérifié en base**. La
+Elle s'ouvre par un secret de planification (`IMPORT_CRON_SECRET`, secret du
+dépôt GitHub que `supabase-migrate.yml` pose à chaque passage sur la fonction
+et dans le Vault du projet, où `pg_cron` le lit) ou par un compte portant le
+rôle `admin` ou `validator`, **vérifié en base**. La
 vérification de jeton de la plateforme restant active, un appel présente aussi
 la clé anonyme en `Authorization` ; elle n'ouvre rien par elle-même.
+
+Deux tâches `pg_cron` l'appellent (0026, 0032) : chaque nuit à 4 h 17 UTC pour
+toutes les pages connues, et chaque soir de 16 h à minuit, heure de Paris,
+toutes les trente minutes, pour la saison en diffusion.
 
 Le premier import réel a tourné le 05/09/2026 : 78 différences proposées,
 aucune validée automatiquement, référentiel publié inchangé. Détail et
@@ -483,9 +525,11 @@ sans Docker, par un lanceur qui collecte chaque verdict pgTAP :
 npm run test:rls:remote
 ```
 
-Le 05/09/2026, contre la base hébergée : **24 assertions sur 24** pour
-l'isolation, **39 sur 39** pour la publication. Le `rollback` final ne laisse
-rien derrière lui.
+Les suites comptent **34 assertions** pour l'isolation et **86** pour la
+publication (21 pour le suivi du compte, 26 pour le partage éphémère, 21 pour
+la planification). Le `rollback` final ne laisse rien derrière lui. Sur une
+pile jetable, `supabase-tests.yml` les joue toutes à chaque PR qui touche aux
+migrations ou aux tests.
 
 ```bash
 npm run test:publication:remote
@@ -521,11 +565,14 @@ confirmation : la notification offre huit secondes pour revenir en arrière. Une
 boîte de dialogue avant chaque geste fatigue sans protéger — on répond « oui »
 par réflexe —, alors qu'un retour en arrière protège vraiment, et il ne coûte
 rien ici puisque la ligne n'a jamais été détruite : annuler retire une date.
-Pas de corbeille pour autant, et la raison est dans la RLS — la politique de
+Pas de corbeille pour autant, et la raison est dans la RLS : la politique de
 lecture porte `deleted_at is null`, donc on ne peut pas _lister_ ses notes
-supprimées, tandis que la politique de mise à jour, elle, laisse les
-restaurer. La publication d'une collection, elle, garde sa confirmation : on
-confirme ce qui sort, on annule ce qui reste chez soi.
+supprimées. Supprimer et restaurer passent par deux fonctions
+`security definer`, `delete_note` et `restore_note` (0023), qui vérifient
+elles-mêmes `user_id = auth.uid()` : une ligne supprimée n'étant visible sous
+aucune politique de lecture, un `update` direct échouait dans les deux sens.
+La publication d'une collection, elle, garde sa confirmation : on confirme ce
+qui sort, on annule ce qui reste chez soi.
 
 **Les favoris et les épisodes vus suivent le compte, sans cesser d'être
 locaux.** L'anti-spoiler est la fonction centrale de l'application et il ne
@@ -543,15 +590,16 @@ Le référentiel de **démonstration** ne synchronise rien : ses identifiants
 (`c-ael`, `e1`) ne sont pas des `uuid`, les envoyer ferait échouer chaque
 insertion et publierait un suivi qui ne veut rien dire.
 
-**Le profil** (`/profil`, sous le compte) donne un pseudonyme à ce que l'on
+**Le profil** (carte « Profil » de l'écran Compte, `#/compte`) donne un
+pseudonyme à ce que l'on
 partage, et un identifiant public facultatif. Ce sont **deux choses** : deux
 personnes ont le droit de s'appeler « Tarzan », une seule peut être `tarzan` —
 l'unicité porte sur l'adresse, pas sur le libellé, sans quoi chaque inscription
 deviendrait une course au nom. Sa disponibilité se demande au **serveur**
 (`handle_is_available`, `security definer`) : vérifiée côté client, un
 identifiant déjà pris passerait pour libre, puisque l'appelant ne voit pas le
-profil qui le détient. Tout y est **privé par défaut**, et chaque bascule
-— favoris, statistiques, notes publiques — est un consentement **séparé** :
+profil qui le détient. Tout y est **privé par défaut**, et la seule bascule
+offerte, les notes publiques, est un consentement **séparé** :
 rendre son profil visible n'ouvre rien d'autre. Aucune adresse électronique n'y
 figure : elle n'est dans aucune colonne de `profiles`, elle reste dans
 `auth.users`, hors de portée de l'API publique.
@@ -573,9 +621,9 @@ Dans l'ordre :
    ne stocke que des faits tabulaires — ce serait un changement de nature, pas
    une extraction de plus ;
 3. les **deux consentements qui restent morts**, et pour de bonnes raisons.
-   `show_favorites` n'a rien à montrer : les favoris et les épisodes vus ne
-   quittent jamais l'appareil, `user_favorites` reste vide côté serveur, et
-   afficher la bascule promettrait une synchronisation qu'on a refusée.
+   `show_favorites` n'a rien à montrer à autrui : les favoris suivent le
+   compte (`user_favorites`), mais la RLS n'en ouvre la lecture qu'à leur
+   propriétaire, et afficher la bascule promettrait ce que la base refuse.
    `show_stats` n'ajouterait qu'un compte de notes déjà visible. Aucune des
    deux n'est offerte tant qu'elle ne gouverne rien. De même, le partage d'un
    profil **par lien** (`get_shared_profile`, portées `profile` / `favorites` /
@@ -592,5 +640,5 @@ Dans l'ordre :
    attendant, la boussole battante de l'écran d'attente est le repli CSS du
    rôle `referential-loading` : un `.riv` la remplacerait sans toucher à
    l'écran. Conséquence à connaître avant d'alléger le bundle : le runtime
-   Rive (~57 ko, un cinquième du total) n'est téléchargé par personne tant que
-   `animations/registry.ts` garde tous ses `src: null`.
+   Rive (~57 ko, environ un dixième des 513 kB du total) n'est téléchargé par
+   personne tant que `animations/registry.ts` garde tous ses `src: null`.
