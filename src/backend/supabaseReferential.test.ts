@@ -749,6 +749,34 @@ describe('createSupabaseRepository — les trois origines', () => {
     }
   });
 
+  it('un clic manuel n’abandonne pas le serveur au bout de cinq secondes', async () => {
+    const rendre = avecReseau(true);
+    vi.useFakeTimers();
+    try {
+      const cached = mapReferential(rows, TODAY);
+      const repo = createSupabaseRepository({
+        ...noop,
+        getClient: () =>
+          Promise.resolve({
+            from: () => ({
+              select: () => new Promise(() => {}),
+            }),
+          } as never),
+        readCache: () => cached,
+      });
+      const promesse = repo.load(undefined, { manual: true });
+      await vi.advanceTimersByTimeAsync(6_000);
+      const settled = await Promise.race([
+        promesse.then(() => 'fini'),
+        Promise.resolve('en cours'),
+      ]);
+      expect(settled).toBe('en cours');
+    } finally {
+      vi.useRealTimers();
+      rendre();
+    }
+  });
+
   it('réseau qui ment : l’attente est bornée, le cache prend le relais', async () => {
     // Portail captif, Wi-Fi qui ne route rien : `onLine` est vrai et la
     // requête ne revient jamais.

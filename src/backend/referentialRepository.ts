@@ -48,8 +48,13 @@ export interface SeasonOption {
  */
 export const DEFAULT_SEASON_SLUG = 'all-stars-2026';
 
+/** `manual` : le clic attend le serveur. Le chargement ordinaire abandonne au bout de cinq secondes. */
+export interface LoadOptions {
+  readonly manual?: boolean;
+}
+
 export interface ReferentialRepository {
-  load(seasonSlug?: string): Promise<LoadResult>;
+  load(seasonSlug?: string, options?: LoadOptions): Promise<LoadResult>;
   /** Les saisons publiées. Vide = pas de choix à offrir. */
   listSeasons(): Promise<SeasonOption[]>;
 }
@@ -98,7 +103,7 @@ function writeCache(referential: Referential): void {
 /** Repli : le cache s'il existe, sinon la démonstration. */
 function createLocalRepository(): ReferentialRepository {
   return {
-    load(seasonSlug?: string) {
+    load(seasonSlug?: string, _options?: LoadOptions) {
       const cached = readCache(seasonSlug);
       if (cached)
         return Promise.resolve({ referential: cached, origin: 'cache' });

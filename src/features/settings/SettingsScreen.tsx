@@ -16,6 +16,8 @@ import { LocationMap } from '../../components/LocationMap';
 import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
 import { useRefreshReferential } from '../../hooks/useRefreshReferential';
+import { useRereadWikipedia } from '../../hooks/useRereadWikipedia';
+import { useReviewer } from '../../hooks/useReviewer';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';
 import type { SpoilerMode } from '../../domain/spoiler';
@@ -79,7 +81,9 @@ export function SettingsScreen() {
   const seasons = useAppStore(s => s.seasons);
   const setSeason = useAppStore(s => s.setSeason);
   const loadSeasons = useAppStore(s => s.loadSeasons);
-  const refresh = useRefreshReferential();
+  const refresh = useRefreshReferential({ manual: true });
+  const reviewer = useReviewer(account?.id);
+  const { reread, reading } = useRereadWikipedia();
 
   // La liste ne sert qu'ici : on la demande en arrivant, pas au démarrage de
   // l'application. Un échec ne se dit pas — sans liste, il n'y a simplement
@@ -200,7 +204,7 @@ export function SettingsScreen() {
         {/* UN BOUTON, comme les deux autres actions de l'écran. C'était un
             lien nu de 24 px de haut au milieu de cartes dont les actions font
             44 : trop petit pour un pouce, et surtout d'une autre famille que
-            « Actualiser les données » ou « Forcer le rechargement », qui sont
+            « Actualiser les données » ou « Recharger l’application », qui sont
             pourtant la même chose — l'action de leur carte. */}
         {available && (
           <Link
@@ -262,6 +266,7 @@ export function SettingsScreen() {
               variant="outline"
               size="sm"
               loading={loading}
+              disabled={reading}
               onClick={() => void refresh()}
             >
               Actualiser les données
@@ -274,7 +279,7 @@ export function SettingsScreen() {
               <span>Saison</span>
               <select
                 value={season}
-                disabled={loading}
+                disabled={loading || reading}
                 onChange={e => setSeason(e.target.value)}
               >
                 {choix.map(o => (
@@ -284,6 +289,23 @@ export function SettingsScreen() {
                 ))}
               </select>
             </label>
+          )}
+          {reviewer && (
+            <div className="stack">
+              <Button
+                variant="outline"
+                size="sm"
+                loading={reading}
+                disabled={loading}
+                onClick={() => void reread()}
+              >
+                Relire Wikipédia
+              </Button>
+              <p className="muted">
+                Relit la page et publie le changement s’il est entièrement
+                certain.
+              </p>
+            </div>
           )}
         </div>
         {referential && (
@@ -312,9 +334,21 @@ export function SettingsScreen() {
               )}
               {referential.provenance.revision && (
                 <>
-                  <dt>Révision</dt>
+                  <dt>
+                    {referential.provenance.pendingRevision
+                      ? 'Révision publiée'
+                      : 'Révision'}
+                  </dt>
                   <dd>
                     <code>{referential.provenance.revision}</code>
+                  </dd>
+                </>
+              )}
+              {referential.provenance.pendingRevision && (
+                <>
+                  <dt>Révision lue, en attente</dt>
+                  <dd>
+                    <code>{referential.provenance.pendingRevision}</code>
                   </dd>
                 </>
               )}
@@ -416,10 +450,10 @@ export function SettingsScreen() {
         <CardHeader title="Mise à jour" />
 
         <UpdateButton
-          label="Forcer le rechargement de la version"
+          label="Recharger l’application"
           updatingLabel="Rechargement…"
           showHint
-          hint="Récupère la dernière version publiée, même si cet appareil en garde une plus ancienne en cache. Vos notes, favoris et réglages ne sont pas touchés."
+          hint="Remplace la copie de l’application gardée sur cet appareil. Les données, les notes et les réglages ne sont pas touchés."
         />
       </Card>
 

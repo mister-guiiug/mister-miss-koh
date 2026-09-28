@@ -11,12 +11,15 @@ import { useCallback } from 'react';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { useAppStore } from '../store/useAppStore';
 
-export function useRefreshReferential(): () => Promise<void> {
+export function useRefreshReferential(options?: {
+  manual?: boolean;
+}): () => Promise<void> {
   const reload = useAppStore(s => s.reload);
   const toast = useToast();
+  const manual = options?.manual ?? false;
 
   return useCallback(async () => {
-    await reload();
+    await reload(manual ? { manual: true } : undefined);
     const { origin, notice, error } = useAppStore.getState();
     if (error) {
       toast.error(error);
@@ -25,5 +28,5 @@ export function useRefreshReferential(): () => Promise<void> {
     } else {
       toast.info(notice ?? 'Référentiel rechargé.');
     }
-  }, [reload, toast]);
+  }, [reload, toast, manual]);
 }

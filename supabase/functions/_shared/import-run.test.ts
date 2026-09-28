@@ -12,6 +12,7 @@ import {
   EXTRACTOR_VERSION,
   type ImportPolicy,
   type ImportPort,
+  policyForManual,
   runImport,
   type SourceDocument,
 } from "./import-run.ts";
@@ -191,6 +192,18 @@ Deno.test("révision déjà traitée : on s'arrête sans rien lire de plus", asy
   assertEquals(calls.records, [], "aucune extraction");
   assertEquals(calls.differences, [], "aucune différence");
   assertEquals(calls.finished[0].patch.status, "unchanged");
+});
+
+Deno.test("un clic force la validation du certain, la planification non", () => {
+  const stockee: ImportPolicy = {
+    autoValidateUnambiguous: false,
+    maxAutoChanges: 0,
+  };
+  assertEquals(policyForManual(stockee, false), stockee);
+  assertEquals(policyForManual(stockee, true), {
+    autoValidateUnambiguous: true,
+    maxAutoChanges: 80,
+  });
 });
 
 Deno.test("`force` relit malgré une révision connue", async () => {
