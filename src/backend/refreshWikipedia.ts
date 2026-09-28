@@ -2,9 +2,10 @@
  * Relecture manuelle de la page Wikipédia de la saison affichée.
  *
  * Le bouton « Relire Wikipédia » demande à la fonction d'import de relire la
- * page (`force`), puis publie le lot si toutes les différences sont sans
- * ambiguïté. Le secret de planification ne quitte pas le serveur : seul le
- * jeton du compte relecteur ouvre cette porte, et la fonction le revérifie.
+ * page (`force`). La fonction publie elle-même un lot entièrement certain ;
+ * le bouton ne rappelle la publication que si cette étape a échoué. Le secret
+ * de planification ne quitte pas le serveur : seul le jeton du compte
+ * relecteur ouvre cette porte, et la fonction le revérifie.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { BACKEND } from './config';
@@ -24,6 +25,8 @@ interface ImportOutcome {
   runId?: string;
   message?: string;
   counts?: Record<string, number>;
+  /** La fonction d'import a déjà publié ce lot. */
+  published?: boolean;
 }
 
 /**
@@ -32,9 +35,10 @@ interface ImportOutcome {
  */
 export function suiteDuLot(
   outcome: ImportOutcome
-): 'publish' | 'unchanged' | 'held' | 'failed' {
+): 'publish' | 'published' | 'unchanged' | 'held' | 'failed' {
   if (outcome.status === 'unchanged') return 'unchanged';
   if (outcome.status !== 'diffed' || !outcome.runId) return 'failed';
+  if (outcome.published) return 'published';
   const counts = outcome.counts ?? {};
   const auto = counts.autoValidated ?? 0;
   const reste =
@@ -185,6 +189,7 @@ export async function refreshWikipedia(
     };
   }
   if (suite === 'held') return { kind: 'held', detail };
+  if (suite === 'published') return { kind: 'published', detail };
   if (suite !== 'publish') return { kind: 'unchanged' };
 
   const { error: publication } = await client.rpc('publish_run', {

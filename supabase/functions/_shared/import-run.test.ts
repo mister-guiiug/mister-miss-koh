@@ -41,6 +41,8 @@ function fakePort(overrides: Partial<ImportPort> & {
   lastHash?: string | null;
   published?: StoredRecord[];
   policy?: ImportPolicy;
+  /** Rejouer une révision déjà lue, parce que son lot certain n'est pas en ligne. */
+  replay?: boolean;
 } = {}) {
   const calls = {
     runs: [] as string[],
@@ -48,6 +50,8 @@ function fakePort(overrides: Partial<ImportPort> & {
     records: [] as IncomingRecord[],
     differences: [] as Difference[],
     autoValidated: [] as string[],
+    publishedRuns: [] as string[],
+    held: [] as string[],
     logs: [] as { action: string; summary: string }[],
   };
 
@@ -81,6 +85,15 @@ function fakePort(overrides: Partial<ImportPort> & {
     },
     autoValidateDifferences: (_runId, keys) => {
       calls.autoValidated.push(...keys);
+      return Promise.resolve();
+    },
+    replayUnpublished: () => Promise.resolve(overrides.replay === true),
+    publishRun: (runId) => {
+      calls.publishedRuns.push(runId);
+      return Promise.resolve();
+    },
+    holdRevision: (documentId) => {
+      calls.held.push(documentId);
       return Promise.resolve();
     },
     loadPolicy: () =>
@@ -180,8 +193,9 @@ Deno.test("première exécution : les différences sont proposées, aucune n'est
   assertEquals(outcome.revision, "239179934");
   assert(calls.records.length > 50, `enregistrements : ${calls.records.length}`);
   assert(calls.differences.length > 0);
-  // Sans politique explicite, RIEN n'est validé automatiquement.
+  // Le volume du premier import est suspect : rien n'est validé, rien n'est publié.
   assertEquals(calls.autoValidated, []);
+  assertEquals(calls.publishedRuns, []);
 });
 
 Deno.test("révision déjà traitée : on s'arrête sans rien lire de plus", async () => {
@@ -194,16 +208,34 @@ Deno.test("révision déjà traitée : on s'arrête sans rien lire de plus", asy
   assertEquals(calls.finished[0].patch.status, "unchanged");
 });
 
-Deno.test("un clic force la validation du certain, la planification non", () => {
+Deno.test("la relecture valide le certain, qu'elle soit planifiée ou forcée", () => {
   const stockee: ImportPolicy = {
     autoValidateUnambiguous: false,
     maxAutoChanges: 0,
   };
-  assertEquals(policyForManual(stockee, false), stockee);
-  assertEquals(policyForManual(stockee, true), {
+  assertEquals(policyForManual(stockee), {
     autoValidateUnambiguous: true,
     maxAutoChanges: 80,
   });
+  assertEquals(
+    policyForManual({ autoValidateUnambiguous: true, maxAutoChanges: 200 }),
+    { autoValidateUnambiguous: true, maxAutoChanges: 200 },
+  );
+});
+
+Deno.test("une révision lue mais non publiée, et publiable, est rejouée", async () => {
+  const { port, calls } = fakePort({
+    lastRevision: "239179934",
+    replay: true,
+  });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    fetchImpl: fakeFetch(),
+  });
+
+  assert(outcome.status !== "unchanged");
+  assert(calls.records.length > 0, "la page est relue");
 });
 
 Deno.test("`force` relit malgré une révision connue", async () => {
@@ -439,6 +471,7 @@ Deno.test("le PREMIER import, massif, ne se valide jamais tout seul", async () =
   await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
 
   assertEquals(calls.autoValidated, []);
+  assertEquals(calls.publishedRuns, []);
   assert(
     calls.differences.some((d) => d.class === "suspicious"),
     "le volume doit être signalé",
@@ -463,17 +496,62 @@ Deno.test("un import de ROUTINE, sous plafond, se valide automatiquement", async
   const { port, calls } = fakePort({
     published,
     lastRevision: "1",
-    policy: { autoValidateUnambiguous: true, maxAutoChanges: 20 },
+    policy: { autoValidateUnambiguous: false, maxAutoChanges: 0 },
   });
-  await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    fetchImpl: fakeFetch(),
+  });
 
   assert(calls.autoValidated.length > 0, "les quelques ajouts sont validables");
   // Rien de rétroactif : ce qui existait déjà n'a pas changé.
   assertEquals(calls.differences.filter((d) => d.class === "retroactive"), []);
   assertEquals(calls.differences.filter((d) => d.operation === "delete"), []);
+  assertEquals(
+    calls.autoValidated.length,
+    calls.differences.length,
+    "le lot de routine est entier",
+  );
+  assertEquals(calls.publishedRuns, ["run-1"]);
+  assertEquals(outcome.published, true);
 });
 
-Deno.test("au-delà du plafond, la politique ne valide plus rien", async () => {
+Deno.test("une publication refusée laisse le lot en attente", async () => {
+  const first = fakePort();
+  await runImport(first.port, { ...baseOptions, fetchImpl: fakeFetch() });
+  const published: StoredRecord[] = first.calls.records
+    .filter((r) => !r.naturalKey.endsWith(":Yassin"))
+    .map((r) => ({
+      entity: r.entity,
+      naturalKey: r.naturalKey,
+      payload: r.payload,
+      published: true,
+    }));
+
+  const { port, calls } = fakePort({
+    published,
+    lastRevision: "1",
+    publishRun: () => Promise.reject(new Error("publication refusée")),
+  });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    fetchImpl: fakeFetch(),
+  });
+
+  assertEquals(outcome.published, false);
+  assertEquals(outcome.status, "diffed");
+  assertEquals(calls.held, ["doc-1"]);
+  assert(
+    calls.logs.some((log) => log.action === "import.publish_refused"),
+    "le refus est journalisé",
+  );
+});
+
+Deno.test("un plafond stocké sous 80 n'abaisse pas le plancher : le premier import reste suspect", async () => {
+  // Le volume, pas le chiffre 3, bloque la validation. Le plancher de la
+  // relecture est 80 ; un premier import massif reste suspect.
   const { port, calls } = fakePort({
     policy: { autoValidateUnambiguous: true, maxAutoChanges: 3 },
   });
