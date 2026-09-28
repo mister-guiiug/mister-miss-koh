@@ -135,9 +135,20 @@ describe('App', () => {
     expect(container.querySelector('details.version-details')).toBeNull();
     expect(
       screen.getByRole('button', {
-        name: /Forcer le rechargement de la version/,
+        name: /Recharger l’application/,
       })
     ).toBeInTheDocument();
+  });
+
+  it('relire Wikipédia n’apparaît pas sans compte relecteur', async () => {
+    window.location.hash = '#/reglages';
+    render(<App />);
+    expect(
+      await screen.findByRole('button', { name: 'Actualiser les données' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Relire Wikipédia' })
+    ).not.toBeInTheDocument();
   });
 
   it('la provenance a suivi jusqu’aux Réglages, elle n’a pas disparu', async () => {

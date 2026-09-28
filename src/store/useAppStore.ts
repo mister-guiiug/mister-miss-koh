@@ -195,7 +195,7 @@ interface AppState {
   jots: Readonly<Record<string, string>>;
   init(): Promise<void>;
   setJot(contestantId: string, text: string): void;
-  reload(): Promise<void>;
+  reload(options?: { manual?: boolean }): Promise<void>;
   setSpoiler(mode: SpoilerMode): void;
   setAnimations(enabled: boolean): void;
   setReduceMotion(enabled: boolean): void;
@@ -281,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => {
     });
   };
 
-  const load = async () => {
+  const load = async (options?: { manual?: boolean }) => {
     // La copie locale s'affiche tout de suite. Le serveur la remplace s'il
     // répond ; s'il tarde, l'écran n'attend plus derrière la boussole.
     const cached = peekCachedReferential(get().season);
@@ -291,7 +291,8 @@ export const useAppStore = create<AppState>((set, get) => {
     set({ loading: true });
     try {
       const { referential, origin, notice } = await backend.referential.load(
-        get().season
+        get().season,
+        options
       );
       set({
         referential,
@@ -333,7 +334,7 @@ export const useAppStore = create<AppState>((set, get) => {
       await load();
     },
 
-    reload: load,
+    reload: options => load(options),
 
     setSpoiler(mode) {
       set({ spoiler: mode });

@@ -832,25 +832,32 @@ export function createSupabaseRepository(
       }
     },
 
-    async load(seasonSlug?: string): Promise<LoadResult> {
+    async load(
+      seasonSlug?: string,
+      options?: { manual?: boolean }
+    ): Promise<LoadResult> {
       // Hors ligne : ne rien tenter. Le serveur n'a que le réseau pour
       // répondre, et Supabase met une demi-minute à l'admettre.
       if (horsLigne()) {
         const cache = depuisLeCache(seasonSlug);
         if (cache) return cache;
       }
+      // Un clic des Réglages attend la réponse. L'ouverture, elle, n'a pas
+      // le droit de bloquer l'écran cinq secondes de plus.
+      const borne = options?.manual ? null : ATTENTE_SERVEUR_MS;
       let minuteur: ReturnType<typeof setTimeout> | undefined;
       try {
         const client = await deps.getClient();
-        const issue = await Promise.race([
-          fetchRows(client, seasonSlug),
-          new Promise<typeof TROP_LONG>(resoudre => {
-            minuteur = setTimeout(
-              () => resoudre(TROP_LONG),
-              ATTENTE_SERVEUR_MS
-            );
-          }),
-        ]);
+        const lecture = fetchRows(client, seasonSlug);
+        const issue =
+          borne === null
+            ? await lecture
+            : await Promise.race([
+                lecture,
+                new Promise<typeof TROP_LONG>(resoudre => {
+                  minuteur = setTimeout(() => resoudre(TROP_LONG), borne);
+                }),
+              ]);
         if (issue === TROP_LONG) {
           // Réseau présent mais mort : le cache maintenant vaut mieux que le
           // serveur dans trente secondes.

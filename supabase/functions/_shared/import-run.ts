@@ -118,6 +118,29 @@ export interface ImportPolicy {
   readonly maxAutoChanges: number;
 }
 
+/**
+ * Plafond d'un clic « Relire Wikipédia ». Un conseil et ses voix tiennent ;
+ * une première ingestion d'une saison, non.
+ */
+const PLAFOND_CLIC = 80;
+
+/**
+ * Une relecture demandée (`force`) valide les différences sans ambiguïté de
+ * ce lot, même quand la politique stockée ne le fait pas. La ligne en base
+ * ne change pas : la planification du soir continue de proposer, pas de
+ * publier.
+ */
+export function policyForManual(
+  stored: ImportPolicy,
+  force: boolean,
+): ImportPolicy {
+  if (!force) return stored;
+  return {
+    autoValidateUnambiguous: true,
+    maxAutoChanges: Math.max(stored.maxAutoChanges, PLAFOND_CLIC),
+  };
+}
+
 /** Tout l'accès à la base passe par là. Rien d'autre n'écrit. */
 export interface ImportPort {
   loadDocument(documentId: string): Promise<SourceDocument | null>;
@@ -658,7 +681,10 @@ export async function runImport(
     await port.saveDifferences(runId, result.differences);
 
     // ── 7. Validation automatique, si et seulement si elle est autorisée ──
-    const policy = await port.loadPolicy(document.id);
+    const policy = policyForManual(
+      await port.loadPolicy(document.id),
+      options.force === true,
+    );
     const auto = autoValidatable(result, {
       enabled: policy.autoValidateUnambiguous,
       maxAutoChanges: policy.maxAutoChanges,
