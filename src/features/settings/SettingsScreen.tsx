@@ -334,9 +334,21 @@ export function SettingsScreen() {
               )}
               {referential.provenance.revision && (
                 <>
-                  <dt>Révision</dt>
+                  <dt>
+                    {referential.provenance.pendingRevision
+                      ? 'Révision publiée'
+                      : 'Révision'}
+                  </dt>
                   <dd>
                     <code>{referential.provenance.revision}</code>
+                  </dd>
+                </>
+              )}
+              {referential.provenance.pendingRevision && (
+                <>
+                  <dt>Révision lue, en attente</dt>
+                  <dd>
+                    <code>{referential.provenance.pendingRevision}</code>
                   </dd>
                 </>
               )}

@@ -34,6 +34,9 @@ export function Provenance({ data }: { data: ProvenanceData }) {
           </>
         )}
         {data.revision && <> · révision {data.revision}</>}
+        {data.pendingRevision && (
+          <> · {data.pendingRevision} lue, en attente de publication</>
+        )}
         {data.fetchedAt && <> · lue le {formatDate(data.fetchedAt)}</>}
         {'. Ces informations ne sont pas officielles.'}
       </span>

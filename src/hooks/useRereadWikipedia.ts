@@ -9,6 +9,7 @@
 import { useCallback, useState } from 'react';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import {
+  annonceRelecture,
   refreshWikipedia,
   type WikipediaRefresh,
 } from '../backend/refreshWikipedia';
@@ -43,31 +44,10 @@ export function useRereadWikipedia(): {
       setReading(false);
     }
     const { error } = useAppStore.getState();
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    if (lecture.kind === 'published') {
-      toast.success('Wikipédia relu et publié.');
-      return;
-    }
-    if (lecture.kind === 'held') {
-      toast.info(
-        'Wikipédia relu. Une partie du changement attend une relecture avant publication.'
-      );
-      return;
-    }
-    if (lecture.kind === 'unchanged') {
-      toast.success('Wikipédia n’a pas bougé depuis la dernière lecture.');
-      return;
-    }
-    if (lecture.kind === 'anonymous' || lecture.kind === 'forbidden') {
-      toast.info('Relire Wikipédia demande un compte relecteur.');
-      return;
-    }
-    if (lecture.kind === 'failed') {
-      toast.error(lecture.message);
-    }
+    const annonce = annonceRelecture(lecture, error);
+    if (annonce?.tone === 'success') toast.success(annonce.text);
+    else if (annonce?.tone === 'info') toast.info(annonce.text);
+    else if (annonce?.tone === 'error') toast.error(annonce.text);
   }, [reload, toast]);
 
   return { reread, reading };
