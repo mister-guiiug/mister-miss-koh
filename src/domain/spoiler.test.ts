@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isSpoiler, isWatched, lastWatched, spoilerLimit } from './spoiler';
+import {
+  airedBy,
+  isSpoiler,
+  isWatched,
+  lastWatched,
+  spoilerLimit,
+} from './spoiler';
 import type { Episode } from './referential';
 
 const ep = (
@@ -118,5 +124,21 @@ describe('« vu », c’est « j’en suis là »', () => {
     const vus = [2, 5];
     expect(lastWatched(vus)).toBe(5);
     expect(isWatched(4, vus)).toBe(true);
+  });
+});
+
+describe('airedBy', () => {
+  it('compte l’épisode diffusé le jour même : un texte du soir peut en parler', () => {
+    expect(airedBy(episodes, '2026-09-01')).toBe(2);
+    expect(airedBy(episodes, '2026-08-31')).toBe(1);
+    expect(airedBy(episodes, '2026-08-24')).toBe(0);
+  });
+
+  it('ne compte pas un épisode à venir, même daté du passé de la note', () => {
+    expect(airedBy(episodes, '2026-12-31')).toBe(2);
+  });
+
+  it('compte un épisode diffusé sans date : ne pas savoir n’autorise pas à supposer', () => {
+    expect(airedBy([...episodes, ep(4, null, true)], '2026-08-26')).toBe(4);
   });
 });

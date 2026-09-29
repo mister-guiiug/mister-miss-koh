@@ -67,6 +67,23 @@ export function spoilerLimit(ctx: SpoilerContext): number {
 }
 
 /**
+ * Le plus grand épisode diffusé À CETTE DATE (`AAAA-MM-JJ`), `0` si aucun.
+ *
+ * Le jour même compte : un texte écrit le soir d'une diffusion peut en
+ * parler. Un épisode diffusé SANS DATE compte aussi — ne pas savoir quand il
+ * est passé n'autorise pas à supposer qu'il n'était pas encore passé.
+ */
+export function airedBy(episodes: readonly Episode[], day: string): number {
+  let max = 0;
+  for (const e of episodes) {
+    if (!e.aired) continue;
+    if (e.airDate && e.airDate > day) continue;
+    if (e.number > max) max = e.number;
+  }
+  return max;
+}
+
+/**
  * Un événement rattaché à un épisode inconnu est MASQUÉ dès que la limite est
  * finie : ne pas savoir quand une chose s'est produite n'autorise pas à la
  * montrer à quelqu'un qui n'en est pas là.

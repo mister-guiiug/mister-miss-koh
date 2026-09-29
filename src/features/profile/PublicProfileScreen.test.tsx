@@ -91,10 +91,34 @@ describe('ouvrir un profil public', () => {
       },
       notes: [note()],
     });
+    // Écrite le 06/09, l'épisode 2 déjà diffusé : lisible à qui l'a vu.
+    useAppStore.setState({ spoiler: 'hide_unwatched', watched: [1, 2] });
     open();
 
     expect(await screen.findByText('Aël')).toBeInTheDocument();
     expect(screen.getByText('Sacrée poigne')).toBeInTheDocument();
+  });
+
+  it('masque une note écrite après ce que le visiteur a vu', async () => {
+    repo.loadPublic.mockResolvedValue({
+      profile: {
+        pseudonym: 'Tarzan',
+        handle: 'tarzan',
+        bio: null,
+        showNotes: true,
+      },
+      notes: [note()],
+    });
+    useAppStore.setState({ spoiler: 'hide_unwatched', watched: [] });
+    open();
+
+    // La cible reste nommée — elle ne raconte rien ; le texte, lui, attend.
+    expect(await screen.findByText('Aël')).toBeInTheDocument();
+    expect(screen.queryByText('Sacrée poigne')).toBeNull();
+    expect(screen.getByText(/^Masqué : cette note/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'J’ai vu jusqu’à' })
+    ).toBeInTheDocument();
   });
 
   it('dit qu’il n’y en a aucune quand la personne les montre sans en avoir', async () => {

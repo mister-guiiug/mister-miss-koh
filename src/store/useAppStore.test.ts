@@ -157,6 +157,43 @@ describe('useAppStore — le suivi qui suit le compte', () => {
     expect(favorite.mock.calls).toEqual([['c-hina', true]]);
   });
 
+  it('« vu jusqu’à N » écrit un début de saison, et n’envoie que ce qui change', () => {
+    const favorite = vi.fn();
+    const watched = vi.fn();
+    useAppStore.setState({ referential: DEMO_REFERENTIAL, watched: [1] });
+    useAppStore.getState().attachPersonalRemote({ favorite, watched });
+
+    useAppStore.getState().setWatchedUpTo(2);
+    expect(useAppStore.getState().watched).toEqual([1, 2]);
+    expect(watched.mock.calls).toEqual([[2, true]]);
+
+    // Zéro : rien de vu.
+    useAppStore.getState().setWatchedUpTo(0);
+    expect(useAppStore.getState().watched).toEqual([]);
+    expect(watched.mock.calls.slice(1)).toEqual([
+      [1, false],
+      [2, false],
+    ]);
+  });
+
+  it('annuler une cascade remet le suivi tel quel, et le dit au compte', () => {
+    const favorite = vi.fn();
+    const watched = vi.fn();
+    useAppStore.setState({ referential: DEMO_REFERENTIAL, watched: [] });
+    useAppStore.getState().attachPersonalRemote({ favorite, watched });
+
+    useAppStore.getState().toggleWatched(2);
+    useAppStore.getState().restoreWatched([]);
+
+    expect(useAppStore.getState().watched).toEqual([]);
+    expect(watched.mock.calls).toEqual([
+      [1, true],
+      [2, true],
+      [1, false],
+      [2, false],
+    ]);
+  });
+
   it('un relais détaché ne reçoit plus rien : la déconnexion rend l’appareil à lui-même', () => {
     const favorite = vi.fn();
     const watched = vi.fn();

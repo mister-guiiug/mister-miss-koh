@@ -100,6 +100,17 @@ const PersonalSchema = z.object({
    * ordre que les favoris : il ne part pas, et un compte ne l'efface pas.
    */
   jots: z.record(z.string(), z.string().max(280)).default({}),
+  /**
+   * La première ouverture a été faite — ou écartée. Même `default` que les
+   * champs précédents : un magasin plus ancien se valide encore, et l'accueil
+   * ne la propose qu'à qui n'a encore rien coché.
+   */
+  onboarded: z.boolean().default(false),
+  /**
+   * Le nombre d'épisodes à rattraper sur l'icône de l'app installée. Un
+   * nombre d'épisodes, jamais ce qui s'y passe ; décochable dans les Réglages.
+   */
+  appBadge: z.boolean().default(true),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -130,6 +141,8 @@ const GRAINE: Personal = {
   contestantFilter: DEFAULT_CONTESTANT_FILTER,
   portraitQueue: [],
   jots: {},
+  onboarded: false,
+  appBadge: true,
 };
 
 const personalStore = createVersionedStore<Personal>({
@@ -193,6 +206,8 @@ interface AppState {
   /** Les portraits qui attendent une place libre pour être confiés. */
   portraitQueue: readonly string[];
   jots: Readonly<Record<string, string>>;
+  onboarded: boolean;
+  appBadge: boolean;
   init(): Promise<void>;
   setJot(contestantId: string, text: string): void;
   reload(options?: { manual?: boolean }): Promise<void>;
@@ -202,6 +217,16 @@ interface AppState {
   setContestantFilter(filter: ContestantFilter): void;
   setPortraitQueue(ids: readonly string[]): void;
   toggleWatched(episodeNumber: number): void;
+  /**
+   * « J'en suis à l'épisode N » : tout ce qui précède est vu, rien après.
+   * `0` = rien de vu. Le geste de la première ouverture et du lecteur d'un
+   * partage, qui répondent à « où en êtes-vous ? » sans cocher une à une.
+   */
+  setWatchedUpTo(episodeNumber: number): void;
+  /** Remet le suivi tel qu'il était — l'« Annuler » d'une cascade de coches. */
+  restoreWatched(watched: readonly number[]): void;
+  setOnboarded(done: boolean): void;
+  setAppBadge(enabled: boolean): void;
   /**
    * Change de saison : le suivi de celle qu'on quitte est mis de côté, celui
    * de celle qu'on prend revient, et le référentiel se recharge.
@@ -260,6 +285,8 @@ export const useAppStore = create<AppState>((set, get) => {
       contestantFilter,
       portraitQueue,
       jots,
+      onboarded,
+      appBadge,
     } = get();
     personalStore.save({
       spoiler,
@@ -278,7 +305,24 @@ export const useAppStore = create<AppState>((set, get) => {
       contestantFilter,
       portraitQueue: [...portraitQueue],
       jots: { ...jots },
+      onboarded,
+      appBadge,
     });
+  };
+
+  /**
+   * Écrit le suivi, et n'envoie au compte QUE CE QUI A CHANGÉ. Réémettre tout
+   * l'ensemble à chaque geste ferait autant d'écritures que d'épisodes.
+   */
+  const applyWatched = (next: readonly number[]) => {
+    const current = get().watched;
+    const sorted = [...new Set(next)].sort((a, b) => a - b);
+    set({ watched: sorted });
+    persist();
+    const avant = new Set(current);
+    const apres = new Set(sorted);
+    for (const n of sorted) if (!avant.has(n)) remote?.watched(n, true);
+    for (const n of current) if (!apres.has(n)) remote?.watched(n, false);
   };
 
   const load = async (options?: { manual?: boolean }) => {
@@ -380,15 +424,24 @@ export const useAppStore = create<AppState>((set, get) => {
       // Un référentiel plus ancien que le geste ne doit pas avaler l'épisode
       // qu'on vient de cocher.
       if (on) retenus.add(episodeNumber);
-      const next = [...retenus].sort((a, b) => a - b);
-      set({ watched: next });
+      applyWatched([...retenus]);
+    },
+    setWatchedUpTo(episodeNumber) {
+      const connus = get().referential?.episodes.map(e => e.number) ?? [];
+      const retenus = new Set(connus.filter(n => n <= episodeNumber));
+      if (episodeNumber >= 1) retenus.add(episodeNumber);
+      applyWatched([...retenus]);
+    },
+    restoreWatched(watched) {
+      applyWatched(watched);
+    },
+    setOnboarded(done) {
+      set({ onboarded: done });
       persist();
-
-      // SEUL CE QUI A CHANGÉ PART. Réémettre tout l'ensemble à chaque geste
-      // ferait autant d'écritures que d'épisodes, à chaque clic.
-      const avant = new Set(current);
-      for (const n of next) if (!avant.has(n)) remote?.watched(n, true);
-      for (const n of current) if (!retenus.has(n)) remote?.watched(n, false);
+    },
+    setAppBadge(enabled) {
+      set({ appBadge: enabled });
+      persist();
     },
     setSeason(slug) {
       const { season, watched, watchedBySeason } = get();

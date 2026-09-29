@@ -22,14 +22,14 @@ import { Link, useParams } from 'react-router-dom';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
-import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../../store/useAppStore';
 import {
   profileRepository,
   type PublicProfileView,
 } from '../../backend/profile';
-import { labelOf, noteChoices } from '../../domain/noteTargets';
-import { stars } from '../../domain/notesExport';
+import { noteChoices } from '../../domain/noteTargets';
+import { ReadNoteCard } from '../../components/ReadNoteCard';
+import { ReaderLimitPrompt } from '../../components/ReaderLimitPrompt';
 
 type State =
   | { step: 'loading' }
@@ -116,21 +116,14 @@ function PublicProfile({ handle }: { handle: string }) {
             description="Cette personne montre ses notes publiques, mais n’en a encore rendu aucune publique."
           />
         ) : (
-          notes.map(note => (
-            <Card key={note.id}>
-              <CardHeader
-                title={labelOf(choices, note.target, note.targetId)}
-                subtitle={`modifiée le ${formatDate(note.updatedAt)}`}
-              />
-              {note.rating !== null && (
-                <p className="rating" aria-label={`${note.rating} sur 5`}>
-                  <span aria-hidden>{stars(note.rating)}</span>
-                </p>
-              )}
-              {note.title && <p className="note-title">{note.title}</p>}
-              <p className="shared-body">{note.body}</p>
-            </Card>
-          ))
+          <>
+            {/* Les notes publiques d'un autre se lisent à VOTRE limite : voir
+                le lien de partage, même règle. */}
+            <ReaderLimitPrompt notes={notes} />
+            {notes.map(note => (
+              <ReadNoteCard key={note.id} note={note} choices={choices} />
+            ))}
+          </>
         ))}
     </div>
   );
