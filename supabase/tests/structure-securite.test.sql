@@ -74,10 +74,8 @@ select set_eq(
     -- Sans effet pour anon : export_my_data ne lit que auth.uid(),
     -- review_difference exige is_staff()
     'export_my_data',
-    'review_difference',
-    -- À fermer à anon (signalé le 29/09/2026) : aucun visiteur anonyme n'a à
-    -- l'appeler
-    'log_event'
+    'review_difference'
+    -- log_event en est sortie avec 0034.
   ],
   'les fonctions SECURITY DEFINER exécutables par anon sont exactement la liste relue'
 );

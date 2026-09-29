@@ -5,12 +5,13 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **33 migrations** sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Cinq suites pgTAP,
-> 188 assertions (isolation 34, publication 86, suivi du compte 21, partage
-> éphémère 26, planification 21), passent sur une pile jetable à chaque PR qui
-> touche aux migrations ou aux tests (`supabase-tests.yml`, vertes le
-> 28/09/2026) ; les mêmes se rejouent à la main contre cette base.
+> Les **34 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Six suites pgTAP,
+> 190 assertions (isolation 34, publication 86, suivi du compte 21, partage
+> éphémère 26, planification 21, structure de sécurité 2), passent sur une pile
+> jetable à chaque PR qui touche aux migrations ou aux tests
+> (`supabase-tests.yml`, vertes le 29/09/2026) ; les mêmes se rejouent à la
+> main contre cette base.
 >
 > **Les migrations s'appliquent toutes seules** depuis le 11/09/2026
 > (`.github/workflows/supabase-migrate.yml`) : une poussée sur `main` qui touche
@@ -380,9 +381,10 @@ supabase/
                  rendues · 0031 jour du conseil des épisodes déjà publiés ·
                  0032 révision lue notée même sans publication, relecture
                  chaque soir · 0033 publication d'un lot certain sans relecteur
+                 · 0034 log_event fermée aux clients
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, suivi du compte, partage
-                 éphémère, planification (pgTAP)
+                 éphémère, planification, structure de sécurité (pgTAP)
 ```
 
 Six choix qui structurent le code :
@@ -471,7 +473,7 @@ des deux échéances : **une ouverture**, ou **un jour**.
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les trente-trois
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les trente-quatre
 migrations y sont appliquées, par `supabase-migrate.yml` à chaque poussée qui
 les touche. `src/backend/database.types.ts` en avait été généré, mais il
 s'arrête à `0021` et n'a reçu depuis que des retouches à la main : il ignore
