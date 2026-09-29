@@ -8,6 +8,7 @@ import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provi
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button';
+import { ConsentSection } from '@mister-guiiug/dev-pwa-config/react/consent-section';
 import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
 import { PhotosExport } from '../../components/PhotosExport';
@@ -449,6 +450,20 @@ export function SettingsScreen() {
           chacun porte sa page, sa révision et sa date de lecture — et ne sont
           jamais présentés comme officiels.
         </p>
+      </Card>
+
+      {/* Revenir sur son choix de mesure d’audience : le retrait se fait ici,
+          en un clic (RGPD, art. 7.3). Mêmes clé et chargeur que le bandeau.
+          Sans clé, la section ne rend rien : `empty:hidden!` retire alors la
+          carte restée vide — avec `!`, parce que la règle hors couche
+          `[data-dwc='card'] { display: flex }` de `styles.css` l’emporterait
+          sur un utilitaire. */}
+      <Card className="empty:hidden!">
+        <ConsentSection
+          posthogKey={import.meta.env.VITE_POSTHOG_KEY}
+          loader={() => import('posthog-js/dist/module.slim.js')}
+          headingLevel={3}
+        />
       </Card>
       {/* Le second des DEUX écrans qui portent le pied de page : l'accueil,
           où l'on arrive, et « À propos », où l'on vient chercher ces liens. */}

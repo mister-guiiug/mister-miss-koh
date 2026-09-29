@@ -724,8 +724,10 @@ body,
 /* Le bouton de mise à jour vient du socle avec son propre habillage : fond
    plein là où les deux autres actions de l'écran sont bordées et
    transparentes. Trois actions qui font la même chose — l'action de leur
-   carte — n'ont aucune raison d'avoir trois apparences. */
-.settings [data-dwc='update-button'] {
+   carte — n'ont aucune raison d'avoir trois apparences. Le retrait du
+   consentement, habillé par la même base du socle, suit la même règle. */
+.settings [data-dwc='update-button'],
+.settings [data-dwc='consent-section-action'] {
   background: transparent;
   color: var(--primary);
   /* `currentColor`, comme la variante « outline » du socle : la bordure suit
