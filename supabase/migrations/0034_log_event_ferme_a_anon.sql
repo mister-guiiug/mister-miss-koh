@@ -1,0 +1,23 @@
+-- log_event n'est plus appelable par les clients.
+--
+-- 0004 crée log_event, retire EXECUTE à public, puis l'accorde à
+-- authenticated. Mais Supabase accorde aussi EXECUTE à anon sur toute
+-- fonction créée dans public, par un privilège PAR DÉFAUT explicite, que
+-- `revoke … from public` ne défait pas. La clé publique du bundle pouvait
+-- donc écrire dans audit_events une ligne sans acteur, c'est-à-dire au nom du
+-- « système » (actor_id nul), et tout compte connecté une ligne arbitraire à
+-- son nom. Relevé le 29/09/2026 par supabase/tests/structure-securite.test.sql,
+-- qui la listait « à fermer ».
+--
+-- Aucun appel légitime ne passe par un client : l'application ne l'appelle
+-- pas (elle n'apparaît que dans database.types.ts), et l'import écrit
+-- audit_events directement avec la clé service_role. Ses appelants
+-- l'exécutent tous sous le propriétaire, que ce retrait ne touche pas :
+-- publish_run et revert_publication sont SECURITY DEFINER, et
+-- rendre_les_sorties_perdues (0030) et recaler_jours_de_conseil (0031),
+-- fermées à tous les clients, ne tournent que dans leur migration. On retire
+-- donc public, anon ET authenticated : retirer l'un ne retire pas l'autre
+-- (0004 l'a montré dans l'autre sens pour has_role et is_staff).
+-- service_role garde son droit.
+
+revoke all on function log_event(text, text, text, text) from public, anon, authenticated;
