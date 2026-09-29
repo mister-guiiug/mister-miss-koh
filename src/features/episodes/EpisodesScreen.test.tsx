@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
@@ -157,5 +157,120 @@ describe('une soirée de la saison aux tribus', () => {
     const conseil = texte.indexOf('Ugo éliminé·e');
     expect(arene).toBeGreaterThanOrEqual(0);
     expect(conseil).toBeGreaterThan(arene);
+  });
+});
+
+describe('l’anti-spoiler rendu visible', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      referential: DEMO_REFERENTIAL,
+      ready: true,
+      spoiler: 'hide_unwatched',
+      watched: [],
+    });
+  });
+
+  it('marque la limite entre le dernier épisode vu et le suivant', () => {
+    useAppStore.setState({ watched: [1] });
+    renderScreen();
+
+    expect(screen.getByText('Vous en êtes là · épisode 1')).toBeInTheDocument();
+    expect(screen.getByText('la suite reste masquée')).toBeInTheDocument();
+  });
+
+  it('ne marque rien quand tout ce qui est diffusé est vu, ni quand rien ne l’est', () => {
+    useAppStore.setState({ watched: [1, 2] });
+    const { unmount } = renderScreen();
+    expect(screen.queryByText(/^Vous en êtes là/)).toBeNull();
+    unmount();
+
+    useAppStore.setState({ watched: [] });
+    renderScreen();
+    expect(screen.queryByText(/^Vous en êtes là/)).toBeNull();
+  });
+
+  it('une cascade de coches se dit, part en vague, et s’annule', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    const [, second] = screen.getAllByRole('checkbox', { name: 'Vu' });
+    if (!second) throw new Error('deux cases attendues');
+
+    await user.click(second);
+
+    expect(useAppStore.getState().watched).toEqual([1, 2]);
+    // La vague part de l'épisode touché : le 2 d'abord, le 1 ensuite.
+    const cartes = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-dwc="card"].wave')
+    );
+    expect(cartes.map(c => c.style.getPropertyValue('--wave'))).toEqual([
+      '1',
+      '0',
+    ]);
+    expect(
+      await screen.findByText('Épisodes 1 à 2 marqués vus.')
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+
+    expect(useAppStore.getState().watched).toEqual([]);
+    expect(await screen.findByText('Suivi rétabli.')).toBeInTheDocument();
+  });
+
+  it('un seul épisode qui change ne demande rien', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    const [first] = screen.getAllByRole('checkbox', { name: 'Vu' });
+    if (!first) throw new Error('une case attendue');
+
+    await user.click(first);
+
+    expect(useAppStore.getState().watched).toEqual([1]);
+    expect(screen.queryByRole('button', { name: 'Annuler' })).toBeNull();
+  });
+
+  it('un épisode masqué a la même silhouette que tous les autres', () => {
+    renderScreen();
+
+    const gardes = Array.from(document.querySelectorAll('.spoiler'));
+    expect(gardes).toHaveLength(2);
+    // Mêmes libellés, mêmes largeurs de givre : la forme ne dit rien du
+    // contenu — ni un conseil absent, ni deux départs.
+    const silhouettes = gardes.map(g =>
+      Array.from(g.querySelectorAll<HTMLElement>('.frost'), f =>
+        f.style.getPropertyValue('--frost')
+      ).join(' ')
+    );
+    expect(silhouettes[0]).toBe(silhouettes[1]);
+    expect(gardes[0]?.querySelector('dl')).toHaveAttribute('aria-hidden');
+    // Et aucun prénom de la soirée n'est dans la page, même flouté.
+    expect(screen.queryByText('Gaël')).toBeNull();
+    expect(screen.queryByText('Dimitri')).toBeNull();
+  });
+
+  it('le conseil se détaille, voix par voix, derrière le garde', () => {
+    useAppStore.setState({ watched: [1, 2] });
+    renderScreen();
+
+    // Trois tours ont des bulletins : l'annulé et le second tour du 1, le 2.
+    expect(screen.getAllByText('Détail des voix')).toHaveLength(3);
+    expect(screen.getByText('5 voix')).toBeInTheDocument();
+    expect(screen.getByText('0 voix, 5 barrées')).toBeInTheDocument();
+    expect(screen.getAllByText('Qui a voté contre qui')).toHaveLength(3);
+  });
+
+  it('la pastille dit l’état, et s’ouvre sur les trois réglages', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Anti-spoiler · rien de vu' })
+    );
+    const feuille = await screen.findByRole('dialog', { name: 'Anti-spoiler' });
+    await user.click(within(feuille).getByRole('radio', { name: 'Tout voir' }));
+
+    expect(useAppStore.getState().spoiler).toBe('reveal_all');
+    expect(
+      screen.getByRole('button', { name: 'Tout voir · aucun masquage' })
+    ).toHaveAttribute('data-tone', 'warning');
   });
 });

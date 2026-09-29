@@ -17,7 +17,7 @@ import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../store/useAppStore';
 import { useNotesStore } from '../store/useNotesStore';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';
-import { homeFigures } from '../domain/summary';
+import { episodesBehind, homeFigures } from '../domain/summary';
 
 interface Tile {
   readonly to: string;
@@ -38,6 +38,8 @@ export function HomeTiles() {
 
   if (!referential) return null;
   const f = homeFigures(referential, favorites, watched, limit);
+  const behind = episodesBehind(referential, watched);
+  const toCatchUp = f.aired - f.upTo;
 
   const tiles: Tile[] = [
     {
@@ -94,6 +96,24 @@ export function HomeTiles() {
           évite de faire passer une précaution pour une erreur de compte. */}
       {f.upTo < f.aired && (
         <div className="catch-up">
+          {/* UN COMPTE À REBOURS, PAS UN CONSTAT. Le retard se lit en
+              épisodes — jamais en faits masqués, qui trahiraient une soirée à
+              deux départs — et la barre se remplit à mesure qu'on rattrape. */}
+          <p className="catch-up-count">
+            <strong>{toCatchUp}</strong>{' '}
+            {toCatchUp > 1 ? 'épisodes à rattraper' : 'épisode à rattraper'}
+          </p>
+          <div
+            className="catch-up-meter"
+            role="progressbar"
+            aria-label="Épisodes rattrapés"
+            aria-valuemin={0}
+            aria-valuemax={f.aired}
+            aria-valuenow={f.upTo}
+            style={{ '--share': f.upTo / f.aired } as React.CSSProperties}
+          >
+            <span />
+          </div>
           <p>
             Vous en êtes à l’épisode {f.upTo}, {f.aired}{' '}
             {f.aired > 1 ? 'sont diffusés' : 'est diffusé'}. Les comptes
@@ -115,6 +135,14 @@ export function HomeTiles() {
             )}
           </div>
         </div>
+      )}
+      {/* Le compte est tombé à zéro : on le dit, une ligne, sans fanfare. Sur
+          le suivi coché, pas sur la limite — « Tout voir » n'est pas « à
+          jour ». */}
+      {f.aired > 0 && behind === 0 && (
+        <p className="caught-up" role="status">
+          À jour : zéro épisode de retard.
+        </p>
       )}
       {referential.provenance.kind === 'wikipedia' &&
         referential.provenance.fetchedAt && (

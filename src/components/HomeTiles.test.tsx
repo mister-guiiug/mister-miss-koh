@@ -95,3 +95,38 @@ describe('les tuiles de l’accueil', () => {
     expect(screen.queryByText(/réglage\s+anti-spoiler/)).toBeNull();
   });
 });
+
+describe('le rattrapage, en compte à rebours', () => {
+  it('compte les épisodes à rattraper, et la barre dit où l’on en est', () => {
+    useAppStore.setState({ spoiler: 'hide_unwatched', watched: [] });
+    renderTiles();
+
+    expect(screen.getByText('épisodes à rattraper')).toBeInTheDocument();
+    const barre = screen.getByRole('progressbar', {
+      name: 'Épisodes rattrapés',
+    });
+    expect(barre).toHaveAttribute('aria-valuenow', '0');
+    expect(barre).toHaveAttribute('aria-valuemax', String(AIRED));
+  });
+
+  it('au singulier quand il n’en reste qu’un', () => {
+    useAppStore.setState({ spoiler: 'hide_unwatched', watched: [1] });
+    renderTiles();
+
+    expect(screen.getByText('épisode à rattraper')).toBeInTheDocument();
+  });
+
+  it('tombé à zéro, il le dit — sur le suivi coché, pas sur la limite', () => {
+    useAppStore.setState({ spoiler: 'hide_unwatched', watched: [1, 2] });
+    const { unmount } = renderTiles();
+    expect(
+      screen.getByText('À jour : zéro épisode de retard.')
+    ).toBeInTheDocument();
+    unmount();
+
+    // « Tout voir » sans rien avoir coché n'est pas « à jour ».
+    useAppStore.setState({ spoiler: 'reveal_all', watched: [] });
+    renderTiles();
+    expect(screen.queryByText('À jour : zéro épisode de retard.')).toBeNull();
+  });
+});

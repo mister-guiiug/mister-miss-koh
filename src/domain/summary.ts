@@ -19,6 +19,7 @@
  */
 import type { Referential } from './referential';
 import { inGame, lastAiredEpisode } from './stats';
+import { lastWatched } from './spoiler';
 
 export interface HomeFigures {
   /** Candidats de la saison, tous statuts confondus. */
@@ -66,4 +67,21 @@ export function homeFigures(
     watched: watched.filter(n => n >= 1 && n <= aired).length,
     upTo,
   };
+}
+
+/**
+ * Les épisodes DIFFUSÉS que l'on n'a pas encore cochés : un nombre
+ * d'épisodes, jamais de faits.
+ *
+ * Compter ce qui est masqué (« 2 faits vous attendent ») dirait déjà qu'une
+ * soirée a eu deux départs. Le nombre d'épisodes diffusés, lui, est public :
+ * c'est la grille des programmes. C'est ce chiffre que portent le bloc de
+ * rattrapage de l'accueil et la pastille de l'icône.
+ */
+export function episodesBehind(
+  referential: Referential | null,
+  watched: readonly number[]
+): number {
+  if (!referential) return 0;
+  return Math.max(0, lastAiredEpisode(referential) - lastWatched(watched));
 }

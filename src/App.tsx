@@ -18,6 +18,7 @@ import { ErrorBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundar
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
+import { useIdlePrefetch } from '@mister-guiiug/dev-pwa-config/react/use-prefetch';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
 import { usePhotosStore } from './store/usePhotosStore';
@@ -33,7 +34,6 @@ import { EpisodesScreen } from './features/episodes/EpisodesScreen';
 import { NotesScreen } from './features/notes/NotesScreen';
 
 import { AccountScreen } from './features/account/AccountScreen';
-import { SettingsScreen } from './features/settings/SettingsScreen';
 import { OfflineScreen } from './features/offline/OfflineScreen';
 
 // Le socle demande un RÔLE d'icône, l'app fournit le dessin (lucide, règle
@@ -69,6 +69,18 @@ const SharedPhotoScreen = lazy(async () => ({
   default: (await import('./features/share/SharedPhotoScreen'))
     .SharedPhotoScreen,
 }));
+/**
+ * LES RÉGLAGES AUSSI, depuis que l'anti-spoiler s'est rendu visible (limite,
+ * vague de coches, détail des voix, pastille). Le chunk d'entrée pesait 115
+ * Kio sous une borne de 117 ; ces ajouts le portaient à 121. Plutôt que de
+ * relever la borne, on sort l'écran le moins visité — et avec lui ce que lui
+ * seul importe : la file des portraits, l'export ZIP, la carte, la relecture
+ * de Wikipédia. On y va pour régler, rarement ; on n'y arrive jamais.
+ */
+const loadSettings = () => import('./features/settings/SettingsScreen');
+const SettingsScreen = lazy(async () => ({
+  default: (await loadSettings()).SettingsScreen,
+}));
 
 /**
  * La coquille reste à l'écran pendant le chargement : la frontière `Suspense`
@@ -90,6 +102,10 @@ function ALaDemande({ children }: { children: ReactNode }) {
 }
 
 function RoutedApp() {
+  // ON Y VA D'UN CLIC, depuis la barre basse : contrairement aux écrans de
+  // partage, les Réglages se préchargent dès que le navigateur est au repos,
+  // après la première peinture. Le clic ne paie pas l'aller-retour réseau.
+  useIdlePrefetch(loadSettings);
   return (
     <HashRouter>
       <Routes>
@@ -133,7 +149,14 @@ function RoutedApp() {
             }
           />
           <Route path="/compte" element={<AccountScreen />} />
-          <Route path="/reglages" element={<SettingsScreen />} />
+          <Route
+            path="/reglages"
+            element={
+              <ALaDemande>
+                <SettingsScreen />
+              </ALaDemande>
+            }
+          />
           <Route path="/hors-connexion" element={<OfflineScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

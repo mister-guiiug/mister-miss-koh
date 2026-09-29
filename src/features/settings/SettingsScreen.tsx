@@ -20,23 +20,9 @@ import { useRereadWikipedia } from '../../hooks/useRereadWikipedia';
 import { useReviewer } from '../../hooks/useReviewer';
 import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
 import { coverage, type Origin } from '../../backend/referentialRepository';
-import type { SpoilerMode } from '../../domain/spoiler';
 import { Provenance } from '../../components/Provenance';
+import { SpoilerModePicker } from '../../components/SpoilerModePicker';
 import { REPO_URL } from '../../links';
-
-const SPOILER_OPTIONS: { value: SpoilerMode; label: string; hint: string }[] = [
-  {
-    value: 'hide_unwatched',
-    label: 'Masquer ce que je n’ai pas vu',
-    hint: 'Le plus sûr : seuls les épisodes cochés « vu » sont révélés.',
-  },
-  {
-    value: 'hide_future',
-    label: 'Masquer les épisodes du jour et à venir',
-    hint: 'Tout ce qui est diffusé avant aujourd’hui est visible.',
-  },
-  { value: 'reveal_all', label: 'Tout voir', hint: 'Aucun masquage.' },
-];
 
 /* Les deux réglages du mouvement, expliqués : ils pilotent le CSS de
    l'interface (`data-motion`, voir animations/motion.ts), pas seulement une
@@ -66,8 +52,8 @@ const ORIGIN_LABEL: Record<
 export function SettingsScreen() {
   const theme = useThemeContext();
   const { account, available } = useSession();
-  const spoiler = useAppStore(s => s.spoiler);
-  const setSpoiler = useAppStore(s => s.setSpoiler);
+  const appBadge = useAppStore(s => s.appBadge);
+  const setAppBadge = useAppStore(s => s.setAppBadge);
   const animations = useAppStore(s => s.animations);
   const setAnimations = useAppStore(s => s.setAnimations);
   const reduceMotion = useAppStore(s => s.reduceMotion);
@@ -120,35 +106,9 @@ export function SettingsScreen() {
 
       <Card>
         <CardHeader title="Anti-spoiler" />
-        <fieldset className="stack">
-          <legend className="sr-only">Que faut-il masquer ?</legend>
-          {SPOILER_OPTIONS.map(o => (
-            // Toute la carte se touche (`.option`) ; le nom du contrôle reste
-            // le libellé seul, l'explication une description.
-            <div key={o.value} className="radio option">
-              <input
-                id={`spoiler-${o.value}`}
-                type="radio"
-                name="spoiler"
-                value={o.value}
-                checked={spoiler === o.value}
-                onChange={() => setSpoiler(o.value)}
-                aria-describedby={`spoiler-${o.value}-hint`}
-              />
-              <span>
-                <label htmlFor={`spoiler-${o.value}`}>
-                  <strong>{o.label}</strong>
-                </label>
-                <br />
-                {/* Le complément est une DESCRIPTION, pas le nom du contrôle :
-                    le lecteur d'écran lit le libellé, puis l'explication. */}
-                <small id={`spoiler-${o.value}-hint`} className="muted">
-                  {o.hint}
-                </small>
-              </span>
-            </div>
-          ))}
-        </fieldset>
+        {/* Le même contrôle s'ouvre depuis l'écran des Épisodes : un seul
+            texte pour les trois réglages, dans `domain/spoilerModes.ts`. */}
+        <SpoilerModePicker idPrefix="spoiler" />
       </Card>
 
       <Card>
@@ -187,6 +147,26 @@ export function SettingsScreen() {
               </span>
             </div>
           ))}
+          <div className="check">
+            <input
+              id="app-badge"
+              type="checkbox"
+              checked={appBadge}
+              onChange={e => setAppBadge(e.target.checked)}
+              aria-describedby="app-badge-hint"
+            />
+            <span>
+              <label htmlFor="app-badge">
+                <strong>Pastille sur l’icône</strong>
+              </label>
+              <br />
+              <small id="app-badge-hint" className="muted">
+                Le nombre d’épisodes diffusés que vous n’avez pas cochés, sur
+                l’icône de l’app installée — jamais ce qui s’y passe. Là où le
+                système le permet.
+              </small>
+            </span>
+          </div>
         </div>
       </Card>
 

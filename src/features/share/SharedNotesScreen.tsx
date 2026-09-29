@@ -17,14 +17,13 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
-import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../../store/useAppStore';
 import { sharingRepository, type SharedNote } from '../../backend/sharing';
-import { labelOf, noteChoices } from '../../domain/noteTargets';
-import { stars } from '../../domain/notesExport';
+import { noteChoices } from '../../domain/noteTargets';
+import { ReadNoteCard } from '../../components/ReadNoteCard';
+import { ReaderLimitPrompt } from '../../components/ReaderLimitPrompt';
 import { attribution } from '../../domain/profile';
 
 type State =
@@ -152,20 +151,13 @@ function SharedNotes({
             Ces notes sont des opinions personnelles, pas des données de la
             saison.
           </p>
+          {/* LA LIMITE EST CELLE DU LECTEUR. L'auteur sait ce qu'il a écrit ;
+              l'ami qui ouvre le lien, lui, n'en est peut-être qu'à l'épisode
+              2 — et « T'as vu ?! Elle est éliminée !! » est exactement le
+              message que l'application promet de tenir à distance. */}
+          <ReaderLimitPrompt notes={state.notes} />
           {state.notes.map(note => (
-            <Card key={note.id}>
-              <CardHeader
-                title={labelOf(choices, note.target, note.targetId)}
-                subtitle={`modifiée le ${formatDate(note.updatedAt)}`}
-              />
-              {note.rating !== null && (
-                <p className="rating" aria-label={`${note.rating} sur 5`}>
-                  <span aria-hidden>{stars(note.rating)}</span>
-                </p>
-              )}
-              {note.title && <p className="note-title">{note.title}</p>}
-              <p className="shared-body">{note.body}</p>
-            </Card>
+            <ReadNoteCard key={note.id} note={note} choices={choices} />
           ))}
         </>
       )}
