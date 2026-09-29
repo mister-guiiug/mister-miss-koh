@@ -229,25 +229,26 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 
 ## Vérifier
 
-| Commande                            | Ce qu'elle vérifie                                                       | État au 28/09/2026                 |
-| ----------------------------------- | ------------------------------------------------------------------------ | ---------------------------------- |
-| `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement          |
-| `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                             |
-| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 464 tests verts                    |
-| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 169 tests verts                    |
-| `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes               |
-| `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes               |
-| `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes               |
-| `npm run test:photo:remote`         | pgTAP : partage éphémère, brûlure, péremption, quota                     | 26 assertions vertes               |
-| `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 21 assertions vertes               |
-| `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 107 kB, préchargé ≤ 223 kB) | 513 kB gzip, index 115 kB          |
-| `npm run doctor`                    | `pwa-doctor` du socle                                                    | 0 défaut, 0 dette, 1 info, 1 refus |
+| Commande                            | Ce qu'elle vérifie                                                       | État au 29/09/2026        |
+| ----------------------------------- | ------------------------------------------------------------------------ | ------------------------- |
+| `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement |
+| `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                    |
+| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 507 tests verts           |
+| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 169 tests verts           |
+| `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes      |
+| `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes      |
+| `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes      |
+| `npm run test:photo:remote`         | pgTAP : partage éphémère, brûlure, péremption, quota                     | 26 assertions vertes      |
+| `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 21 assertions vertes      |
+| `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 107 kB, préchargé ≤ 223 kB) | 519 kB gzip, index 100 kB |
+| `npm run doctor`                    | `pwa-doctor` du socle                                                    | 0 défaut, 0 dette, 1 info |
 
-La colonne « État » vient des journaux de la CI de `main` du 28/09/2026 :
-`ci.yml` (lint, types, Vitest, Deno, build, docteur en `--strict`), `deploy.yml`
-pour le poids, et `supabase-tests.yml`, qui joue les cinq suites pgTAP sur une
-pile jetable. Leurs variantes `:remote`, elles, se lancent à la main contre la
-base liée.
+La colonne « État » vient des journaux de la CI de `main` : `ci.yml` (lint,
+types, Vitest, Deno, build, docteur en `--strict`) et `deploy.yml` pour le
+poids, au 29/09/2026 (257496f) ; `supabase-tests.yml`, qui joue les cinq suites
+pgTAP sur une pile jetable, au 28/09/2026 (cae5bfe) — il ne tourne que lorsque
+`supabase/` change, et rien n'y a changé depuis. Leurs variantes `:remote`,
+elles, se lancent à la main contre la base liée.
 
 > **Le budget de bundle est enfin MESURÉ.** Jusqu'au socle 4.5.0,
 > `pwa-bundle-budget` sortait muet derrière le lien de `node_modules/.bin` et
@@ -266,10 +267,11 @@ base liée.
 >
 > **Les Réglages se chargent à la demande depuis le 29/09/2026**, préchargés dès
 > que le navigateur est au repos. L'anti-spoiler rendu visible portait l'index de
-> 115 à 121 Kio, sous une borne de 117 ; sortir l'écran le moins visité — et ce
-> que lui seul importe : file des portraits, export ZIP, carte, relecture de
-> Wikipédia — l'a ramené à 100 Kio en local. La borne est redescendue à 107 :
-> un cliquet qu'on ne redescend pas quand le poids baisse n'en est plus un.
+> 115 à 121 Kio (mesures locales), sous une borne de 117 ; sortir l'écran le
+> moins visité — et ce que lui seul importe : file des portraits, export ZIP,
+> carte, relecture de Wikipédia — l'a ramené à 100 Kio, en CI comme au
+> déploiement de 257496f. La borne est redescendue à 107 : un cliquet qu'on ne
+> redescend pas quand le poids baisse n'en est plus un.
 
 ## Licence, et ce que le projet stocke
 
