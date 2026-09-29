@@ -60,6 +60,10 @@ select set_eq(
        )
   $$,
   array[
+    -- Aides de la RLS : elles ne rendent que ce qui concerne l'appelant, rien
+    -- pour anon
+    'has_role',
+    'is_staff',
     -- Publiques par conception : disponibilité d'un pseudo, et liens de
     -- partage protégés par leur jeton
     'consume_photo_share',
