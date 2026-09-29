@@ -169,6 +169,30 @@ revient, et l'on ressort** : un éliminé que l'arène ramène dans une tribu
 redevient « en jeu », et sa fiche raconte sortie, retour et nouvelle sortie,
 chaque ligne derrière sa garde anti-spoiler.
 
+**L'anti-spoiler se voit, là où il agit.** Sur l'écran des épisodes, un repère
+pleine largeur, « Vous en êtes là · épisode N », sépare ce qu'on a vu de ce qui
+reste masqué, et l'écran s'ouvre dessus. Cocher le 8 coche aussi du 3 au 7 : la
+règle agissait en silence, elle part maintenant **en vague** depuis l'épisode
+touché, se dit dans un message et s'**annule** d'un geste. Un épisode masqué
+garde la même **silhouette givrée** que tous les autres (Confort, Immunité,
+Conseil, des barres de largeur fixe) : jamais le vrai texte flouté, qui resterait
+lisible au lecteur d'écran, et jamais une forme qui trahirait un conseil absent
+ou une soirée à deux départs. Une **pastille** dit l'état du réglage et ouvre
+ses trois choix ; en « Tout voir », elle passe en avertissement. Chaque tour de
+conseil se **détaille** — voix par candidat, bulletins, voix barrées, « ≥ »
+quand la source est partielle —, derrière la garde de sa soirée. L'accueil
+compte les **épisodes à rattraper** (des épisodes, jamais des faits masqués, qui
+diraient qu'une soirée a eu deux départs), et le même nombre peut s'afficher sur
+l'**icône** de l'application installée, là où le système le permet. Une
+**première ouverture** en trois temps demande où l'on en est, ce qu'il faut
+masquer et qui l'on suit, sans rien montrer de la saison.
+
+**Les notes d'un autre se lisent à VOTRE limite.** Une note partagée par lien,
+ou publique sur un profil, peut parler de tout ce qui était diffusé quand elle a
+été écrite : elle se masque chez le lecteur qui n'en est pas là, et l'écran lui
+demande où il en est. Il peut l'afficher quand même, pour cette note seulement.
+L'auteur, lui, lit toujours les siennes : il sait ce qu'il y a écrit.
+
 **L'application démarre sans configuration.** Sans backend, elle tourne sur un
 référentiel de démonstration explicitement marqué « Donnée fictive de
 démonstration » : aucun de ses prénoms n'est réel. C'est le comportement d'une
@@ -216,7 +240,7 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 | `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes               |
 | `npm run test:photo:remote`         | pgTAP : partage éphémère, brûlure, péremption, quota                     | 26 assertions vertes               |
 | `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 21 assertions vertes               |
-| `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 117 kB, préchargé ≤ 223 kB) | 513 kB gzip, index 115 kB          |
+| `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 107 kB, préchargé ≤ 223 kB) | 513 kB gzip, index 115 kB          |
 | `npm run doctor`                    | `pwa-doctor` du socle                                                    | 0 défaut, 0 dette, 1 info, 1 refus |
 
 La colonne « État » vient des journaux de la CI de `main` du 28/09/2026 :
@@ -239,6 +263,13 @@ base liée.
 > propre fichier. Ce fichier est **préchargé par `index.html`** : la charge du
 > premier écran n'a pas diminué, elle s'est répartie. `mainChunkKb` borne un
 > FICHIER, pas le premier écran.
+>
+> **Les Réglages se chargent à la demande depuis le 29/09/2026**, préchargés dès
+> que le navigateur est au repos. L'anti-spoiler rendu visible portait l'index de
+> 115 à 121 Kio, sous une borne de 117 ; sortir l'écran le moins visité — et ce
+> que lui seul importe : file des portraits, export ZIP, carte, relecture de
+> Wikipédia — l'a ramené à 100 Kio en local. La borne est redescendue à 107 :
+> un cliquet qu'on ne redescend pas quand le poids baisse n'en est plus un.
 
 ## Licence, et ce que le projet stocke
 

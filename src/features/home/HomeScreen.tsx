@@ -1,3 +1,4 @@
+import { Suspense, lazy, useState } from 'react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { PwaInstallPrompt } from '@mister-guiiug/dev-pwa-config/react/pwa-install-prompt';
@@ -7,15 +8,35 @@ import { HomeTiles } from '../../components/HomeTiles';
 import { AppAnimation } from '../../animations/AppAnimation';
 import { REPO_URL } from '../../links';
 
+// À LA DEMANDE : la première ouverture ne sert qu'une fois, et le morceau
+// d'entrée n'a que quelques kilo-octets de marge sous sa borne.
+const Onboarding = lazy(async () => ({
+  default: (await import('../onboarding/Onboarding')).Onboarding,
+}));
+
 export function HomeScreen() {
   const referential = useAppStore(s => s.referential);
   const notice = useAppStore(s => s.notice);
+  const onboarded = useAppStore(s => s.onboarded);
+  // DÉCIDÉ À L'ARRIVÉE, pas à chaque rendu : répondre à la première question
+  // coche des épisodes, et la présentation ne doit pas disparaître en plein
+  // milieu pour autant. Elle ne s'offre qu'à qui n'a encore rien coché.
+  const [welcome] = useState(
+    () =>
+      !useAppStore.getState().onboarded &&
+      useAppStore.getState().watched.length === 0
+  );
   if (!referential) return null;
 
   return (
     <div className="stack">
       <PullToRefresh />
       <AppAnimation name="app-start" className="hero-animation" />
+      {welcome && !onboarded && (
+        <Suspense fallback={null}>
+          <Onboarding />
+        </Suspense>
+      )}
       {/* L'avis vient AVANT le contenu : quand ce qui s'affiche n'est pas le
           serveur, il faut le savoir avant de lire, pas après. */}
       {notice && (

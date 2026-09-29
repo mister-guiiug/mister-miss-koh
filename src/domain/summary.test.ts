@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { homeFigures } from './summary';
+import { episodesBehind, homeFigures } from './summary';
 import { inGame, lastAiredEpisode } from './stats';
 import { DEMO_REFERENTIAL } from '../backend/demo';
 
@@ -58,5 +58,19 @@ describe('les chiffres de l’accueil', () => {
     const f = homeFigures(DEMO_REFERENTIAL, [], tous, 99);
 
     expect(f.watched).toBe(AIRED);
+  });
+});
+
+describe('episodesBehind — le retard, en épisodes', () => {
+  it('compte les épisodes diffusés au-delà du dernier coché', () => {
+    // Démonstration : deux épisodes diffusés.
+    expect(episodesBehind(DEMO_REFERENTIAL, [])).toBe(2);
+    expect(episodesBehind(DEMO_REFERENTIAL, [1])).toBe(1);
+    expect(episodesBehind(DEMO_REFERENTIAL, [1, 2])).toBe(0);
+  });
+
+  it('ne descend jamais sous zéro, et vaut zéro sans référentiel', () => {
+    expect(episodesBehind(DEMO_REFERENTIAL, [1, 2, 3])).toBe(0);
+    expect(episodesBehind(null, [])).toBe(0);
   });
 });

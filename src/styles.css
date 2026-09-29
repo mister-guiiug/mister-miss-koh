@@ -2269,6 +2269,433 @@ a.catch-up-primary:focus-visible {
   }
 }
 
+/* ══ L'anti-spoiler rendu visible ══════════════════════════════════════════
+   La limite, la vague de coches, le masqué qui se voit comme masqué, la
+   pastille d'état, le détail des voix, le compte à rebours, la première
+   ouverture. Tout lit les jetons de mouvement ci-dessus, et obéit aux niveaux
+   `data-motion` qui suivent. */
+:root {
+  /* Le pas de la vague : l'écart entre deux cases cochées par la même règle.
+     Ramené à zéro par les niveaux `essential` et `none`. */
+  --wave-step: 55ms;
+}
+
+/* ── L'en-tête d'écran et sa pastille d'état ─────────────────────────────── */
+.screen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.screen-head h2 {
+  margin: 0;
+}
+
+.spoiler-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--dwc-border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.spoiler-chip svg {
+  flex: none;
+  color: var(--primary);
+}
+
+.spoiler-chip:active {
+  transform: scale(0.96);
+}
+
+.spoiler-chip:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* « Tout voir » : plus rien n'est protégé, et cela doit se voir. */
+.spoiler-chip[data-tone='warning'] {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  color: var(--warn-ink);
+}
+
+.spoiler-chip[data-tone='warning'] svg {
+  color: var(--warn-ink);
+}
+
+/* ── La vague : cocher le 8 coche du 8 au 3, une case après l'autre ─────── */
+.wave,
+.wave .seen,
+.wave .seen input,
+.wave .seen input::before {
+  transition-delay: calc(var(--wave, 0) * var(--wave-step));
+}
+
+.wave .reveal {
+  animation-delay: calc(var(--wave, 0) * var(--wave-step));
+}
+
+/* ── Vous en êtes là : la limite, pleine largeur, entre deux épisodes ───── */
+.limit-marker {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.limit-marker::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 50%, transparent);
+  transform-origin: 0 50%;
+  animation: koh-limite-trait var(--motion-slow) var(--ease-out) backwards;
+}
+
+.limit-badge,
+.limit-note {
+  position: relative;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+}
+
+.limit-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.2rem 0.85rem;
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-weight: 700;
+  animation: koh-pastille var(--motion-slow) var(--ease-spring) 120ms backwards;
+}
+
+/* Un fond pour couper le trait : la note se lit sur la page, pas sur lui. */
+.limit-note {
+  padding: 0.1rem 0.55rem;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+@keyframes koh-limite-trait {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes koh-pastille {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+/* ── Le masqué, givré : des libellés et des barres de largeur fixe ──────── */
+.spoiler {
+  background: linear-gradient(
+    135deg,
+    var(--surface-2),
+    color-mix(in srgb, var(--surface-2) 60%, var(--surface))
+  );
+}
+
+.spoiler-rows {
+  margin-bottom: 0.65rem;
+}
+
+.spoiler-rows dd {
+  display: flex;
+  align-items: center;
+  min-height: 1.5em;
+}
+
+.frost {
+  display: block;
+  width: var(--frost, 60%);
+  height: 0.8em;
+  border-radius: 999px;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--text-muted) 18%, transparent) 30%,
+    color-mix(in srgb, var(--text-muted) 38%, transparent) 50%,
+    color-mix(in srgb, var(--text-muted) 18%, transparent) 70%
+  );
+  background-size: 250% 100%;
+  background-position: 0 0;
+  /* Le givre se POSE, une fois, puis se tient : un scintillement sans fin sur
+     chaque épisode masqué ferait bouger tout l'écran pour rien. */
+  animation: koh-givre 1.2s var(--ease-out) backwards;
+}
+
+@keyframes koh-givre {
+  from {
+    background-position: 100% 0;
+    opacity: 0.4;
+  }
+}
+
+.spoiler-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.spoiler-lock {
+  flex: none;
+  margin-top: 0.2em;
+  color: var(--text-muted);
+}
+
+.spoiler-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Le démasqué se DÉGIVRE : il monte, et son flou se lève. */
+.reveal {
+  animation: koh-degivre var(--motion-slow) var(--ease-out) backwards;
+}
+
+@keyframes koh-degivre {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(0.35rem);
+  }
+}
+
+/* ── Le détail des voix ──────────────────────────────────────────────────── */
+/* Un tour, un bloc : son détail se lit sous LUI, pas au-dessus du suivant. */
+.council-round + .council-round {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border);
+}
+
+.council {
+  margin-top: 0.25rem;
+}
+
+.council summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.council summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.council-detail {
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.council-bars {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.council-bars li {
+  display: grid;
+  grid-template-columns: minmax(5rem, max-content) 1fr max-content;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.council-bar {
+  display: flex;
+  height: 0.7rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+}
+
+.council-fill {
+  width: calc(var(--votes) * 100%);
+  border-radius: 999px;
+  background: var(--primary);
+  transform-origin: 0 50%;
+  animation: koh-barre var(--motion-slow) var(--ease-out) backwards;
+}
+
+/* Une voix barrée se montre, hachurée, à la suite des voix qui comptent. */
+.council-struck {
+  width: calc(var(--struck) * 100%);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--text-muted) 0 2px,
+    transparent 2px 5px
+  );
+  opacity: 0.6;
+}
+
+.council-count {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.council-ballots-title {
+  margin: 0.75rem 0 0.2rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.council-ballots {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: var(--text-sm);
+  columns: 2 12rem;
+}
+
+@keyframes koh-barre {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ── Le compte à rebours du rattrapage ──────────────────────────────────── */
+.catch-up-count strong {
+  margin-right: 0.15rem;
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.catch-up-meter {
+  height: 0.5rem;
+  margin: 0.45rem 0 0.7rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+}
+
+.catch-up-meter span {
+  display: block;
+  width: calc(var(--share, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transform-origin: 0 50%;
+  transition: width var(--motion-slow) var(--ease-out);
+  animation: koh-barre var(--motion-slow) var(--ease-out) 150ms backwards;
+}
+
+.caught-up {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+  color: var(--ok-ink);
+  font-weight: 600;
+}
+
+.caught-up::before {
+  content: '✓';
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--ok);
+  color: var(--bg);
+  animation: koh-pastille var(--motion-slow) var(--ease-spring) backwards;
+}
+
+/* ── La première ouverture ──────────────────────────────────────────────── */
+.onboarding {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.onboarding-step {
+  display: inline-flex;
+  align-self: flex-start;
+  width: fit-content;
+  margin: 0 0 0.5rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  background: var(--dwc-primary-soft);
+  color: var(--primary-strong);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.onboarding-title {
+  margin: 0 0 0.25rem;
+  animation: koh-degivre var(--motion-base) var(--ease-out) backwards;
+}
+
+.onboarding > .muted {
+  margin: 0 0 0.8rem;
+}
+
+.onboarding-cast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  max-height: 18rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.onboarding-cast li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-left: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.reader-limit p {
+  margin: 0 0 0.6rem;
+}
+
 /* ── Les niveaux de mouvement (`data-motion`, posé par useMotionLevel) ───
    `essential` — « Animations » décochée : le décoratif est ramené à 0,01 ms.
    Pas `none` : `animationend` doit continuer de tomber, l'étoile s'en sert
@@ -2291,7 +2718,14 @@ a.catch-up-primary:focus-visible {
 [data-motion='essential'] [data-dwc='update-banner'],
 [data-motion='essential'] [data-dwc='offline-ready'],
 [data-motion='essential'] [data-dwc='sheet-panel'],
-[data-motion='essential'] [data-dwc='confirm-panel'] {
+[data-motion='essential'] [data-dwc='confirm-panel'],
+[data-motion='essential'] .limit-marker::before,
+[data-motion='essential'] .limit-badge,
+[data-motion='essential'] .frost,
+[data-motion='essential'] .council-fill,
+[data-motion='essential'] .catch-up-meter span,
+[data-motion='essential'] .caught-up::before,
+[data-motion='essential'] .onboarding-title {
   animation-duration: 0.01ms;
   animation-iteration-count: 1;
   /* LE DÉLAI AUSSI, et pas seulement la durée. La cascade d'arrivée retarde
@@ -2299,6 +2733,12 @@ a.catch-up-primary:focus-visible {
      tout ce temps avant de surgir d'un coup — c'est-à-dire l'inverse de ce
      qu'on demande en décochant « Animations ». */
   animation-delay: 0ms;
+}
+
+/* La vague n'attend plus : chaque case répond à son geste, sans délai. */
+[data-motion='essential'],
+[data-motion='none'] {
+  --wave-step: 0ms;
 }
 
 [data-motion='none'] *,
@@ -2314,6 +2754,10 @@ a.catch-up-primary:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --wave-step: 0ms;
+  }
+
   *,
   *::before,
   *::after {
