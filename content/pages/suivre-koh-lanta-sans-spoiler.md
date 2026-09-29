@@ -1,6 +1,9 @@
 ---
 title: Suivre Koh-Lanta sans spoiler : conseils et suivi par épisode
 description: Regarder Koh-Lanta en replay sans apprendre qui est éliminé avant l'heure : où se cachent les spoilers, sept réflexes pour les éviter, et un suivi anti-spoiler.
+date: 2026-09-25
+updated: 2026-09-29
+answer: Pour suivre Koh-Lanta sans spoiler, coupez les notifications d'actualité le soir de la diffusion, masquez le nom de l'émission et des candidats sur les réseaux sociaux, et ne cherchez aucun candidat avant d'avoir vu l'épisode. Mister & Miss Koh masque tout ce qui suit le dernier épisode que vous avez coché.
 ---
 
 # Suivre Koh-Lanta sans spoiler, à votre rythme
@@ -30,7 +33,7 @@ Koh-Lanta est une émission de TF1, produite par ALP. Mister & Miss Koh est une 
 
 ## Ce qu'on suit dans un épisode
 
-Un épisode s'organise en général autour d'épreuves, souvent de confort et d'immunité, puis d'un conseil où les aventuriers votent pour éliminer l'un d'eux. Les règles changent d'une saison à l'autre : jeu en duos ou en tribus, réunification, colliers d'immunité, retours dans le jeu. C'est précisément ce qui rend le suivi délicat : savoir qui est « encore en jeu » à un épisode donné suppose de connaître tout ce qui s'est passé avant, et rien de ce qui vient après.
+Un épisode s'organise en général autour d'épreuves, souvent de confort et d'immunité, puis d'un conseil où les aventuriers votent pour éliminer l'un d'eux. Les règles changent d'une saison à l'autre : jeu en duos ou en tribus, réunification, colliers d'immunité, retours dans le jeu. C'est précisément ce qui rend le suivi délicat : savoir qui est « encore en jeu » à un épisode donné suppose de connaître tout ce qui s'est passé avant, et rien de ce qui vient après. Pour le détail de ces mécanismes, lisez [les règles de Koh-Lanta expliquées](regles-de-koh-lanta.html).
 
 ## Comment Mister & Miss Koh vous aide
 
@@ -60,3 +63,11 @@ Parce qu'un épisode diffusé ce soir est encore un spoiler pour tous ceux qui l
 ### Mister & Miss Koh est-elle une application officielle de Koh-Lanta ?
 
 Non. C'est une application indépendante, sans lien avec TF1 ni avec la production de l'émission. Son identité visuelle ne reprend ni logo ni élément graphique de l'émission.
+
+## Sources
+
+Attention : les articles de Wikipédia citent des résultats de saisons. Ouvrez-les une fois à jour.
+
+- [Wikipédia : Koh-Lanta](https://fr.wikipedia.org/wiki/Koh-Lanta)
+- [Wikipédia : conditions de réutilisation de son contenu](https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Citation_et_r%C3%A9utilisation_du_contenu_de_Wikip%C3%A9dia)
+- [Creative Commons : la licence CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
