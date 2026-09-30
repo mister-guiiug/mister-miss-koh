@@ -752,12 +752,27 @@ données anciennes.
 
 C'est le genre de panne qu'une CI verte ne voit pas : tout le code marchait.
 
-**Deux tâches `pg_cron`** (migration `0026`) :
+**Deux tâches `pg_cron`** (migrations `0026`, `0032` et `0035`) :
 
-| tâche                  | quand                  | quoi                     |
-| ---------------------- | ---------------------- | ------------------------ |
-| `koh-import-quotidien` | `17 4 * * *` UTC       | les 18 pages de saison   |
-| `koh-import-diffusion` | `*/30 14-22 * * *` UTC | la seule saison `airing` |
+| tâche                  | quand                  | quoi                                  |
+| ---------------------- | ---------------------- | ------------------------------------- |
+| `koh-import-quotidien` | `1-59/2 4-5 * * *` UTC | une page de saison par réveil, les 18 |
+| `koh-import-diffusion` | `*/30 14-22 * * *` UTC | la seule saison `airing`              |
+
+**La nuit lit une saison à la fois** (migration `0035`). Jusque-là, 4 h 17
+déclenchait les dix-huit imports dans une seule transaction, et `pg_net`
+n'envoie ses requêtes qu'une fois la transaction validée : les dix-huit
+partaient ensemble, et autant de fonctions Edge lisaient Wikipédia en même
+temps, contre la règle d'une requête à la fois. Une nuit ordinaire, ce ne sont
+que dix-huit lectures de révision ; mais le jour où l'extraction change de
+version, les dix-huit pages se relisent en entier, soit plus de cent requêtes
+en quelques secondes, et Wikipédia répond 429. Un `pg_sleep` entre deux appels
+n'y changerait rien, puisque tout part au COMMIT : il faut une transaction par
+saison. La tâche se réveille donc toutes les deux minutes, de 4 h à 6 h UTC, et
+`importer_la_saison_suivante()` déclenche UNE saison, une que la nuit n'a pas
+encore lue, la plus anciennement déclenchée d'abord (`dispatched_at`, noté
+quelle que soit l'issue). Les dix-huit se lisent entre 4 h 01 et 4 h 35.
+`importer_toutes_les_saisons()` reste pour un passage manuel immédiat.
 
 **L'heure de la fenêtre serrée est celle de PARIS**, pas celle du serveur.
 `pg_cron` lit ses expressions dans le fuseau de la base — UTC — et la France
@@ -802,8 +817,10 @@ toute seule au passage suivant.
 Un secret manquant ne fait pas un 401 toutes les demi-heures que personne ne
 lit : `declencher_import` s'arrête et écrit un `warning` nommant lequel manque.
 
-**Vérification** : `supabase/tests/planification.test.sql`, 19 assertions —
+**Vérification** : `supabase/tests/planification.test.sql`, 29 assertions :
 les deux tâches et leurs expressions, et surtout la bordure de la fenêtre
 éprouvée sur des instants d'été ET d'hiver, dont le cas qui justifie tout le
 mécanisme : 22 h UTC un mardi de septembre, qui est minuit à Paris et doit
-rester dehors.
+rester dehors. Depuis `0035`, le fichier éprouve aussi le choix de la nuit :
+une saison par réveil, toutes en autant de réveils qu'il y a de saisons, rien
+au réveil suivant, et une saison lue la veille qui redevient la première.

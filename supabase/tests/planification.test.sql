@@ -11,7 +11,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(21);
+select plan(29);
 
 -- ── Les deux tâches sont posées ───────────────────────────────────────────
 
@@ -27,10 +27,12 @@ select is(
   'le passage de diffusion est planifié, une fois'
 );
 
+-- UNE SAISON PAR RÉVEIL, UN RÉVEIL TOUTES LES DEUX MINUTES. Déclencher les
+-- dix-huit dans une seule transaction les faisait partir ensemble (voir 0035).
 select is(
   (select schedule from cron.job where jobname = 'koh-import-quotidien'),
-  '17 4 * * *',
-  'le quotidien tourne une fois par jour'
+  '1-59/2 4-5 * * *',
+  'la nuit se réveille toutes les deux minutes, de 4 h à 6 h UTC'
 );
 
 -- LA FENÊTRE UTC EST PLUS LARGE QUE CELLE DE PARIS, ET C'EST VOULU : elle
@@ -159,6 +161,77 @@ select ok(
 select ok(
   has_function_privilege('service_role', 'public.definir_secret_planification(text, text)', 'execute'),
   'service_role le peut — c''est par là que la CI pose les secrets'
+);
+
+-- ── La nuit, une saison par réveil ────────────────────────────────────────
+--
+-- Dans la pile de test, le Vault est vide : `declencher_import` s'arrête sur
+-- son avertissement et n'envoie rien. On juge donc le CHOIX de la saison, par
+-- `dispatched_at`, et non l'appel. Contre la base liée, le `rollback` final
+-- annule aussi les appels : `pg_net` n'envoie qu'après un COMMIT.
+
+select is(
+  (select command from cron.job where jobname = 'koh-import-quotidien'),
+  'select importer_la_saison_suivante()',
+  'chaque réveil de la nuit déclenche la saison suivante, et elle seule'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.importer_la_saison_suivante()', 'execute'),
+  'anon ne peut pas déclencher la saison suivante'
+);
+
+select ok(
+  not has_function_privilege('authenticated', 'public.importer_la_saison_suivante()', 'execute'),
+  'un compte connecté non plus'
+);
+
+-- Décor : la nuit commence, rien n'est encore déclenché.
+update source_documents set dispatched_at = null where source_id = 'wikipedia_fr';
+
+select importer_la_saison_suivante();
+select is(
+  (select count(*)::int from source_documents
+    where source_id = 'wikipedia_fr' and dispatched_at is not null),
+  1,
+  'un réveil déclenche UNE saison'
+);
+
+select importer_la_saison_suivante();
+select is(
+  (select count(*)::int from source_documents
+    where source_id = 'wikipedia_fr' and dispatched_at is not null),
+  2,
+  'le réveil suivant en déclenche une autre'
+);
+
+select importer_la_saison_suivante()
+  from generate_series(1, (select count(*)::int from source_documents
+                            where source_id = 'wikipedia_fr'));
+select is(
+  (select count(*)::int from source_documents
+    where source_id = 'wikipedia_fr' and dispatched_at is null),
+  0,
+  'autant de réveils que de saisons, et toutes sont déclenchées'
+);
+
+select is(
+  importer_la_saison_suivante(),
+  0,
+  'un réveil de plus ne déclenche rien : la nuit est faite'
+);
+
+-- La nuit suivante : une saison déclenchée il y a vingt et une heures redevient
+-- la première à lire.
+update source_documents set dispatched_at = now() - interval '21 hours'
+ where id = (select id from source_documents
+              where source_id = 'wikipedia_fr' order by created_at limit 1);
+select importer_la_saison_suivante();
+select is(
+  (select count(*)::int from source_documents
+    where source_id = 'wikipedia_fr' and dispatched_at < now() - interval '20 hours'),
+  0,
+  'une saison lue la nuit d''avant se relit la nuit suivante'
 );
 
 select finish();
