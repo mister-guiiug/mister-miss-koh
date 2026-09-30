@@ -24,6 +24,7 @@ const DOC: SourceDocument = {
   title: "Koh-Lanta All Stars",
   apiUrl: "https://fr.wikipedia.org/w/api.php",
   seasonSlug: "all-stars-2026",
+  pageId: "17479409",
 };
 
 const read = (name: string) =>
@@ -52,6 +53,7 @@ function fakePort(overrides: Partial<ImportPort> & {
     autoValidated: [] as string[],
     publishedRuns: [] as string[],
     held: [] as string[],
+    renamed: [] as string[],
     logs: [] as { action: string; summary: string }[],
   };
 
@@ -96,6 +98,10 @@ function fakePort(overrides: Partial<ImportPort> & {
       calls.held.push(documentId);
       return Promise.resolve();
     },
+    renameDocument: (_documentId, title) => {
+      calls.renamed.push(title);
+      return Promise.resolve();
+    },
     loadPolicy: () =>
       Promise.resolve(
         overrides.policy ?? { autoValidateUnambiguous: false, maxAutoChanges: 20 },
@@ -113,8 +119,12 @@ function fakePort(overrides: Partial<ImportPort> & {
 /** `fetch` de fantaisie : répond comme l'API MediaWiki, sans réseau. */
 function fakeFetch(options: {
   revId?: string;
+  /** Le titre que l'API donne aujourd'hui à la page. */
+  title?: string;
   sections?: { index: string; line: string }[];
   html?: Record<string, string>;
+  /** Avertissements joints aux réponses `action=parse`. */
+  warnings?: Record<string, { warnings: string }>;
 } = {}): typeof fetch {
   const sections = options.sections ?? [
     { index: "4", line: "Candidats" },
@@ -151,7 +161,7 @@ function fakeFetch(options: {
         query: {
           pages: [{
             pageid: 17479409,
-            title: DOC.title,
+            title: options.title ?? DOC.title,
             revisions: [{
               revid: Number(options.revId ?? "239179934"),
               timestamp: "2026-09-03T01:34:31Z",
@@ -160,11 +170,16 @@ function fakeFetch(options: {
           }],
         },
       };
-    } else if (prop === "sections") {
-      body = { parse: { sections: sections.map((s) => ({ ...s, number: s.index })) } };
     } else {
-      const index = url.searchParams.get("section") ?? "";
-      body = { parse: { text: html[index] ?? "" } };
+      // Comme l'API : une réponse `action=parse` nomme la révision lue.
+      const revid = Number(url.searchParams.get("oldid"));
+      const parse = prop === "tocdata"
+        ? {
+          revid,
+          tocdata: { sections: sections.map((s) => ({ ...s, number: s.index })) },
+        }
+        : { revid, text: html[url.searchParams.get("section") ?? ""] ?? "" };
+      body = options.warnings ? { warnings: options.warnings, parse } : { parse };
     }
 
     return Promise.resolve(
@@ -828,4 +843,140 @@ Deno.test("la version d'extraction est la 13 : les pages figées sont rejouées"
   // Sans ce changement de version, une page qui ne bouge plus répondrait
   // « révision déjà traitée », et ses statuts resteraient des tribus.
   assertEquals(EXTRACTOR_VERSION, "13");
+});
+
+// ── La récupération : une révision, une requête à la fois ─────────────────
+
+/** Enveloppe un `fetch` de fantaisie et garde chaque adresse demandée. */
+function recording(base: typeof fetch) {
+  const urls: URL[] = [];
+  const impl: typeof fetch = (input, init) => {
+    urls.push(new URL(String(input)));
+    return base(input, init);
+  };
+  return { impl, urls };
+}
+
+Deno.test("chaque lecture de contenu vise la révision vérifiée, jamais le titre", async () => {
+  // Un soir de diffusion, la page change pendant l'import. Lire par le titre
+  // mêlait deux révisions sous le numéro de la première.
+  const { impl, urls } = recording(fakeFetch({ revId: "239179935" }));
+  const { port } = fakePort();
+  const outcome = await runImport(port, { ...baseOptions, fetchImpl: impl });
+
+  assertEquals(outcome.status, "diffed");
+  assertEquals(outcome.revision, "239179935");
+  const lectures = urls.filter((u) => u.searchParams.get("action") === "parse");
+  assert(lectures.length >= 5, `lectures de contenu : ${lectures.length}`);
+  for (const u of lectures) {
+    assertEquals(u.searchParams.get("oldid"), "239179935");
+    assertEquals(u.searchParams.get("page"), null);
+  }
+});
+
+Deno.test("la page se lit par son pageid, pas par son titre", async () => {
+  const { impl, urls } = recording(fakeFetch());
+  const { port } = fakePort();
+  await runImport(port, { ...baseOptions, fetchImpl: impl });
+
+  const revision = urls.find((u) => u.searchParams.get("prop") === "revisions");
+  assertEquals(revision?.searchParams.get("pageids"), "17479409");
+  assertEquals(revision?.searchParams.get("titles"), null);
+});
+
+Deno.test("les appels à l'API partent en série, un seul à la fois", async () => {
+  // La règle d'usage de l'API de Wikimedia. Les quatre sections partaient
+  // ensemble par `Promise.all` : ce test en voyait quatre en vol.
+  let enVol = 0;
+  let auPlus = 0;
+  const base = fakeFetch();
+  const serie: typeof fetch = async (input, init) => {
+    enVol += 1;
+    auPlus = Math.max(auPlus, enVol);
+    // Laisser au code l'occasion d'en lancer un autre, s'il le voulait.
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    try {
+      return await base(input, init);
+    } finally {
+      enVol -= 1;
+    }
+  };
+  const { port } = fakePort();
+  const outcome = await runImport(port, { ...baseOptions, fetchImpl: serie });
+
+  assertEquals(outcome.status, "diffed");
+  assertEquals(auPlus, 1, "jamais deux requêtes à la fois");
+});
+
+Deno.test("une page renommée se suit, et son nouveau titre se note", async () => {
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({ title: "Koh-Lanta All Stars (2026)" }),
+  });
+
+  assertEquals(outcome.status, "diffed", "la lecture continue sous le nouveau nom");
+  assertEquals(calls.renamed, ["Koh-Lanta All Stars (2026)"]);
+  assert(calls.logs.some((l) => l.action === "import.page_renommee"));
+
+  // Même titre : rien à noter.
+  const meme = fakePort();
+  await runImport(meme.port, { ...baseOptions, fetchImpl: fakeFetch() });
+  assertEquals(meme.calls.renamed, []);
+});
+
+Deno.test("un titre qu'on n'arrive pas à noter n'arrête pas l'import", async () => {
+  const { port, calls } = fakePort({
+    renameDocument: () => Promise.reject(new Error("base indisponible")),
+  });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({ title: "Autre titre" }),
+  });
+
+  assertEquals(outcome.status, "diffed");
+  assert(calls.logs.some((l) => l.action === "import.renommage_non_note"));
+});
+
+Deno.test("un 429 sur une section se reprend, et l'import aboutit", async () => {
+  const base = fakeFetch();
+  let refusee = false;
+  const surcharge: typeof fetch = (input, init) => {
+    const url = new URL(String(input));
+    if (url.searchParams.get("section") === "7" && !refusee) {
+      refusee = true;
+      return Promise.resolve(
+        new Response("{}", { status: 429, headers: { "Retry-After": "1" } }),
+      );
+    }
+    return base(input, init);
+  };
+  const attentes: number[] = [];
+  const { port } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: surcharge,
+    sleep: (ms) => {
+      attentes.push(ms);
+      return Promise.resolve();
+    },
+  });
+
+  assertEquals(outcome.status, "diffed");
+  assertEquals(attentes, [1000]);
+});
+
+Deno.test("un avertissement de l'API se journalise une fois par exécution", async () => {
+  // Ce qu'aurait dû voir l'import quand `prop=sections` a été déprécié.
+  const { port, calls } = fakePort();
+  await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      warnings: { parse: { warnings: '"prop=sections" has been deprecated.' } },
+    }),
+  });
+
+  const journal = calls.logs.filter((l) => l.action === "import.avertissement_api");
+  assertEquals(journal.length, 1, "une ligne, même si chaque lecture le répète");
+  assert(journal[0].summary.includes("has been deprecated"));
 });

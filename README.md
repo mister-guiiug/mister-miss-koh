@@ -235,7 +235,7 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 | `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement |
 | `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                    |
 | `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 507 tests verts           |
-| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 169 tests verts           |
+| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 186 tests verts           |
 | `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes      |
 | `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes      |
 | `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes      |

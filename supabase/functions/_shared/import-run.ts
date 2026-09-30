@@ -113,6 +113,11 @@ export interface SourceDocument {
   readonly title: string;
   readonly apiUrl: string;
   readonly seasonSlug: string;
+  /**
+   * Le `pageid` MediaWiki (`source_documents.external_id`). C'est par lui que
+   * la page se lit : il survit à un renommage, le titre non.
+   */
+  readonly pageId?: string | null;
 }
 
 export interface ImportPolicy {
@@ -184,6 +189,11 @@ export interface ImportPort {
   publishRun(runId: string): Promise<void>;
   /** La publication a échoué : la lecture reste visible comme en attente. */
   holdRevision(documentId: string): Promise<void>;
+  /**
+   * La page a changé de nom sur Wikipédia : on garde son nouveau titre, celui
+   * que le site affiche et que son lien vise.
+   */
+  renameDocument(documentId: string, title: string): Promise<void>;
   loadPolicy(documentId: string): Promise<ImportPolicy>;
   log(action: string, summary: string, targetId?: string): Promise<void>;
 }
@@ -194,6 +204,8 @@ export interface RunOptions {
   readonly actorId: string | null;
   readonly userAgent: string;
   readonly fetchImpl?: typeof fetch;
+  /** Injectable pour les tests : l'attente avant une reprise de l'API. */
+  readonly sleep?: (ms: number) => Promise<void>;
   /** Forcer la relecture même si la révision n'a pas changé. */
   readonly force?: boolean;
 }
@@ -321,10 +333,15 @@ export async function runImport(
     actorId: options.actorId,
   });
 
+  // Les avertissements de l'API (une dépréciation, surtout) se rassemblent
+  // pendant l'exécution et se journalisent une fois, à la fin.
+  const warnings = new Set<string>();
   const wiki: WikiConfig = {
     apiUrl: document.apiUrl,
     userAgent: options.userAgent,
     fetchImpl: options.fetchImpl,
+    sleep: options.sleep,
+    onWarning: (warning) => warnings.add(warning),
   };
 
   // Toute sortie en échec passe par là : l'exécution est clôturée, le motif
@@ -343,8 +360,17 @@ export async function runImport(
 
   try {
     // ── 1. Révision ───────────────────────────────────────────────────────
-    const revision = await fetchRevision(wiki, document.title);
+    //
+    // Par le `pageid` : une page renommée se suit, et son nouveau titre se
+    // note. Tout ce qui se lit ensuite vise CETTE révision, pas la page.
+    const revision = await fetchRevision(wiki, {
+      title: document.title,
+      pageId: document.pageId,
+    });
     revisionId = revision.revId;
+    if (revision.title !== document.title) {
+      await noteRename(port, document, revision.title, runId);
+    }
     const known = await port.lastImportedRevision(document.id);
     // « Déjà traitée » suppose que c'est le MÊME traitement. Une extraction
     // enrichie doit rejouer une page qui n'a pas bougé, sinon la correction
@@ -377,7 +403,7 @@ export async function runImport(
     // héros » n'a que sa liste de candidats. Les exiger toutes les trois
     // revenait à jeter ce que la page A, faute de ce qu'elle n'a pas : cinq
     // saisons perdues pour une absence que Wikipédia assume.
-    const sections = await fetchSections(wiki, document.title);
+    const sections = await fetchSections(wiki, revision);
     const section = {
       contestants: findSection(sections, ...SECTIONS.contestants),
       progress: findSection(sections, ...SECTIONS.progress),
@@ -392,18 +418,23 @@ export async function runImport(
     }
 
     // ── 3. Extraction ─────────────────────────────────────────────────────
-    const [contestantsHtml, progressHtml, votesHtml, introductionHtml] = await Promise
-      .all([
-        fetchSectionHtml(wiki, document.title, section.contestants.index),
-        section.progress
-          ? fetchSectionHtml(wiki, document.title, section.progress.index)
-          : Promise.resolve(""),
-        section.votes
-          ? fetchSectionHtml(wiki, document.title, section.votes.index)
-          : Promise.resolve(""),
-        // La section 0 est l'introduction : elle porte l'infobox, donc le lieu.
-        fetchSectionHtml(wiki, document.title, "0"),
-      ]);
+    //
+    // EN SÉRIE, JAMAIS EN PARALLÈLE. La règle d'usage de l'API de Wikimedia
+    // est une requête à la fois ; les quatre lectures partaient ensemble. Elles
+    // se suivent désormais, toutes sur la révision vérifiée.
+    const contestantsHtml = await fetchSectionHtml(
+      wiki,
+      revision,
+      section.contestants.index,
+    );
+    const progressHtml = section.progress
+      ? await fetchSectionHtml(wiki, revision, section.progress.index)
+      : "";
+    const votesHtml = section.votes
+      ? await fetchSectionHtml(wiki, revision, section.votes.index)
+      : "";
+    // La section 0 est l'introduction : elle porte l'infobox, donc le lieu.
+    const introductionHtml = await fetchSectionHtml(wiki, revision, "0");
 
     // Par leur FORME, pas par leur rang — voir `pickTable`.
     //
@@ -509,7 +540,7 @@ export async function runImport(
     if (advantagesSection) {
       const advantagesHtml = await fetchSectionHtml(
         wiki,
-        document.title,
+        revision,
         advantagesSection.index,
       );
       const advantagesTable = parseTables(advantagesHtml)[0];
@@ -757,6 +788,42 @@ export async function runImport(
     await port.finishRun(runId, { status: "failed", error: message });
     await port.log("import.failed", message, runId);
     return { runId, status: "failed", message };
+  } finally {
+    // Une fois par exécution, quelle qu'en soit l'issue. C'est ainsi que la
+    // dépréciation de `prop=sections` se serait lue avant de casser l'import.
+    if (warnings.size > 0) {
+      try {
+        await port.log("import.avertissement_api", [...warnings].join(" ; "), runId);
+      } catch {
+        // Un journal indisponible ne change pas l'issue de l'import.
+      }
+    }
+  }
+}
+
+/**
+ * Note le nouveau titre d'une page renommée.
+ *
+ * Un échec ici n'arrête pas l'import : la page se lit par son `pageid`, et le
+ * titre ne sert qu'à l'affichage et au lien. Il se retentera au passage
+ * suivant, puisque les deux titres différeront encore.
+ */
+async function noteRename(
+  port: ImportPort,
+  document: SourceDocument,
+  title: string,
+  runId: string,
+): Promise<void> {
+  try {
+    await port.renameDocument(document.id, title);
+    await port.log(
+      "import.page_renommee",
+      `« ${document.title} » s'appelle désormais « ${title} »`,
+      runId,
+    );
+  } catch (error) {
+    const motif = error instanceof Error ? error.message : String(error);
+    await port.log("import.renommage_non_note", motif, runId);
   }
 }
 

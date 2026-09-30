@@ -84,7 +84,7 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 | Fichier                 | Rôle                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------- |
-| `mediawiki.ts`          | Client API : révision, sections, HTML d'une section, empreinte stable                 |
+| `mediawiki.ts`          | Client API : révision par `pageid`, sections et HTML de CETTE révision, empreinte     |
 | `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), couleur des légendes, sans dépendance |
 | `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                              |
 | `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                           |
@@ -94,13 +94,61 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 | `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement               |
 | `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées                 |
 
-Trois pièges que les tests figent :
+Les pièges que les tests figent :
 
 - un `User-Agent` anonyme est refusé **avant** tout appel réseau ;
 - une erreur MediaWiki arrive en **HTTP 200** avec un objet `error` — sans
   contrôle, l'import conclurait « rien à changer » et le référentiel gèlerait ;
 - une section se cherche par son **titre**, jamais par son rang : sur cette
-  page, l'index 3 rend « Nouveautés » quand le numéro 3 désigne « Candidats ».
+  page, l'index 3 rend « Nouveautés » quand le numéro 3 désigne « Candidats » ;
+- tout ce qui se lit après la révision (sections, HTML) vise **cette
+  révision** (`oldid`), et une réponse qui en nomme une autre est refusée ;
+- la page se lit par son **`pageid`** ; renommée, elle se suit, et son nouveau
+  titre se note ;
+- **une requête à la fois**, `maxlag=5`, et une reprise seulement quand le
+  serveur la demande (429, 503, `maxlag`) : deux au plus, `Retry-After`
+  plafonné à dix secondes. Voir « La lecture » ci-dessous.
+
+## La lecture : une révision, une requête à la fois
+
+Relevé le 30/09/2026, en rejouant l'import de la page All Stars sans base, avec
+l'ancien client puis le nouveau (même révision, trois secondes d'écart) :
+
+| lecture          | désigne la page par | sections par               | requêtes | en vol au plus |
+| ---------------- | ------------------- | -------------------------- | -------- | -------------- |
+| avant            | son titre           | `prop=sections` (déprécié) | 8        | 4              |
+| depuis ce relevé | son `pageid`        | `prop=tocdata`, `oldid`    | 8        | 1              |
+
+**Même révision (239943413), mêmes 136 enregistrements, même empreinte** : le
+modèle intermédiaire n'a pas bougé d'un octet, donc `EXTRACTOR_VERSION` non
+plus. Ce qui change est la façon de lire, et trois défauts qu'elle portait :
+
+1. **Deux révisions sous un seul numéro.** L'import notait la révision lue au
+   premier appel, puis demandait chaque section PAR LE TITRE, c'est-à-dire
+   telle qu'elle était à cet instant-là. Un soir de diffusion, quand les
+   contributeurs écrivent en direct et que l'import passe toutes les trente
+   minutes, les candidats pouvaient venir d'une révision et les votes de la
+   suivante, rangés sous le numéro de la première ; depuis `0033`, un tel lot
+   peut se publier seul. Chaque lecture passe désormais `oldid`, et la
+   réponse doit nommer la révision demandée.
+2. **Une page renommée n'était plus lue.** `external_id` porte le `pageid`
+   depuis `0001`, « stable même si le titre change », mais l'import lisait
+   par le titre : la page de redirection répondait, sans aucune section, et
+   chaque passage échouait. La page se lit par son `pageid`, et
+   `renameDocument` note le nouveau titre et l'URL qui va avec.
+3. **Contre l'usage de l'API.** Les quatre sections partaient ensemble
+   (`Promise.all`) : quatre requêtes en vol par saison, pour une API qui en
+   demande une à la fois. Elles se suivent. `maxlag` laisse les serveurs de
+   Wikimedia dire qu'ils sont en retard, et un 429 (« trop de requêtes »), un
+   503 ou un `maxlag` se reprennent après l'attente demandée, au lieu de
+   laisser la saison sans lecture jusqu'au passage suivant.
+
+**`prop=sections` est déprécié.** Le 30/09/2026, l'API l'accompagnait de
+« "prop=sections" has been deprecated. Please use "prop=tocdata" instead. »,
+que le client ne lisait pas. La table des matières rend les mêmes champs
+(`index`, `number`, `line`). Les avertissements de l'API se journalisent
+désormais, une fois par exécution (`import.avertissement_api`), pour qu'une
+prochaine dépréciation se lise avant de casser l'import.
 
 ## Candidats et déroulement : deux pièges de plus
 

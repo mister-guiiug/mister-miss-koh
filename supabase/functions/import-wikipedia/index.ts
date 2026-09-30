@@ -35,6 +35,7 @@ import {
   type CataloguePage,
   type CataloguePort,
   discoverSeasons,
+  pageUrl,
 } from "../_shared/catalogue.ts";
 import type { WikiConfig } from "../_shared/mediawiki.ts";
 
@@ -62,13 +63,15 @@ function makePort(admin: SupabaseClient): ImportPort {
     async loadDocument(documentId) {
       const { data } = await admin
         .from("source_documents")
-        .select("id, title, url, reference_sources(api_url), seasons(slug)")
+        .select("id, title, url, external_id, reference_sources(api_url), seasons(slug)")
         .eq("id", documentId)
         .maybeSingle();
       if (!data) return null;
       const source = data as unknown as {
         id: string;
         title: string;
+        // Le `pageid` MediaWiki : la page se lit par lui, pas par son titre.
+        external_id: string | null;
         reference_sources: { api_url: string | null } | null;
         // Relation INVERSE (c'est `seasons` qui référence `source_documents`) :
         // PostgREST rend un tableau, jamais un objet. Le premier `.slug`
@@ -82,7 +85,26 @@ function makePort(admin: SupabaseClient): ImportPort {
         title: source.title,
         apiUrl,
         seasonSlug: source.seasons?.[0]?.slug ?? "",
+        pageId: source.external_id,
       } satisfies SourceDocument;
+    },
+
+    // Le titre et l'URL suivent la page renommée. Ni la saison ni ses
+    // données ne changent : c'est la même page, lue par le même `pageid`.
+    async renameDocument(documentId, title) {
+      const { data } = await admin
+        .from("source_documents")
+        .select("reference_sources(base_url)")
+        .eq("id", documentId)
+        .maybeSingle();
+      const baseUrl = (data as unknown as {
+        reference_sources: { base_url: string | null } | null;
+      } | null)?.reference_sources?.base_url;
+      const { error } = await admin
+        .from("source_documents")
+        .update(baseUrl ? { title, url: pageUrl(baseUrl, title) } : { title })
+        .eq("id", documentId);
+      if (error) throw new Error(`titre non noté : ${error.message}`);
     },
 
     async lastImportedRevision(documentId) {
