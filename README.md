@@ -234,7 +234,7 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 | ----------------------------------- | ------------------------------------------------------------------------ | ------------------------- |
 | `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement |
 | `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                    |
-| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 507 tests verts           |
+| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 515 tests verts           |
 | `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 196 tests verts           |
 | `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes      |
 | `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes      |
@@ -549,7 +549,12 @@ Deux tâches `pg_cron` l'appellent (0026, 0032, 0035, 0036) : chaque nuit, de
 tant que la page bouge), une SONDE de la saison en diffusion toutes les deux
 minutes : un appel à l'API, et un import seulement quand une révision nouvelle
 s'est calmée depuis trois minutes (quinze au plus). Le site suit la page à
-quelques minutes près.
+quelques minutes près, et l'application ouverte suit le site : au premier plan
+et en ligne, elle demande toutes les deux minutes, et à chaque retour au
+premier plan, le numéro de la dernière publication de la saison regardée ;
+s'il a avancé, elle relit en silence et le dit par un toast neutre (« De
+nouvelles données sont arrivées. »), jamais par le contenu, que la limite
+anti-spoiler garde (`useReferentialWatch`).
 
 Le premier import réel a tourné le 05/09/2026 : 78 différences proposées,
 aucune validée automatiquement, référentiel publié inchangé. Détail et
