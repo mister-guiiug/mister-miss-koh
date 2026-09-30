@@ -12,7 +12,11 @@ import {
   fetchCoordinates,
   fetchRevision,
   fetchSectionHtml,
+  fetchSections,
   findSection,
+  MAX_RETRIES,
+  MAX_WAIT_MS,
+  MAXLAG,
   stableStringify,
   type WikiConfig,
   WikiError,
@@ -34,9 +38,55 @@ function stubFetch(body: unknown, init: { status?: number } = {}) {
   return { impl, calls };
 }
 
-function config(fetchImpl: typeof fetch): WikiConfig {
-  return { apiUrl: "https://fr.wikipedia.org/w/api.php", userAgent: UA, fetchImpl };
+/**
+ * Des réponses rendues dans l'ordre, une par appel : le serveur qui dit
+ * « plus tard » puis répond. `headers` porte `Retry-After` quand il le faut.
+ */
+function scriptedFetch(
+  script: Array<{ body?: unknown; status?: number; headers?: Record<string, string> }>,
+) {
+  const calls: Request[] = [];
+  const impl: typeof fetch = (input, options) => {
+    calls.push(new Request(String(input), options as RequestInit));
+    const step = script[Math.min(calls.length - 1, script.length - 1)];
+    return Promise.resolve(
+      new Response(JSON.stringify(step.body ?? {}), {
+        status: step.status ?? 200,
+        headers: { "content-type": "application/json", ...step.headers },
+      }),
+    );
+  };
+  return { impl, calls };
 }
+
+/** Une attente qui n'attend pas : elle note seulement ce qui a été demandé. */
+function recordedSleep() {
+  const waits: number[] = [];
+  const sleep = (ms: number) => {
+    waits.push(ms);
+    return Promise.resolve();
+  };
+  return { sleep, waits };
+}
+
+function config(fetchImpl: typeof fetch, extra: Partial<WikiConfig> = {}): WikiConfig {
+  return {
+    apiUrl: "https://fr.wikipedia.org/w/api.php",
+    userAgent: UA,
+    fetchImpl,
+    ...extra,
+  };
+}
+
+const REVISION_OK = {
+  query: {
+    pages: [{
+      pageid: 17479409,
+      title: "Koh-Lanta All Stars",
+      revisions: [{ revid: 239179934, timestamp: "2026-09-03T01:34:31Z", size: 22668 }],
+    }],
+  },
+};
 
 Deno.test("un User-Agent anonyme est refusé AVANT tout appel", async () => {
   const { impl, calls } = stubFetch({});
@@ -74,6 +124,90 @@ Deno.test("l'appel porte le User-Agent et le format attendu", async () => {
   const url = new URL(calls[0].url);
   assertEquals(url.searchParams.get("formatversion"), "2");
   assertEquals(calls[0].headers.get("User-Agent"), UA);
+  // Une tâche automatique déclare le retard qu'elle tolère : au-delà, l'API
+  // refuse et demande d'attendre, au lieu de charger des serveurs en retard.
+  assertEquals(url.searchParams.get("maxlag"), String(MAXLAG));
+});
+
+Deno.test("la page se désigne par son pageid, le titre ne sert qu'en repli", async () => {
+  const parId = stubFetch(REVISION_OK);
+  await fetchRevision(config(parId.impl), {
+    title: "Ancien titre",
+    pageId: "17479409",
+  });
+  const url = new URL(parId.calls[0].url);
+  assertEquals(url.searchParams.get("pageids"), "17479409");
+  assertEquals(url.searchParams.get("titles"), null, "le titre ne désigne rien");
+
+  // Sans `pageid`, le titre, et la redirection suivie jusqu'à la page réelle.
+  const parTitre = stubFetch(REVISION_OK);
+  await fetchRevision(config(parTitre.impl), { title: "Koh-Lanta All Stars" });
+  const repli = new URL(parTitre.calls[0].url);
+  assertEquals(repli.searchParams.get("titles"), "Koh-Lanta All Stars");
+  assertEquals(repli.searchParams.get("redirects"), "1");
+});
+
+Deno.test("le titre rendu est celui d'aujourd'hui : un renommage se voit", async () => {
+  const { impl } = stubFetch({
+    query: {
+      pages: [{
+        pageid: 17479409,
+        title: "Koh-Lanta All Stars (2026)",
+        revisions: [{ revid: 239179934, timestamp: "2026-09-03T01:34:31Z", size: 1 }],
+      }],
+    },
+  });
+  const info = await fetchRevision(config(impl), {
+    title: "Koh-Lanta All Stars",
+    pageId: 17479409,
+  });
+  assertEquals(info.title, "Koh-Lanta All Stars (2026)");
+});
+
+Deno.test("sections et HTML se lisent sur LA révision vérifiée, jamais par le titre", async () => {
+  const sections = stubFetch({
+    parse: {
+      revid: 239179934,
+      tocdata: {
+        sections: [{ index: "4", number: "3", line: "Candidats" }],
+      },
+    },
+  });
+  const lues = await fetchSections(config(sections.impl), { revId: "239179934" });
+  assertEquals(lues, [{ index: "4", number: "3", line: "Candidats" }]);
+  const urlSections = new URL(sections.calls[0].url);
+  assertEquals(urlSections.searchParams.get("oldid"), "239179934");
+  assertEquals(urlSections.searchParams.get("page"), null);
+  // `prop=sections` est déprécié (réponse de l'API au 30/09/2026).
+  assertEquals(urlSections.searchParams.get("prop"), "tocdata");
+
+  const html = stubFetch({ parse: { revid: 239179934, text: "<table></table>" } });
+  assertEquals(
+    await fetchSectionHtml(config(html.impl), { revId: "239179934" }, "4"),
+    "<table></table>",
+  );
+  const urlHtml = new URL(html.calls[0].url);
+  assertEquals(urlHtml.searchParams.get("oldid"), "239179934");
+  assertEquals(urlHtml.searchParams.get("section"), "4");
+  assertEquals(urlHtml.searchParams.get("page"), null);
+});
+
+Deno.test("les sections se lisent encore dans l'ancienne forme, en repli", async () => {
+  const { impl } = stubFetch({
+    parse: { sections: [{ index: "7", number: "4.2", line: "Détails des votes" }] },
+  });
+  assertEquals(await fetchSections(config(impl), { revId: "1" }), [
+    { index: "7", number: "4.2", line: "Détails des votes" },
+  ]);
+});
+
+Deno.test("une réponse qui a lu une autre révision est refusée", async () => {
+  const { impl } = stubFetch({ parse: { revid: 239999999, text: "<p>autre</p>" } });
+  await assertRejects(
+    () => fetchSectionHtml(config(impl), { revId: "239179934" }, "4"),
+    WikiError,
+    "au lieu de 239179934",
+  );
 });
 
 Deno.test("une page absente échoue clairement", async () => {
@@ -84,23 +218,98 @@ Deno.test("une page absente échoue clairement", async () => {
 Deno.test("une erreur MediaWiki en HTTP 200 n'est pas prise pour un succès", async () => {
   // Le piège : l'API répond 200 avec un objet `error`. Sans contrôle, l'import
   // conclurait « rien à changer » et le référentiel gèlerait en silence.
-  const { impl } = stubFetch({
+  const { impl, calls } = stubFetch({
     error: { code: "nosuchsection", info: "Section introuvable" },
   });
-  await assertRejects(
-    () => fetchSectionHtml(config(impl), "Page", "99"),
+  const error = await assertRejects(
+    () => fetchSectionHtml(config(impl), { revId: "1" }, "99"),
     WikiError,
     "Section introuvable",
   );
+  assertEquals((error as WikiError).code, "nosuchsection");
+  assertEquals(calls.length, 1, "une erreur de la requête ne se reprend pas");
 });
 
-Deno.test("un HTTP 429 remonte avec son statut", async () => {
-  const { impl } = stubFetch({}, { status: 429 });
+Deno.test("un 429 est repris après l'attente que le serveur demande", async () => {
+  const { impl, calls } = scriptedFetch([
+    { status: 429, headers: { "Retry-After": "3" } },
+    { body: REVISION_OK },
+  ]);
+  const { sleep, waits } = recordedSleep();
+  const info = await fetchRevision(config(impl, { sleep }), "Koh-Lanta All Stars");
+
+  assertEquals(info.revId, "239179934");
+  assertEquals(calls.length, 2);
+  assertEquals(waits, [3000], "Retry-After est en secondes");
+});
+
+Deno.test("un 429 qui dure remonte avec son statut, après deux reprises", async () => {
+  const { impl, calls } = scriptedFetch([{ status: 429 }]);
+  const { sleep, waits } = recordedSleep();
   const error = await assertRejects(
-    () => fetchRevision(config(impl), "Page"),
+    () => fetchRevision(config(impl, { sleep }), "Page"),
     WikiError,
   );
   assertEquals((error as WikiError).status, 429);
+  assertEquals(calls.length, MAX_RETRIES + 1);
+  // Sans Retry-After : une seconde, puis deux.
+  assertEquals(waits, [1000, 2000]);
+});
+
+Deno.test("un 503 se reprend comme un 429, l'attente plafonnée", async () => {
+  const { impl, calls } = scriptedFetch([
+    { status: 503, headers: { "Retry-After": "120" } },
+    { body: REVISION_OK },
+  ]);
+  const { sleep, waits } = recordedSleep();
+  await fetchRevision(config(impl, { sleep }), "Page");
+  assertEquals(calls.length, 2);
+  assertEquals(waits, [MAX_WAIT_MS], "deux minutes attendront la planification suivante");
+});
+
+Deno.test("maxlag arrive en HTTP 200 : c'est une demande d'attendre, reprise", async () => {
+  const { impl, calls } = scriptedFetch([
+    {
+      body: { error: { code: "maxlag", info: "Waiting for a database server" } },
+      headers: { "Retry-After": "5" },
+    },
+    { body: REVISION_OK },
+  ]);
+  const { sleep, waits } = recordedSleep();
+  const info = await fetchRevision(config(impl, { sleep }), "Page");
+  assertEquals(info.revId, "239179934");
+  assertEquals(calls.length, 2);
+  assertEquals(waits, [5000]);
+});
+
+Deno.test("un 404 ne se reprend pas", async () => {
+  const { impl, calls } = scriptedFetch([{ status: 404 }]);
+  const { sleep, waits } = recordedSleep();
+  const error = await assertRejects(
+    () => fetchRevision(config(impl, { sleep }), "Page"),
+    WikiError,
+  );
+  assertEquals((error as WikiError).status, 404);
+  assertEquals(calls.length, 1);
+  assertEquals(waits, []);
+});
+
+Deno.test("les avertissements de l'API remontent, sans l'invitation générique", async () => {
+  const { impl } = stubFetch({
+    warnings: {
+      main: {
+        warnings:
+          "Subscribe to the mediawiki-api-announce mailing list at <https://lists.wikimedia.org/> for notice of API deprecations and breaking changes.",
+      },
+      parse: { warnings: '"prop=sections" has been deprecated.' },
+    },
+    parse: { revid: 1, sections: [] },
+  });
+  const recus: string[] = [];
+  await fetchSections(config(impl, { onWarning: (w) => recus.push(w) }), {
+    revId: "1",
+  });
+  assertEquals(recus, ['parse : "prop=sections" has been deprecated.']);
 });
 
 Deno.test("les coordonnées d'une page de lieu, ou rien", async () => {

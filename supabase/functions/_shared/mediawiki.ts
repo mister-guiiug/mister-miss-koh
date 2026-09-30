@@ -13,10 +13,27 @@
  * des différences fantômes — les bandeaux de maintenance, le rendu des modèles
  * et les identifiants de section varient sans qu'un mot du contenu ait bougé.
  *
+ * UNE LECTURE, UNE RÉVISION. `fetchRevision` dit quelle révision est en ligne ;
+ * tout ce qui se lit ensuite (sections, HTML) se demande pour CETTE révision,
+ * par `oldid`, et la réponse doit la nommer. Lire par le titre, c'était lire la
+ * page telle qu'elle était à chaque appel : un soir de diffusion, quand les
+ * contributeurs écrivent en direct et que l'import passe toutes les trente
+ * minutes, les candidats pouvaient venir d'une révision et les votes de la
+ * suivante, rangés sous le numéro de la première.
+ *
+ * LA PAGE SE DÉSIGNE PAR SON `pageid`. Il survit à un renommage, le titre non :
+ * par le titre, une page renommée rendait sa page de redirection, sans aucune
+ * section, et l'import échouait à chaque passage sans dire pourquoi.
+ *
  * IDENTIFICATION ET MESURE. Chaque appel porte un `User-Agent` qui nomme le
  * projet et un moyen de contact, comme la politique d'accès de Wikimedia le
- * demande. Le client ne parallélise rien et n'a aucune reprise agressive : une
- * synchronisation qui échoue attendra la suivante.
+ * demande. Les appels partent EN SÉRIE (la règle de l'API : jamais deux
+ * requêtes à la fois) et portent `maxlag` : quand les serveurs de Wikimedia
+ * prennent du retard, ils le disent, et on attend. On ne reprend qu'une
+ * requête que le serveur a lui-même demandé de refaire plus tard (429, 503,
+ * `maxlag`), deux fois au plus, en suivant `Retry-After` dans la limite de dix
+ * secondes. Pour tout le reste, une synchronisation qui échoue attendra la
+ * suivante.
  */
 
 export interface WikiConfig {
@@ -27,7 +44,27 @@ export interface WikiConfig {
   /** Injectable pour les tests ; `globalThis.fetch` par défaut. */
   readonly fetchImpl?: typeof fetch;
   readonly timeoutMs?: number;
+  /** Injectable pour les tests : l'attente avant une reprise. */
+  readonly sleep?: (ms: number) => Promise<void>;
+  /**
+   * Reçoit chaque avertissement de l'API : fonction dépréciée, valeur
+   * ignorée. Une dépréciation annonce une panne future ; elle doit se lire
+   * dans le journal avant de casser l'import.
+   */
+  readonly onWarning?: (warning: string) => void;
 }
+
+/**
+ * Retard de réplication toléré, en secondes. C'est la valeur que Wikimedia
+ * demande aux tâches automatiques ; au-delà, l'API refuse et dit d'attendre.
+ */
+export const MAXLAG = 5;
+
+/** Reprises au plus, et seulement quand le serveur les a demandées. */
+export const MAX_RETRIES = 2;
+
+/** Une attente plus longue attend plutôt la planification suivante. */
+export const MAX_WAIT_MS = 10_000;
 
 export interface RevisionInfo {
   readonly pageId: number;
@@ -37,6 +74,17 @@ export interface RevisionInfo {
   readonly sizeBytes: number;
 }
 
+/** Une page : son `pageid` quand on le connaît, son titre sinon. */
+export interface PageRef {
+  readonly title: string;
+  readonly pageId?: string | number | null;
+}
+
+/** Ce qu'une lecture de contenu demande : une révision précise. */
+export interface RevisionRef {
+  readonly revId: string;
+}
+
 export interface SectionInfo {
   readonly index: string;
   readonly number: string;
@@ -44,7 +92,12 @@ export interface SectionInfo {
 }
 
 export class WikiError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+    /** Le code d'erreur de MediaWiki (`maxlag`, `nosuchrevid`…), s'il y en a un. */
+    readonly code?: string,
+  ) {
     super(message);
     this.name = "WikiError";
   }
@@ -62,6 +115,39 @@ function requireUserAgent(config: WikiConfig): string {
   return ua;
 }
 
+/**
+ * L'attente que le serveur demande (`Retry-After`, en secondes), ou à défaut
+ * une et deux secondes, toujours plafonnée.
+ */
+function retryDelay(response: Response, attempt: number): number {
+  const header = response.headers.get("Retry-After")?.trim() ?? "";
+  const ms = /^\d+$/.test(header) ? Number(header) * 1000 : 1000 * 2 ** attempt;
+  return Math.min(ms, MAX_WAIT_MS);
+}
+
+/**
+ * Transmet les avertissements de la réponse.
+ *
+ * L'invitation à s'abonner à la liste des annonces de l'API accompagne toute
+ * dépréciation sans dire laquelle : elle est écartée, le module qui parle
+ * ensuite (« "prop=sections" has been deprecated ») est gardé.
+ */
+function forwardWarnings(body: unknown, onWarning?: (warning: string) => void): void {
+  if (!onWarning || !body || typeof body !== "object") return;
+  const warnings = (body as { warnings?: Record<string, { warnings?: unknown }> })
+    .warnings;
+  if (!warnings || typeof warnings !== "object") return;
+  for (const [module, entry] of Object.entries(warnings)) {
+    if (typeof entry?.warnings !== "string") continue;
+    for (const line of entry.warnings.split("\n")) {
+      const text = line.trim();
+      if (text && !text.includes("mediawiki-api-announce")) {
+        onWarning(`${module} : ${text}`);
+      }
+    }
+  }
+}
+
 async function callApi(
   config: WikiConfig,
   params: Record<string, string>,
@@ -73,40 +159,94 @@ async function callApi(
   }
   url.searchParams.set("format", "json");
   url.searchParams.set("formatversion", "2");
+  url.searchParams.set("maxlag", String(MAXLAG));
 
   const doFetch = config.fetchImpl ?? globalThis.fetch;
-  const signal = AbortSignal.timeout(config.timeoutMs ?? 15_000);
-  const response = await doFetch(url.toString(), {
-    headers: { "User-Agent": ua, "Accept": "application/json" },
-    signal,
-  });
+  const sleep = config.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
-  if (!response.ok) {
-    throw new WikiError(
-      `l'API a répondu ${response.status} pour ${url.pathname}`,
-      response.status,
-    );
-  }
+  for (let attempt = 0;; attempt += 1) {
+    const response = await doFetch(url.toString(), {
+      headers: { "User-Agent": ua, "Accept": "application/json" },
+      signal: AbortSignal.timeout(config.timeoutMs ?? 15_000),
+    });
 
-  const body = await response.json();
-  // MediaWiki rend 200 avec un objet `error` : sans ce contrôle, l'erreur
-  // passerait pour une page vide et l'import conclurait « rien à changer ».
-  if (body && typeof body === "object" && "error" in body) {
-    const err = (body as { error?: { info?: string } }).error;
-    throw new WikiError(`erreur MediaWiki : ${err?.info ?? "inconnue"}`);
+    // 429 : trop de requêtes ; 503 : serveur surchargé. Les deux disent
+    // « plus tard », c'est-à-dire tout de suite après l'attente demandée.
+    if (response.status === 429 || response.status === 503) {
+      await response.body?.cancel();
+      if (attempt < MAX_RETRIES) {
+        await sleep(retryDelay(response, attempt));
+        continue;
+      }
+      throw new WikiError(
+        `l'API a répondu ${response.status} pour ${url.pathname}, encore après ${MAX_RETRIES} reprise(s)`,
+        response.status,
+      );
+    }
+
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new WikiError(
+        `l'API a répondu ${response.status} pour ${url.pathname}`,
+        response.status,
+      );
+    }
+
+    const body = await response.json();
+    // MediaWiki rend 200 avec un objet `error` : sans ce contrôle, l'erreur
+    // passerait pour une page vide et l'import conclurait « rien à changer ».
+    if (body && typeof body === "object" && "error" in body) {
+      const err = (body as { error?: { code?: string; info?: string } }).error;
+      // `maxlag` arrive AUSSI en 200 : c'est une demande d'attendre, pas une
+      // erreur de la requête.
+      if (err?.code === "maxlag" && attempt < MAX_RETRIES) {
+        await sleep(retryDelay(response, attempt));
+        continue;
+      }
+      throw new WikiError(
+        `erreur MediaWiki : ${err?.info ?? "inconnue"}`,
+        undefined,
+        err?.code,
+      );
+    }
+    forwardWarnings(body, config.onWarning);
+    return body;
   }
-  return body;
 }
 
-/** Métadonnées de la dernière révision. Un appel, aucun contenu transféré. */
+/**
+ * La réponse d'un `action=parse` nomme la révision qu'elle a lue. Si ce n'est
+ * pas celle demandée, on ne lit rien : c'est tout l'intérêt d'avoir épinglé.
+ */
+function checkRevision(revid: unknown, expected: RevisionRef): void {
+  if (typeof revid === "number" && String(revid) !== expected.revId) {
+    throw new WikiError(`révision ${revid} rendue au lieu de ${expected.revId}`);
+  }
+}
+
+/**
+ * Métadonnées de la dernière révision. Un appel, aucun contenu transféré.
+ *
+ * Par `pageids` dès que le `pageid` est connu ; par le titre sinon, avec
+ * `redirects` pour suivre une page renommée jusqu'à sa cible. Le titre rendu
+ * est celui de la page aujourd'hui : s'il diffère de celui qu'on tenait, la
+ * page a changé de nom.
+ */
 export async function fetchRevision(
   config: WikiConfig,
-  title: string,
+  page: string | PageRef,
 ): Promise<RevisionInfo> {
+  const ref: PageRef = typeof page === "string" ? { title: page } : page;
+  const pageId = ref.pageId == null ? "" : String(ref.pageId).trim();
+  const target: Record<string, string> = /^\d+$/.test(pageId)
+    ? { pageids: pageId }
+    : { titles: ref.title, redirects: "1" };
+
   const body = await callApi(config, {
     action: "query",
     prop: "revisions",
-    titles: title,
+    ...target,
     rvprop: "ids|timestamp|size",
     rvlimit: "1",
   }) as {
@@ -122,46 +262,61 @@ export async function fetchRevision(
     };
   };
 
-  const page = body.query?.pages?.[0];
-  if (!page || page.missing || !page.pageid) {
-    throw new WikiError(`page introuvable : ${title}`);
+  const found = body.query?.pages?.[0];
+  if (!found || found.missing || !found.pageid) {
+    throw new WikiError(
+      `page introuvable : ${ref.title}${pageId ? ` (pageid ${pageId})` : ""}`,
+    );
   }
-  const rev = page.revisions?.[0];
+  const rev = found.revisions?.[0];
   if (!rev?.revid || !rev.timestamp) {
-    throw new WikiError(`aucune révision lisible pour ${title}`);
+    throw new WikiError(`aucune révision lisible pour ${ref.title}`);
   }
 
   return {
-    pageId: page.pageid,
-    title: page.title ?? title,
+    pageId: found.pageid,
+    title: found.title ?? ref.title,
     revId: String(rev.revid),
     revisedAt: rev.timestamp,
     sizeBytes: rev.size ?? 0,
   };
 }
 
+type RawSection = { index?: string; number?: string; line?: string };
+
 /**
- * Sections de la page.
+ * Sections de la révision.
  *
  * L'INDEX N'EST PAS LE NUMÉRO. `index` est ce qu'il faut passer à l'API ;
  * `number` est le numéro affiché (« 4.2 »). Les confondre fait lire la
  * mauvaise section — l'index 3 de cette page rend « Nouveautés » alors que le
  * numéro 3 désigne « Candidats ». Les sections se cherchent donc par leur
  * TITRE, jamais par leur rang.
+ *
+ * `prop=tocdata`, ET NON PLUS `prop=sections`. Le 30/09/2026, l'API répondait
+ * à la seconde « "prop=sections" has been deprecated. Please use
+ * "prop=tocdata" instead. » La table des matières rend les mêmes champs ;
+ * `sections` n'est plus lu qu'en repli, si une réponse le porte encore.
  */
 export async function fetchSections(
   config: WikiConfig,
-  title: string,
+  revision: RevisionRef,
 ): Promise<SectionInfo[]> {
   const body = await callApi(config, {
     action: "parse",
-    page: title,
-    prop: "sections",
+    oldid: revision.revId,
+    prop: "tocdata",
   }) as {
-    parse?: { sections?: Array<{ index?: string; number?: string; line?: string }> };
+    parse?: {
+      revid?: number;
+      tocdata?: { sections?: RawSection[] };
+      sections?: RawSection[];
+    };
   };
 
-  return (body.parse?.sections ?? []).map((s) => ({
+  checkRevision(body.parse?.revid, revision);
+  const raw = body.parse?.tocdata?.sections ?? body.parse?.sections ?? [];
+  return raw.map((s) => ({
     index: s.index ?? "",
     number: s.number ?? "",
     line: s.line ?? "",
@@ -216,19 +371,20 @@ export async function fetchCategoryMembers(
   );
 }
 
-/** HTML rendu d'une section, modèles développés. */
+/** HTML rendu d'une section de la révision, modèles développés. */
 export async function fetchSectionHtml(
   config: WikiConfig,
-  title: string,
+  revision: RevisionRef,
   sectionIndex: string,
 ): Promise<string> {
   const body = await callApi(config, {
     action: "parse",
-    page: title,
+    oldid: revision.revId,
     prop: "text",
     section: sectionIndex,
-  }) as { parse?: { text?: string } };
+  }) as { parse?: { revid?: number; text?: string } };
 
+  checkRevision(body.parse?.revid, revision);
   const html = body.parse?.text;
   if (typeof html !== "string") {
     throw new WikiError(`section ${sectionIndex} sans contenu lisible`);
