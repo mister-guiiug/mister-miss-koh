@@ -5,10 +5,11 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **37 migrations** sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Sept suites pgTAP,
-> 217 assertions (isolation 34, publication 86, suivi du compte 21, partage
-> éphémère 26, planification 40, structure de sécurité 2, vote double 8), passent sur une pile
+> Les **38 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Huit suites pgTAP,
+> 233 assertions (isolation 34, publication 86, suivi du compte 21, partage
+> éphémère 26, planification 40, structure de sécurité 2, vote double 8,
+> détail des voix 16), passent sur une pile
 > jetable à chaque PR qui touche aux migrations ou aux tests
 > (`supabase-tests.yml`, vertes le 30/09/2026) ; les mêmes se rejouent à la
 > main contre cette base.
@@ -384,11 +385,12 @@ supabase/
                  · 0034 log_event fermée aux clients · 0035 la nuit lit
                  une saison à la fois · 0036 la soirée sondée toutes les
                  deux minutes · 0037 le poids d'un bulletin (vote
-                 double)
+                 double) · 0038 un tour sait si le détail de ses
+                 voix est complet
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, suivi du compte, partage
                  éphémère, planification, structure de sécurité, vote
-                 double (pgTAP)
+                 double, détail des voix (pgTAP)
 ```
 
 Six choix qui structurent le code :
