@@ -64,7 +64,9 @@ function makePort(admin: SupabaseClient): ImportPort {
     async loadDocument(documentId) {
       const { data } = await admin
         .from("source_documents")
-        .select("id, title, url, external_id, reference_sources(api_url), seasons(slug)")
+        .select(
+          "id, title, url, external_id, last_seen_revision, reference_sources(api_url), seasons(slug)",
+        )
         .eq("id", documentId)
         .maybeSingle();
       if (!data) return null;
@@ -73,6 +75,8 @@ function makePort(admin: SupabaseClient): ImportPort {
         title: string;
         // Le `pageid` MediaWiki : la page se lit par lui, pas par son titre.
         external_id: string | null;
+        // La révision en ligne : la garde note ce qui a changé depuis.
+        last_seen_revision: string | null;
         reference_sources: { api_url: string | null } | null;
         // Relation INVERSE (c'est `seasons` qui référence `source_documents`) :
         // PostgREST rend un tableau, jamais un objet. Le premier `.slug`
@@ -87,6 +91,7 @@ function makePort(admin: SupabaseClient): ImportPort {
         apiUrl,
         seasonSlug: source.seasons?.[0]?.slug ?? "",
         pageId: source.external_id,
+        publishedRevision: source.last_seen_revision,
       } satisfies SourceDocument;
     },
 

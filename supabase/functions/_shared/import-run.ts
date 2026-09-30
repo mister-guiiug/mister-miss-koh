@@ -56,8 +56,10 @@ import {
   type IncomingRecord,
   type Json,
   type StoredRecord,
+  suspendBatch,
 } from "./diff.ts";
 import type { Anomaly } from "./extract-votes.ts";
+import { guardEdits } from "./garde.ts";
 
 export type RunStatus = "unchanged" | "diffed" | "failed";
 
@@ -119,6 +121,11 @@ export interface SourceDocument {
    * la page se lit : il survit à un renommage, le titre non.
    */
   readonly pageId?: string | null;
+  /**
+   * La révision en ligne sur le site (`source_documents.last_seen_revision`).
+   * La garde anti-vandalisme note les modifications faites depuis.
+   */
+  readonly publishedRevision?: string | null;
 }
 
 export interface ImportPolicy {
@@ -143,6 +150,19 @@ export function policyForManual(stored: ImportPolicy): ImportPolicy {
     autoValidateUnambiguous: true,
     maxAutoChanges: Math.max(stored.maxAutoChanges, PLAFOND_RELECTURE),
   };
+}
+
+/**
+ * Le jour à Paris, `AAAA-MM-JJ`. L'émission passe le soir, heure de Paris :
+ * un épisode du 29 est diffusé le 29 là-bas, même à 23 h 30 UTC.
+ */
+export function parisDay(instant: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(instant));
 }
 
 /** Tout l'accès à la base passe par là. Rien d'autre n'écrit. */
@@ -221,6 +241,8 @@ export interface RunOptions {
    * les deux appels attendra, elle aussi, que la page se calme.
    */
   readonly revision?: RevisionInfo;
+  /** Injectable pour les tests : l'horloge, en millisecondes. */
+  readonly now?: () => number;
 }
 
 export interface RunOutcome {
@@ -733,8 +755,8 @@ export async function runImport(
     // `publishedRecords` peut avoir déjà lu : une section absente pose la
     // question plus tôt, et la réponse se garde.
     const published = await publishedRecords();
-    const result = diffRecords(published, records);
-    await port.saveDifferences(runId, result.differences);
+    const now = options.now?.() ?? Date.now();
+    let result = diffRecords(published, records, { today: parisDay(now) });
 
     // ── 7. Validation automatique, puis publication si le lot est entier ──
     //
@@ -742,10 +764,31 @@ export async function runImport(
     // ambigu, une suppression ou un lot suspect reste proposé : publier
     // quand même avancerait « lu le … » et cacherait ce qui attend.
     const policy = policyForManual(await port.loadPolicy(document.id));
-    const auto = autoValidatable(result, {
+    const validation = {
       enabled: policy.autoValidateUnambiguous,
       maxAutoChanges: policy.maxAutoChanges,
-    });
+    };
+
+    // LA GARDE NE JOUE QUE SI UN HUMAIN VA ÊTRE ÉVITÉ. Un lot que personne ne
+    // publiera seul n'a rien à craindre d'une page vandalisée : le relecteur
+    // la verra. Sinon chaque modification récente de la page est notée, et
+    // une seule à risque suspend tout le lot, en disant laquelle.
+    if (autoValidatable(result, validation).length > 0) {
+      const verdict = await guardEdits(
+        wiki,
+        { title: document.title, pageId: document.pageId },
+        {
+          published: document.publishedRevision ?? null,
+          candidate: revision.revId,
+          now,
+        },
+      );
+      if (!verdict.ok) result = suspendBatch(result, verdict.message);
+      await port.log("import.garde", verdict.message, runId);
+    }
+
+    await port.saveDifferences(runId, result.differences);
+    const auto = autoValidatable(result, validation);
     if (auto.length > 0) {
       await port.autoValidateDifferences(
         runId,

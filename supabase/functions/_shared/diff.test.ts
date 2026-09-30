@@ -9,9 +9,12 @@
 import { assert, assertEquals } from "jsr:@std/assert@^1";
 import {
   autoValidatable,
+  completes,
   diffRecords,
   type IncomingRecord,
+  type Json,
   type StoredRecord,
+  suspendBatch,
 } from "./diff.ts";
 
 const stored = (
@@ -74,6 +77,162 @@ Deno.test("modifier une donnée PUBLIÉE est toujours rétroactif", () => {
   // Le diff doit être LISIBLE : le champ touché est nommé, pas deux objets
   // à comparer à l'œil.
   assert(result.differences[0].reasons[0].includes("votesFor"));
+});
+
+// ── Compléter n'est pas réécrire ─────────────────────────────────────────────
+
+const episode = (
+  payload: Record<string, Json>,
+  published = true,
+): StoredRecord => ({ entity: "episode", naturalKey: "e6", payload, published });
+
+/** L'épisode 6 d'All Stars, publié avant sa diffusion puis rempli le soir. */
+const E6_ANNONCE = {
+  number: 6,
+  airDate: "2026-09-29",
+  comfortWinners: [],
+  immunityWinners: [],
+  eliminated: [],
+  rawTally: "",
+  departureDay: null,
+  aired: false,
+};
+const E6_DIFFUSE = {
+  ...E6_ANNONCE,
+  comfortWinners: ["Taboga"],
+  immunityWinners: ["Sebako"],
+  eliminated: ["Camille"],
+  rawTally: "5-1",
+  departureDay: 17,
+  aired: true,
+};
+const incomingEpisode = (payload: Record<string, Json>, anomalies: string[] = []) => ({
+  entity: "episode",
+  naturalKey: "e6",
+  payload,
+  anomalies,
+});
+
+Deno.test("COMPLÉTION : les résultats du soir remplissent un épisode publié vide", () => {
+  const result = diffRecords([episode(E6_ANNONCE)], [incomingEpisode(E6_DIFFUSE)], {
+    today: "2026-09-29",
+  });
+  const [d] = result.differences;
+  assertEquals(d.class, "unambiguous");
+  assertEquals(d.operation, "update");
+  assert(d.reasons[0].startsWith("complète une donnée publiée"));
+  assertEquals(autoValidatable(result, { enabled: true, maxAutoChanges: 80 }).length, 1);
+});
+
+Deno.test("COMPLÉTION : un épisode ne passe pas « diffusé » avant sa date", () => {
+  // Des résultats écrits la veille de l'émission : une fuite, ou un faux.
+  for (const today of ["2026-09-28", null]) {
+    const result = diffRecords([episode(E6_ANNONCE)], [incomingEpisode(E6_DIFFUSE)], {
+      today,
+    });
+    assertEquals(result.differences[0].class, "retroactive", `aujourd'hui = ${today}`);
+  }
+});
+
+Deno.test("COMPLÉTION : remplacer un résultat publié reste rétroactif", () => {
+  const result = diffRecords(
+    [episode(E6_DIFFUSE)],
+    [incomingEpisode({ ...E6_DIFFUSE, eliminated: ["Yassin"] })],
+    { today: "2026-09-30" },
+  );
+  assertEquals(result.differences[0].class, "retroactive");
+});
+
+Deno.test("COMPLÉTION : une anomalie la rend ambiguë, jamais automatique", () => {
+  const result = diffRecords(
+    [episode(E6_ANNONCE)],
+    [incomingEpisode(E6_DIFFUSE, ["vainqueur_inconnu"])],
+    { today: "2026-09-29" },
+  );
+  assertEquals(result.differences[0].class, "ambiguous");
+});
+
+Deno.test("COMPLÉTION : un séjour en tribu reçoit sa fin", () => {
+  const before: StoredRecord = {
+    entity: "season_contestant",
+    naturalKey: "Camille",
+    published: true,
+    payload: {
+      displayName: "Camille",
+      teams: [
+        { name: "Tribu unique", fromDay: 1, toDay: 9 },
+        { name: "Taboga", fromDay: 9, toDay: null },
+      ],
+      departure: null,
+    },
+  };
+  const after: IncomingRecord = {
+    entity: "season_contestant",
+    naturalKey: "Camille",
+    payload: {
+      displayName: "Camille",
+      teams: [
+        { name: "Tribu unique", fromDay: 1, toDay: 9 },
+        { name: "Taboga", fromDay: 9, toDay: 17 },
+        { name: "Bannie", fromDay: 17, toDay: null },
+      ],
+      departure: "Éliminée",
+    },
+  };
+  assertEquals(diffRecords([before], [after]).differences[0].class, "unambiguous");
+});
+
+Deno.test("`completes` : remplir, allonger, ajouter ; jamais remplacer ni retirer", () => {
+  const oui: Array<[Json | undefined, Json | undefined]> = [
+    [null, 17],
+    ["", "5-1"],
+    [[], ["Camille"]],
+    [["Maxime"], ["Maxime", "Joana"]],
+    [{ toDay: null, fromDay: 9 }, { toDay: 17, fromDay: 9 }],
+    [undefined, "nouveau champ"],
+    ["Camille", "Camille"],
+  ];
+  for (const [before, after] of oui) {
+    assert(
+      completes(before, after),
+      `${JSON.stringify(before)} → ${JSON.stringify(after)}`,
+    );
+  }
+  const non: Array<[Json | undefined, Json | undefined]> = [
+    ["Camille", "Yassin"],
+    [17, 18],
+    [0, 1],
+    [false, true],
+    [["Maxime"], ["Joana", "Maxime"]],
+    [["Maxime", "Joana"], ["Maxime"]],
+    [{ toDay: 14 }, { toDay: 17 }],
+    ["Camille", null],
+    ["Camille", undefined],
+    [["Maxime"], "Maxime"],
+  ];
+  for (const [before, after] of non) {
+    assert(
+      !completes(before, after),
+      `${JSON.stringify(before)} ↛ ${JSON.stringify(after)}`,
+    );
+  }
+});
+
+Deno.test("la garde suspend le lot : le certain devient suspect, le reste garde sa classe", () => {
+  const result = diffRecords(
+    [stored("e1:r1", { votesFor: 11 })],
+    [incoming("e1:r1", { votesFor: 12 }), incoming("e2:r1", { eliminated: "Moussa" })],
+  );
+  const suspendu = suspendBatch(result, "garde anti-vandalisme : raison");
+
+  assertEquals(suspendu.differences.map((d) => d.class), ["retroactive", "suspicious"]);
+  assert(
+    suspendu.differences.every((d) =>
+      d.reasons.at(-1) === "garde anti-vandalisme : raison"
+    ),
+  );
+  assertEquals(suspendu.summary.suspicious, 1);
+  assertEquals(autoValidatable(suspendu, { enabled: true, maxAutoChanges: 80 }), []);
 });
 
 Deno.test("modifier une donnée NON publiée reste non ambigu", () => {

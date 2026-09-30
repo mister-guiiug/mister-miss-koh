@@ -309,6 +309,115 @@ export async function fetchRevisionHistory(
   return { pageId: pageid, title, revisions };
 }
 
+/** Une modification de la page, et ce qu'il faut pour en juger. */
+export interface EditInfo {
+  readonly revId: string;
+  readonly revisedAt: string;
+  /** Balises MediaWiki : `mw-reverted` dit qu'elle a été annulée depuis. */
+  readonly tags: readonly string[];
+  /**
+   * Le compte qui l'a faite. `null` quand personne n'est identifiable :
+   * adresse IP, compte temporaire, ou nom masqué par les administrateurs.
+   */
+  readonly user: string | null;
+}
+
+export interface EditWindow {
+  readonly edits: readonly EditInfo[];
+  /** L'API a d'autres modifications, plus anciennes, au-delà de `limit`. */
+  readonly more: boolean;
+}
+
+/**
+ * Les modifications de la page, de `startId` (comprise) vers le passé.
+ *
+ * Sans contenu : l'identifiant, la date, les balises et l'auteur. C'est ce
+ * que la garde anti-vandalisme lit avant de laisser un lot se publier seul.
+ */
+export async function fetchEdits(
+  config: WikiConfig,
+  page: PageRef,
+  startId: string,
+  limit = 50,
+): Promise<EditWindow> {
+  const pageId = page.pageId == null ? "" : String(page.pageId).trim();
+  const target: Record<string, string> = /^\d+$/.test(pageId)
+    ? { pageids: pageId }
+    : { titles: page.title, redirects: "1" };
+
+  const body = await callApi(config, {
+    action: "query",
+    prop: "revisions",
+    ...target,
+    rvprop: "ids|timestamp|tags|user",
+    rvstartid: startId,
+    rvlimit: String(limit),
+  }) as {
+    continue?: unknown;
+    query?: {
+      pages?: Array<
+        {
+          pageid?: number;
+          missing?: boolean;
+          revisions?: Array<{
+            revid?: number;
+            timestamp?: string;
+            tags?: string[];
+            user?: string;
+            anon?: boolean;
+            temp?: boolean;
+            userhidden?: boolean;
+          }>;
+        }
+      >;
+    };
+  };
+
+  const found = body.query?.pages?.[0];
+  if (!found || found.missing || !found.pageid) {
+    throw new WikiError(
+      `page introuvable : ${page.title}${pageId ? ` (pageid ${pageId})` : ""}`,
+    );
+  }
+  const edits: EditInfo[] = [];
+  for (const rev of found.revisions ?? []) {
+    if (!rev.revid || !rev.timestamp) continue;
+    const identified = !rev.anon && !rev.temp && !rev.userhidden && !!rev.user;
+    edits.push({
+      revId: String(rev.revid),
+      revisedAt: rev.timestamp,
+      tags: rev.tags ?? [],
+      user: identified ? rev.user as string : null,
+    });
+  }
+  return { edits, more: body.continue !== undefined };
+}
+
+/**
+ * Les groupes de chaque compte, en un appel (50 noms au plus). Un nom inconnu
+ * ou invalide rend une liste vide : il n'appartient à aucun groupe.
+ */
+export async function fetchUserGroups(
+  config: WikiConfig,
+  names: readonly string[],
+): Promise<Map<string, readonly string[]>> {
+  const groups = new Map<string, readonly string[]>();
+  if (names.length === 0) return groups;
+  if (names.length > 50) {
+    throw new WikiError(`${names.length} comptes à la fois : l'API en lit 50 au plus`);
+  }
+  const body = await callApi(config, {
+    action: "query",
+    list: "users",
+    ususers: names.join("|"),
+    usprop: "groups",
+  }) as { query?: { users?: Array<{ name?: string; groups?: string[] }> } };
+  for (const user of body.query?.users ?? []) {
+    if (user.name) groups.set(user.name, user.groups ?? []);
+  }
+  return groups;
+}
+
 type RawSection = { index?: string; number?: string; line?: string };
 
 /**
