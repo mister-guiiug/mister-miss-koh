@@ -57,6 +57,13 @@ export interface ReferentialRepository {
   load(seasonSlug?: string, options?: LoadOptions): Promise<LoadResult>;
   /** Les saisons publiées. Vide = pas de choix à offrir. */
   listSeasons(): Promise<SeasonOption[]>;
+  /**
+   * Le numéro de la dernière publication de cette saison, ou `null` si on ne
+   * peut pas le savoir (hors ligne, serveur muet). Une ligne, un entier :
+   * c'est ce que l'écran ouvert demande pour savoir s'il doit relire. Absent
+   * de la démonstration, qui n'a pas de serveur à suivre.
+   */
+  latestVersion?(seasonId: string): Promise<number | null>;
 }
 
 export interface Backend {

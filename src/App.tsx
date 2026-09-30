@@ -23,6 +23,7 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
 import { useAppStore } from './store/useAppStore';
 import { usePhotosStore } from './store/usePhotosStore';
 import { useReferentialRetry } from './hooks/useReferentialRetry';
+import { useReferentialWatch } from './hooks/useReferentialWatch';
 import { Layout } from './components/Layout';
 import { AppAnimation } from './animations/AppAnimation';
 import { useMotionLevel } from './animations/motion';
@@ -106,6 +107,10 @@ function RoutedApp() {
   // partage, les Réglages se préchargent dès que le navigateur est au repos,
   // après la première peinture. Le clic ne paie pas l'aller-retour réseau.
   useIdlePrefetch(loadSettings);
+  // ICI ET NON DANS `App` : le toast qui annonce une nouveauté vit sous le
+  // `ToastProvider`, que `App` rend. Et il n'y a rien à suivre tant que le
+  // référentiel n'est pas là.
+  useReferentialWatch();
   return (
     <HashRouter>
       <Routes>

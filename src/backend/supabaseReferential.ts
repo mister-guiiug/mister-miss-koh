@@ -832,6 +832,28 @@ export function createSupabaseRepository(
       }
     },
 
+    // La même requête que la lecture complète fait pour `version`, seule :
+    // une ligne, un entier. Tout échec rend `null` : l'écran n'a rien à en
+    // dire, il redemandera au tour suivant.
+    async latestVersion(seasonId: string): Promise<number | null> {
+      if (horsLigne()) return null;
+      try {
+        const client = await deps.getClient();
+        const { data, error } = await client
+          .from('referential_versions')
+          .select('id')
+          .eq('season_id', seasonId)
+          .order('id', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) return null;
+        const id = (data as { id?: unknown } | null)?.id;
+        return typeof id === 'number' ? id : null;
+      } catch {
+        return null;
+      }
+    },
+
     async load(
       seasonSlug?: string,
       options?: { manual?: boolean }

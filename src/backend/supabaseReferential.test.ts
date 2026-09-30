@@ -709,6 +709,10 @@ describe('createSupabaseRepository — les trois origines', () => {
     });
     return () => {
       if (original) Object.defineProperty(navigator, 'onLine', original);
+      // Sur jsdom, `onLine` vit sur le PROTOTYPE : il n'y a pas de propriété
+      // propre à rétablir. Sans ce retrait, celle posée ici restait, et tous
+      // les tests suivants du fichier tournaient « hors ligne ».
+      else Reflect.deleteProperty(navigator, 'onLine');
     };
   };
 
@@ -839,3 +843,29 @@ function fakeClient(fixture: Rows) {
     },
   };
 }
+
+describe('createSupabaseRepository : la dernière publication', () => {
+  // Ce que l'écran ouvert demande toutes les deux minutes : une ligne, un
+  // entier. Voir `useReferentialWatch`.
+  const deps = {
+    readCache: () => null,
+    writeCache: () => undefined,
+    today: () => TODAY,
+  };
+
+  it('rend le numéro de la dernière publication de la saison', async () => {
+    const repo = createSupabaseRepository({
+      ...deps,
+      getClient: () => Promise.resolve(fakeClient(rows) as never),
+    });
+    expect(await repo.latestVersion?.(rows.season.id)).toBe(rows.version);
+  });
+
+  it('un serveur injoignable rend null, sans erreur : l’écran redemandera', async () => {
+    const repo = createSupabaseRepository({
+      ...deps,
+      getClient: () => Promise.reject(new Error('réseau')),
+    });
+    expect(await repo.latestVersion?.(rows.season.id)).toBeNull();
+  });
+});
