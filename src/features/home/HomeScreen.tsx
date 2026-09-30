@@ -76,7 +76,7 @@ export function HomeScreen() {
           l'accueil, ce pavé de métadonnées passait avant les chiffres et
           repoussait tout le reste — la traçabilité se consulte, elle ne
           s'impose pas à chaque ouverture. */}
-      <p className="muted">
+      <p className="muted home-intro">
         Suivi indépendant de Koh-Lanta, sans lien avec TF1 ni la production.{' '}
         <a
           href={`${import.meta.env.BASE_URL}suivre-koh-lanta-sans-spoiler.html`}
