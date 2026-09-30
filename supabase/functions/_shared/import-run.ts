@@ -33,6 +33,7 @@ import {
   fetchSectionHtml,
   fetchSections,
   findSection,
+  type RevisionInfo,
   type WikiConfig,
 } from "./mediawiki.ts";
 import { type Grid, type ParsedTable, parseTables } from "./html-table.ts";
@@ -194,6 +195,12 @@ export interface ImportPort {
    * que le site affiche et que son lien vise.
    */
   renameDocument(documentId: string, title: string): Promise<void>;
+  /**
+   * La sonde a relu la page et rien n'a changé : on note l'heure de lecture,
+   * SANS toucher à la raison d'une attente (`hold_reason`). Un lot qui attend
+   * une relecture attend toujours.
+   */
+  noteObserved(documentId: string, revisionId: string): Promise<void>;
   loadPolicy(documentId: string): Promise<ImportPolicy>;
   log(action: string, summary: string, targetId?: string): Promise<void>;
 }
@@ -208,6 +215,12 @@ export interface RunOptions {
   readonly sleep?: (ms: number) => Promise<void>;
   /** Forcer la relecture même si la révision n'a pas changé. */
   readonly force?: boolean;
+  /**
+   * La révision que la sonde vient de lire et de juger calme. L'import lit
+   * CELLE-LÀ, sans redemander la dernière : une modification arrivée entre
+   * les deux appels attendra, elle aussi, que la page se calme.
+   */
+  readonly revision?: RevisionInfo;
 }
 
 export interface RunOutcome {
@@ -363,7 +376,7 @@ export async function runImport(
     //
     // Par le `pageid` : une page renommée se suit, et son nouveau titre se
     // note. Tout ce qui se lit ensuite vise CETTE révision, pas la page.
-    const revision = await fetchRevision(wiki, {
+    const revision = options.revision ?? await fetchRevision(wiki, {
       title: document.title,
       pageId: document.pageId,
     });

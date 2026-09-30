@@ -5,10 +5,10 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **35 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> Les **36 migrations** sont appliquées sur le projet Supabase hébergé, qui
 > suit les **18 pages de saison** déclarées par Wikipédia. Six suites pgTAP,
-> 198 assertions (isolation 34, publication 86, suivi du compte 21, partage
-> éphémère 26, planification 29, structure de sécurité 2), passent sur une pile
+> 209 assertions (isolation 34, publication 86, suivi du compte 21, partage
+> éphémère 26, planification 40, structure de sécurité 2), passent sur une pile
 > jetable à chaque PR qui touche aux migrations ou aux tests
 > (`supabase-tests.yml`, vertes le 30/09/2026) ; les mêmes se rejouent à la
 > main contre cette base.
@@ -235,12 +235,12 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 | `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement |
 | `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                    |
 | `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 507 tests verts           |
-| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 186 tests verts           |
+| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage                    | 196 tests verts           |
 | `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes      |
 | `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes      |
 | `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes      |
 | `npm run test:photo:remote`         | pgTAP : partage éphémère, brûlure, péremption, quota                     | 26 assertions vertes      |
-| `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 29 assertions vertes      |
+| `npm run test:planification:remote` | pgTAP : les deux tâches de l'import, la fenêtre à l'heure de Paris       | 40 assertions vertes      |
 | `npm run build`                     | `tsc -b`, Vite, budget (563 kB gzip, index ≤ 107 kB, préchargé ≤ 223 kB) | 519 kB gzip, index 100 kB |
 | `npm run doctor`                    | `pwa-doctor` du socle                                                    | 0 défaut, 0 dette, 1 info |
 
@@ -382,7 +382,8 @@ supabase/
                  0032 révision lue notée même sans publication, relecture
                  chaque soir · 0033 publication d'un lot certain sans relecteur
                  · 0034 log_event fermée aux clients · 0035 la nuit lit
-                 une saison à la fois
+                 une saison à la fois · 0036 la soirée sondée toutes les
+                 deux minutes
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, suivi du compte, partage
                  éphémère, planification, structure de sécurité (pgTAP)
@@ -474,7 +475,7 @@ des deux échéances : **une ouverture**, ou **un jour**.
 ## Base de données
 
 La base **hébergée** est le projet Supabase `mister-miss-koh`
-(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les trente-cinq
+(`oqldfzrsandcguajyxbh`, région `eu-west-3`, offre Free). Les trente-six
 migrations y sont appliquées, par `supabase-migrate.yml` à chaque poussée qui
 les touche. `src/backend/database.types.ts` en avait été généré, mais il
 s'arrête à `0021` et n'a reçu depuis que des retouches à la main : il ignore
@@ -542,10 +543,13 @@ rôle `admin` ou `validator`, **vérifié en base**. La
 vérification de jeton de la plateforme restant active, un appel présente aussi
 la clé anonyme en `Authorization` ; elle n'ouvre rien par elle-même.
 
-Deux tâches `pg_cron` l'appellent (0026, 0032, 0035) : chaque nuit, de 4 h à
-6 h UTC, une page connue toutes les deux minutes (les dix-huit entre 4 h 01 et
-4 h 35), et chaque soir de 16 h à minuit, heure de Paris, toutes les trente
-minutes, pour la saison en diffusion.
+Deux tâches `pg_cron` l'appellent (0026, 0032, 0035, 0036) : chaque nuit, de
+4 h à 6 h UTC, une page connue toutes les deux minutes (les dix-huit entre
+4 h 01 et 4 h 35), et chaque soir de 16 h à minuit, heure de Paris (jusqu'à 2 h
+tant que la page bouge), une SONDE de la saison en diffusion toutes les deux
+minutes : un appel à l'API, et un import seulement quand une révision nouvelle
+s'est calmée depuis trois minutes (quinze au plus). Le site suit la page à
+quelques minutes près.
 
 Le premier import réel a tourné le 05/09/2026 : 78 différences proposées,
 aucune validée automatiquement, référentiel publié inchangé. Détail et
@@ -563,7 +567,7 @@ npm run test:rls:remote
 ```
 
 Les suites comptent **34 assertions** pour l'isolation et **86** pour la
-publication (21 pour le suivi du compte, 26 pour le partage éphémère, 29 pour
+publication (21 pour le suivi du compte, 26 pour le partage éphémère, 40 pour
 la planification). Le `rollback` final ne laisse rien derrière lui. Sur une
 pile jetable, `supabase-tests.yml` les joue toutes à chaque PR qui touche aux
 migrations ou aux tests.

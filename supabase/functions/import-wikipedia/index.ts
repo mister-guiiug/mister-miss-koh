@@ -38,6 +38,7 @@ import {
   pageUrl,
 } from "../_shared/catalogue.ts";
 import type { WikiConfig } from "../_shared/mediawiki.ts";
+import { probe } from "../_shared/sonde.ts";
 
 const USER_AGENT = Deno.env.get("IMPORT_USER_AGENT") ??
   "mister-miss-koh/0.1 (https://github.com/mister-guiiug/mister-miss-koh)";
@@ -194,12 +195,17 @@ function makePort(admin: SupabaseClient): ImportPort {
             : ambiguous > 0
             ? "en_attente"
             : null;
+          // « INCHANGÉ » NE LÈVE PAS UNE ATTENTE. Relire une révision dont le
+          // lot attend une relecture effaçait `hold_reason`, et le site cessait
+          // de dire qu'une révision plus récente attend : au bout de trente
+          // minutes avant, de deux avec la sonde de la soirée. Seule une
+          // publication (`publish_run`) ou une nouvelle lecture le change.
           await admin
             .from("source_documents")
             .update({
               observed_revision: patch.revision,
               observed_at: new Date().toISOString(),
-              hold_reason: hold,
+              ...(patch.status === "unchanged" ? {} : { hold_reason: hold }),
             })
             .eq("id", documentId);
         }
@@ -343,6 +349,17 @@ function makePort(admin: SupabaseClient): ImportPort {
         .eq("id", documentId);
     },
 
+    // La sonde n'a rien trouvé de neuf : l'heure de lecture, rien d'autre.
+    async noteObserved(documentId, revisionId) {
+      await admin
+        .from("source_documents")
+        .update({
+          observed_revision: revisionId,
+          observed_at: new Date().toISOString(),
+        })
+        .eq("id", documentId);
+    },
+
     async loadPolicy(documentId): Promise<ImportPolicy> {
       const { data } = await admin
         .from("import_policies")
@@ -480,7 +497,7 @@ Deno.serve(async (request) => {
   }
 
   let body: {
-    action?: "import" | "discover";
+    action?: "import" | "discover" | "sonder";
     documentId?: string;
     force?: boolean;
     category?: string;
@@ -520,6 +537,25 @@ Deno.serve(async (request) => {
   }
 
   if (!body.documentId) return json({ error: "documentId manquant" }, 400);
+
+  // ── La sonde de la soirée ──────────────────────────────────────────────
+  //
+  // Un appel à l'API, aucune exécution en base quand la page n'a pas bougé ;
+  // un import de la révision jugée calme sinon. Voir `_shared/sonde.ts`.
+  if (body.action === "sonder") {
+    try {
+      const outcome = await probe(makePort(admin), {
+        documentId: body.documentId,
+        trigger,
+        actorId,
+        userAgent: USER_AGENT,
+      });
+      return json(outcome, outcome.run?.status === "failed" ? 422 : 200);
+    } catch (error) {
+      console.error("import-wikipedia/sonder", error);
+      return json({ error: "la sonde a échoué : voir les journaux de la fonction" }, 500);
+    }
+  }
 
   // `force` est réservé au déclenchement manuel : une planification qui
   // pourrait forcer relirait la page à chaque tour, sans raison.
