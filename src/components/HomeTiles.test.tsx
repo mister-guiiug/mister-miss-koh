@@ -1,11 +1,19 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HomeTiles } from './HomeTiles';
 import { useAppStore } from '../store/useAppStore';
 import { useNotesStore } from '../store/useNotesStore';
 import { DEMO_REFERENTIAL } from '../backend/demo';
 import { lastAiredEpisode } from '../domain/stats';
+import type { SessionState } from '../hooks/useSession';
+
+// La session, sans client Supabase : personne par défaut, un compte quand un
+// test le demande.
+const session = vi.hoisted(() => ({
+  state: { account: null, available: false } as SessionState,
+}));
+vi.mock('../hooks/useSession', () => ({ useSession: () => session.state }));
 
 const AIRED = lastAiredEpisode(DEMO_REFERENTIAL);
 
@@ -34,7 +42,8 @@ beforeEach(() => {
     watched: [],
     favorites: [],
   });
-  useNotesStore.setState({ notes: null });
+  useNotesStore.setState({ notes: null, loading: false });
+  session.state = { account: null, available: false };
 });
 
 describe('les tuiles de l’accueil', () => {
@@ -62,13 +71,36 @@ describe('les tuiles de l’accueil', () => {
     expect(tuile('/episodes').getByText(`1/${AIRED}`)).toBeInTheDocument();
   });
 
-  it('ne parlent des notes QUE si le magasin en a déjà', () => {
-    // L'accueil n'ouvre pas de session et n'interroge pas le serveur : sans
-    // notes chargées, la tuile n'a rien à annoncer.
+  it('sans compte, ne parlent pas des notes et ne les demandent pas', () => {
+    // Un visiteur n'a pas de notes : rien à annoncer, rien à lire.
+    const load = vi.fn(() => Promise.resolve());
+    useNotesStore.setState({ load });
     renderTiles();
+
     expect(
       screen.getAllByRole('link').some(a => a.getAttribute('href') === '/notes')
     ).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('un compte connecté voit ses notes dès l’accueil, sans passer par l’écran Notes', async () => {
+    // Relevé du 30/09/2026 : la tuile lisait le magasin sans le remplir, et
+    // n'apparaissait donc jamais à l'ouverture de l'application.
+    session.state = {
+      account: { id: 'u-1', email: 'a@exemple.test' },
+      available: true,
+    } as SessionState;
+    const load = vi.fn(() => {
+      useNotesStore.setState({ notes: [] });
+      return Promise.resolve();
+    });
+    useNotesStore.setState({ load });
+    renderTiles();
+
+    expect(load).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(tuile('/notes').getByText('0')).toBeInTheDocument()
+    );
   });
 
   it('affichent le compte des notes quand elles sont chargées', () => {

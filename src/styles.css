@@ -1286,6 +1286,67 @@ a[data-dwc='button'][aria-current='page'] {
   animation: dwc-rise var(--motion-base) var(--ease-out) backwards;
 }
 
+/* ── Ce que dit le bandeau, et comment ─────────────────────────────────────
+   Le socle pose le titre et les deux boutons sur une même ligne souple, les
+   deux boutons au même style neutre. Sur 393 px, le titre et « Mettre à
+   jour » remplissaient la ligne, et « Plus tard (4 h) » tombait seul sur la
+   suivante, à gauche : un geste principal que rien ne distinguait, et un
+   report qui avait l'air d'un reste (capture du 30/09/2026).
+
+   Le titre prend sa ligne, les deux gestes se partagent la suivante, et le
+   principal porte la couleur de l'application, comme « Suivant » dans la
+   présentation. L'ORDRE DE LECTURE RESTE CELUI DU COMPOSANT : « Mettre à
+   jour » d'abord. Le déplacer par `order` ferait mentir l'ordre du clavier
+   et du lecteur d'écran.
+
+   Sept applications du parc ont écrit leur variante de ces règles : c'est
+   au socle de les porter, et ce bloc partira quand il le fera. */
+[data-dwc='update-banner'] {
+  padding: 0.75rem;
+  row-gap: 0.6rem;
+}
+
+[data-dwc='update-banner-title'] {
+  flex: 1 1 100%;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+[data-dwc='update-banner-update'],
+[data-dwc='update-banner-dismiss'],
+[data-dwc='update-banner-ignore'] {
+  flex: 1 1 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+[data-dwc='update-banner-update'] {
+  border-color: transparent;
+  background: var(--dwc-primary);
+  color: var(--dwc-primary-contrast);
+}
+
+[data-dwc='update-banner-update'][aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+[data-dwc='update-banner-dismiss'],
+[data-dwc='update-banner-ignore'] {
+  background: transparent;
+}
+
+@media (hover: hover) {
+  [data-dwc='update-banner-update']:hover:not([aria-busy='true']) {
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  [data-dwc='update-banner-dismiss']:hover,
+  [data-dwc='update-banner-ignore']:hover {
+    border-color: var(--primary);
+  }
+}
+
 .spoiler {
   padding: 0.8rem;
   border: 1px dashed var(--dwc-border-strong);
