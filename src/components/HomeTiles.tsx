@@ -7,15 +7,20 @@
  *
  * LA TUILE ENTIÈRE EST CLIQUABLE, et c'est un `<Link>` qui l'englobe.
  *
- * LES NOTES NE DÉCLENCHENT AUCUNE LECTURE. La tuile lit le magasin partagé
- * s'il est déjà rempli, et se tait sinon.
+ * LES NOTES SE CHARGENT POUR UN COMPTE CONNECTÉ, ET POUR LUI SEUL. La tuile
+ * lisait le magasin partagé sans jamais le remplir : ouverte sur l'accueil,
+ * l'application ne montrait donc aucune note, même à un compte qui en avait,
+ * tant qu'on n'était pas passé par l'écran Notes ou par une fiche (relevé du
+ * 30/09/2026). Elle passe désormais par `useNotes`, comme ces écrans : une
+ * lecture par session, et seulement quand une session existe. Un visiteur
+ * sans compte n'interroge toujours pas le serveur pour ses notes.
  */
 import { Link } from 'react-router-dom';
 import { NotebookPen, Star, Tv, Users } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../store/useAppStore';
-import { useNotesStore } from '../store/useNotesStore';
+import { useNotes } from '../hooks/useNotes';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';
 import { episodesBehind, homeFigures } from '../domain/summary';
 
@@ -33,7 +38,7 @@ export function HomeTiles() {
   const watched = useAppStore(s => s.watched);
   const spoiler = useAppStore(s => s.spoiler);
   const setSpoiler = useAppStore(s => s.setSpoiler);
-  const notes = useNotesStore(s => s.notes);
+  const { notes } = useNotes();
   const limit = useSpoilerLimit();
 
   if (!referential) return null;
