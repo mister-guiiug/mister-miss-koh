@@ -1361,7 +1361,16 @@ a[data-dwc='button'][aria-current='page'] {
   opacity: var(--pull);
   transition:
     height var(--motion-fast),
+    margin var(--motion-fast),
     opacity var(--motion-fast);
+}
+
+/* AU REPOS, L'INDICATEUR NE PREND RIEN. Haut de zéro, il payait quand même
+   l'écart de la pile (1 rem) : 16 px de vide en tête de l'accueil et des
+   Épisodes, relevés le 30/09/2026. La marge négative rend cet écart tant que
+   personne ne tire ; en action, il reprend sa place. */
+.stack > .pull:not([data-active]) {
+  margin-block-end: -1rem;
 }
 
 .pull[data-active] {
@@ -1494,26 +1503,46 @@ a[data-dwc='button'][aria-current='page'] {
 }
 
 /* ── Les tuiles de l'accueil ──────────────────────────────────────────────
-   Deux colonnes sur un téléphone, quatre dès qu'il y a la place. `auto-fit`
-   plutôt qu'un nombre fixe : le nombre de tuiles change selon qu'un compte
-   est connecté, et une grille figée laisserait un trou. */
+   `auto-fit` plutôt qu'un nombre fixe : le nombre de tuiles change selon
+   qu'un compte est connecté, et une grille figée laisserait un trou.
+
+   TROIS TUILES TIENNENT SUR UNE LIGNE DE TÉLÉPHONE. À 8,5 rem de minimum,
+   elles passaient sur deux rangées, et la troisième restait seule sur la
+   sienne : 255 px de haut sur 393 de large (relevé du 30/09/2026), le premier
+   poste d'un accueil qu'il fallait faire défiler. À 5,5 rem, les trois
+   tiennent dès 360 px d'écran ; plus étroit (320 px), la grille retombe sur
+   deux colonnes. Quatre (compte connecté) gardent 8,5 rem : deux rangées de
+   deux plutôt que trois et une orpheline. */
 .tiles {
   list-style: none;
   margin: 0.75rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: 0.5rem;
 }
 
+.tiles:has(> li:nth-child(4)) {
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+
 /* La tuile ENTIÈRE est le lien : une cible tactile de cette taille vaut mieux
-   qu'un mot souligné, et le lecteur d'écran annonce une seule destination. */
+   qu'un mot souligné, et le lecteur d'écran annonce une seule destination.
+
+   L'ICÔNE SE RANGE À CÔTÉ DU CHIFFRE quand il tient, dessous sinon : une
+   ligne de moins par tuile, sans rien retirer de ce qu'elle dit. Un retour
+   à la ligne, et non une grille à deux colonnes : « 14/16 », en fin de
+   saison, ne tient pas à côté de l'icône sur un téléphone, et une colonne
+   figée l'aurait fait déborder de la tuile. */
 .tile {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  column-gap: 0.4rem;
+  row-gap: 0.1rem;
   height: 100%;
-  padding: 0.7rem 0.8rem;
+  padding: 0.6rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1547,26 +1576,75 @@ a[data-dwc='button'][aria-current='page'] {
 }
 
 .tile-value {
-  font-size: var(--text-2xl);
+  /* Trois tuiles par ligne ne laissent que 5 rem au chiffre sur 360 px :
+     il descend jusqu'à 1,5 rem avec l'écran, et garde ses 2 rem ailleurs. */
+  font-size: clamp(1.5rem, 7vw, var(--text-2xl));
   line-height: 1.1;
   font-weight: 700;
+  white-space: nowrap;
   /* Les chiffres gardent la même largeur : sans cela, « 3 » et « 11 » font
      danser les libellés d'une tuile à l'autre au fil des épisodes. */
   font-variant-numeric: tabular-nums;
 }
 
 .tile-label {
+  flex-basis: 100%;
   font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .tile small {
+  flex-basis: 100%;
   font-size: var(--text-xs);
 }
 
 .tiles-note {
   margin: 0.5rem 0 0;
   font-size: var(--text-xs);
+}
+
+/* Le texte sous la carte est une MENTION (indépendance, page sans spoiler,
+   données sur l'appareil) : la taille secondaire de l'échelle, pas celle du
+   contenu. Une ligne de moins sur un téléphone. */
+.home-intro {
+  font-size: var(--text-sm);
+}
+
+/* ── Le pied de page, sur UNE ligne de téléphone ──────────────────────────
+   « Code source », « M'offrir un café » et « Signaler un problème »
+   demandaient 376 px à 13 px, pour 361 de large sur un écran de 393 : le
+   troisième passait dessous, et chaque lien garde ses 44 px de cible
+   tactile, soit 100 px de pied de page au lieu de 44. Sous 30 rem : 12 px,
+   un écart resserré, et les trois se répartissent la ligne (341 px sur 361,
+   icônes comprises). Sous 24 rem (375 et 360 px), les icônes s'effacent
+   plutôt que le texte ne rétrécisse encore : 277 px sur 328. Plus étroit
+   (320 px), le retour à la ligne reste le repli plutôt qu'un débordement.
+   Au-delà de 30 rem, le pied de page garde le rendu du socle. */
+@media (width < 30rem) {
+  [data-dwc='app-footer'] {
+    justify-content: space-between;
+    column-gap: 0.5rem;
+    font-size: var(--text-xs);
+  }
+
+  [data-dwc='app-footer'] > a {
+    gap: 0.3rem;
+    white-space: nowrap;
+  }
+}
+
+@media (width < 24rem) {
+  [data-dwc='app-footer'] > a > svg {
+    display: none;
+  }
+
+  /* L'emblème de l'accueil rend 12 px sur les petits écrans, qui sont aussi
+     les plus courts : un 360 × 780 laisse environ 650 px à la page sous
+     Chrome. */
+  .hero-animation svg {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
 }
 
 /* Le rattrapage est l'action de l'accueil quand l'anti-spoiler est en retard

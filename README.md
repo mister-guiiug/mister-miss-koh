@@ -154,7 +154,10 @@ parce qu'une tuile qui ne porte qu'un nom ne vaut pas mieux que l'onglet du
 bas. Le **tableau de bord** a le sien, « Suivi », dans la barre basse. Et ces
 comptes respectent l'**anti-spoiler** : « 16 en jeu » s'arrête à la limite que
 vous avez réglée, ce que l'écran dit sous les tuiles plutôt que de laisser
-croire à une erreur de calcul.
+croire à une erreur de calcul. **Sur un téléphone, il tient sans défiler** :
+les trois tuiles sur une ligne, l'icône à côté du chiffre, et « Code source ·
+M'offrir un café · Signaler un problème » sur une seule ligne. Mesuré le
+30/09/2026 : 863 px de haut avant, 618 après, sur 393 px de large.
 
 **Les candidats se rangent comme la saison se joue, à l'épisode où vous en
 êtes.** All Stars se joue en duos dans une tribu unique jusqu'au jour 9, puis
