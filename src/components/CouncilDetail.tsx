@@ -69,6 +69,12 @@ export function CouncilDetail({
               {name(b.voterId)} <span aria-hidden>→</span>
               <span className="sr-only"> a voté contre </span>{' '}
               {name(b.targetId)}
+              {b.weight > 1 && (
+                <>
+                  {' '}
+                  <small className="muted">({b.weight} voix)</small>
+                </>
+              )}
             </>
           );
           return (

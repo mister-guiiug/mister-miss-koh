@@ -179,7 +179,11 @@ mécanismes distinguent l'absence de la valeur nulle :
   toute statistique qui agrège des votes doit le lire avant de conclure ;
 - `council_votes` distingue **trois** situations : a voté pour X
   (`target_id` renseigné), n'a pas voté (`did_not_vote`), et a voté pour un
-  inconnu (`target_id is null` sans `did_not_vote`).
+  inconnu (`target_id is null` sans `did_not_vote`) ;
+- un bulletin n'est pas toujours une voix : `council_votes.weight` (0037) vaut
+  2 pour un vote double (« Camille (x2) », épisode 6 d'All Stars), et les
+  statistiques comptent au poids. `null` vaut une voix : c'est ce qu'un retour
+  arrière repose depuis une photo prise avant la colonne.
 
 ## Provenance : chaque ligne sait d'où elle vient
 

@@ -81,3 +81,27 @@ describe('lastAiredEpisode', () => {
     expect(lastAiredEpisode(ref)).toBe(2);
   });
 });
+
+describe('votesReceived et votesCast : le vote double', () => {
+  it('un bulletin de poids 2 compte deux voix reçues, et deux exprimées', () => {
+    const tour = ref.rounds.find(
+      r => r.kind === 'vote' && r.episodeNumber === 1
+    );
+    if (!tour) throw new Error('tour de vote absent de la démonstration');
+    const bulletin = ref.votes.find(
+      v => v.roundId === tour.id && !v.struck && v.targetId
+    );
+    if (!bulletin?.targetId) throw new Error('bulletin absent');
+    const double: Referential = {
+      ...ref,
+      votes: ref.votes.map(v => (v === bulletin ? { ...v, weight: 2 } : v)),
+    };
+
+    expect(votesReceived(double, bulletin.targetId, 1).value).toBe(
+      votesReceived(ref, bulletin.targetId, 1).value + 1
+    );
+    expect(votesCast(double, bulletin.voterId, 1).value).toBe(
+      votesCast(ref, bulletin.voterId, 1).value + 1
+    );
+  });
+});

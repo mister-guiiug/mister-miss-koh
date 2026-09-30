@@ -40,3 +40,33 @@ describe('councilView — le détail d’un tour', () => {
     expect(view?.complete).toBe(false);
   });
 });
+
+describe('councilView : le vote double', () => {
+  it('un bulletin de poids 2 compte deux voix, et le dit', () => {
+    // Épisode 6 d'All Stars, transposé : un votant vote deux fois.
+    const tour = round('r-e1-2');
+    const [premier, ...autres] = DEMO_REFERENTIAL.votes.filter(
+      v => v.roundId === tour.id
+    );
+    if (!premier) throw new Error('le tour r-e1-2 a des bulletins');
+    const ref = {
+      ...DEMO_REFERENTIAL,
+      votes: [
+        ...DEMO_REFERENTIAL.votes.filter(v => v.roundId !== tour.id),
+        { ...premier, weight: 2 },
+        ...autres,
+      ],
+    };
+    const view = councilView(ref, tour);
+    const cible = view?.tallies.find(t => t.targetId === premier.targetId);
+    const avant = councilView(DEMO_REFERENTIAL, tour)?.tallies.find(
+      t => t.targetId === premier.targetId
+    );
+
+    expect(cible?.votes).toBe((avant?.votes ?? 0) + 1);
+    expect(view?.ballots).toHaveLength(7);
+    expect(view?.ballots.find(b => b.voterId === premier.voterId)?.weight).toBe(
+      2
+    );
+  });
+});

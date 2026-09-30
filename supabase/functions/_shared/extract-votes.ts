@@ -60,6 +60,8 @@ export interface ExtractedVote {
   readonly voter: string;
   readonly target: string | null;
   readonly struck: boolean;
+  /** Les voix que ce bulletin porte : 1, ou plus pour « Camille (x2) ». */
+  readonly weight: number;
 }
 
 export interface Anomaly {
@@ -193,6 +195,26 @@ export function looksLikeVotes(grid: Grid): boolean {
   return findRow(grid, LABEL_EPISODE) !== -1 && findRow(grid, LABEL_CONTESTANTS) !== -1;
 }
 
+/**
+ * Un bulletin qui compte plusieurs fois.
+ *
+ * Relevé du 30/09/2026 sur les dix-huit pages : UNE cellule du corpus a cette
+ * forme, « Camille (x2) » dans la ligne de Yassin, épisode 6 d'All Stars.
+ * C'est elle qui fait le « 5/6 » du décompte : cinq votants, dont un qui vote
+ * deux fois. Lue comme une valeur inconnue, elle rendait le tour ambigu et
+ * laissait le vote de Yassin hors du référentiel. Le nom reste celui d'un
+ * candidat, vérifié comme les autres ; le multiplicateur va de 2 à 9, en « x »
+ * ou en « × ».
+ */
+const MULTIPLE = /^(.+?)\s*\(\s*[x×]\s*([2-9])\s*\)$/u;
+
+function readBallot(text: string): { name: string; weight: number } {
+  const multiple = MULTIPLE.exec(text.trim());
+  return multiple
+    ? { name: multiple[1].trim(), weight: Number(multiple[2]) }
+    : { name: text, weight: 1 };
+}
+
 /** « 11/18 » → { for: 11, total: 18 } ; « 0 » → { for: 0, total: null }. */
 function parseTally(raw: string): { forCount: number | null; total: number | null } {
   const cleaned = raw.trim();
@@ -324,7 +346,7 @@ export function extractVotes(
   type CellKind = "vote" | "status" | "unknown" | "empty";
   const kindOf = (text: string): CellKind => {
     if (!text) return "empty";
-    if (known.has(fold(text))) return "vote";
+    if (known.has(fold(readBallot(text).name))) return "vote";
     if (STATUS_WORDS.has(fold(text))) return "status";
     return "unknown";
   };
@@ -453,14 +475,18 @@ export function extractVotes(
       // classement ; il ne reste ici que les voix.
       if (kindOf(value) !== "vote") continue;
 
+      // `cast` compte des BULLETINS, pas des voix : la nature de la colonne
+      // (annulée, départ lié) se lit à ce qu'on a écrit, pas à ce que ça pèse.
       cast += 1;
       if (cell?.struck) struckCast += 1;
+      const ballot = readBallot(value);
       votes.push({
         naturalKey: `${seasonSlug}:e${episodeKey}:r${roundNumber}:${contestants[i]}`,
         columnIndex: c,
         voter: contestants[i],
-        target: canonique(value),
+        target: canonique(ballot.name),
         struck: cell?.struck ?? false,
+        weight: ballot.weight,
       });
     }
 

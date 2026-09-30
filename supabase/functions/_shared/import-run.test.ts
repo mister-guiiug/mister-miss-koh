@@ -975,10 +975,11 @@ Deno.test("23/09 : une différence par TRIBU porte sa couleur, les séjours rest
   assertEquals(e5r1?.payload.kind, "annulled", "le « / » de l'épisode 5 est une égalité");
 });
 
-Deno.test("la version d'extraction est la 13 : les pages figées sont rejouées", () => {
+Deno.test("la version d'extraction est la 14 : les pages figées sont rejouées", () => {
   // Sans ce changement de version, une page qui ne bouge plus répondrait
-  // « révision déjà traitée », et ses statuts resteraient des tribus.
-  assertEquals(EXTRACTOR_VERSION, "13");
+  // « révision déjà traitée », et le vote double de Yassin resterait une
+  // valeur inconnue, son tour ambigu, le lot du soir en attente.
+  assertEquals(EXTRACTOR_VERSION, "14");
 });
 
 // ── La récupération : une révision, une requête à la fois ─────────────────
@@ -1143,4 +1144,33 @@ Deno.test("la révision que la sonde a jugée calme n'est pas redemandée", asyn
   for (const u of urls.filter((u) => u.searchParams.get("action") === "parse")) {
     assertEquals(u.searchParams.get("oldid"), "239179935");
   }
+});
+
+Deno.test("un vote double porte son poids ; un bulletin simple n'en écrit aucun", async () => {
+  // La matrice du 30/09/2026 : Yassin vote deux fois contre Camille à
+  // l'épisode 6. Les autres bulletins gardent le payload d'avant : `weight: 1`
+  // partout aurait changé toutes les voix déjà publiées.
+  const votes0930 = await Deno.readTextFile(
+    new URL("./fixtures/all-stars-votes-2026-09-30.html", import.meta.url),
+  );
+  const { port, calls } = fakePort();
+  await runImport(port, {
+    ...baseOptions,
+    fetchImpl: fakeFetch({
+      html: { "0": INTRODUCTION, "4": CANDIDATS, "5": DEROULEMENT, "7": votes0930 },
+    }),
+  });
+
+  const voix = calls.records.filter((r) => r.entity === "council_vote");
+  const yassin = voix.find((r) => r.naturalKey.endsWith(":e6:r1:Yassin"));
+  assertEquals(yassin?.payload, {
+    voter: "Yassin",
+    target: "Camille",
+    struck: false,
+    weight: 2,
+  });
+  assert(
+    voix.filter((r) => r !== yassin).every((r) => !("weight" in r.payload)),
+    "aucun autre bulletin ne porte de poids",
+  );
 });

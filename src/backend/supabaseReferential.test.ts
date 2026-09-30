@@ -366,6 +366,23 @@ describe('mapReferential', () => {
     expect(struck.every(v => v.roundId === 'r1')).toBe(true);
   });
 
+  it('le poids d’un bulletin vient de `weight` ; absent ou nul, une voix', () => {
+    // Avant la migration 0037, la colonne n'existe pas ; une ligne reposée
+    // par un retour arrière d'avant elle la porte nulle.
+    const double = structuredClone(rows);
+    const [voteA, voteB] = (double.episodes?.[0]?.councils?.[0]
+      ?.council_rounds?.[1]?.council_votes ?? []) as Record<string, unknown>[];
+    if (!voteA || !voteB) throw new Error('deux voix attendues au tour r2');
+    voteA.weight = 2;
+    voteB.weight = null;
+    const mapped = mapReferential(double, TODAY);
+
+    expect(
+      mapped.votes.filter(v => v.roundId === 'r2').map(v => v.weight)
+    ).toEqual([2, 1]);
+    expect(ref.votes.every(v => v.weight === 1)).toBe(true);
+  });
+
   it('un départ lié pointe vers le CANDIDAT qui l’a causé, pas vers un identifiant de départ', () => {
     const celeste = ref.departures.find(d => d.contestantId === 'sc-c');
     expect(celeste).toEqual({

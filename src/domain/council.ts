@@ -13,6 +13,9 @@
  * INCOMPLET SE DIT. Quand la source ne détaille pas toutes les voix
  * (`votesComplete` faux), les comptes sont des minimums, et l'écran l'écrit
  * « ≥ » — la même règle que la fiche d'un candidat.
+ *
+ * UN BULLETIN N'EST PAS TOUJOURS UNE VOIX. Un vote double (« Camille (x2) »)
+ * compte deux fois : les voix se comptent au poids, et le bulletin le dit.
  */
 import type { Referential, Round } from './referential';
 
@@ -29,6 +32,8 @@ export interface CouncilBallot {
   readonly voterId: string;
   readonly targetId: string | null;
   readonly struck: boolean;
+  /** Les voix que porte le bulletin : 2 pour un vote double. */
+  readonly weight: number;
 }
 
 export interface CouncilView {
@@ -46,14 +51,19 @@ export function councilView(
 ): CouncilView | null {
   const ballots = referential.votes
     .filter(v => v.roundId === round.id)
-    .map(v => ({ voterId: v.voterId, targetId: v.targetId, struck: v.struck }));
+    .map(v => ({
+      voterId: v.voterId,
+      targetId: v.targetId,
+      struck: v.struck,
+      weight: v.weight,
+    }));
   if (ballots.length === 0) return null;
 
   const byTarget = new Map<string | null, { votes: number; struck: number }>();
   for (const b of ballots) {
     const t = byTarget.get(b.targetId) ?? { votes: 0, struck: 0 };
-    if (b.struck) t.struck += 1;
-    else t.votes += 1;
+    if (b.struck) t.struck += b.weight;
+    else t.votes += b.weight;
     byTarget.set(b.targetId, t);
   }
   const tallies = [...byTarget.entries()]
