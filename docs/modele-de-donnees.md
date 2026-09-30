@@ -176,7 +176,14 @@ mécanismes distinguent l'absence de la valeur nulle :
 - `reported_votes_for` / `reported_votes_total` sont **nullables**, et `0` y est
   une valeur légitime — l'élimination de binôme se lit littéralement « 0 vote » ;
 - `council_rounds.votes_complete` dit si le détail individuel est intégral ;
-  toute statistique qui agrège des votes doit le lire avant de conclure ;
+  toute statistique qui agrège des votes doit le lire avant de conclure.
+  Personne ne l'écrivait avant 0038 : il valait toujours `false`, et chaque
+  décompte s'affichait « ≥ ». Un déclencheur le recalcule désormais à chaque
+  écriture d'un tour ou d'une voix (publication, retour arrière, correction à
+  la main) : complet quand la source donne le total, qu'aucun bulletin n'a de
+  cible inconnue, et que les bulletins rendent ce total, en voix valides OU en
+  toutes voix barrées comprises (un collier fait écrire « 3/9 » pour trois
+  voix valides sur neuf), chaque voix à son poids ;
 - `council_votes` distingue **trois** situations : a voté pour X
   (`target_id` renseigné), n'a pas voté (`did_not_vote`), et a voté pour un
   inconnu (`target_id is null` sans `did_not_vote`) ;
