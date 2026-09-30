@@ -29,7 +29,7 @@ export function HomeScreen() {
   if (!referential) return null;
 
   return (
-    <div className="stack">
+    <div className="stack home">
       <PullToRefresh />
       <AppAnimation name="app-start" className="hero-animation" />
       {welcome && !onboarded && (

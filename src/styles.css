@@ -245,10 +245,12 @@ body,
   color: var(--warn);
 }
 
+/* L'écart est une variable : l'accueil le resserre sur un téléphone, et
+   l'indicateur de tirage, qui l'annule au repos, doit connaître le bon. */
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--stack-gap, 1rem);
 }
 
 .muted {
@@ -1370,7 +1372,7 @@ a[data-dwc='button'][aria-current='page'] {
    Épisodes, relevés le 30/09/2026. La marge négative rend cet écart tant que
    personne ne tire ; en action, il reprend sa place. */
 .stack > .pull:not([data-active]) {
-  margin-block-end: -1rem;
+  margin-block-end: calc(-1 * var(--stack-gap, 1rem));
 }
 
 .pull[data-active] {
@@ -1637,13 +1639,31 @@ a[data-dwc='button'][aria-current='page'] {
   [data-dwc='app-footer'] > a > svg {
     display: none;
   }
+}
 
-  /* L'emblème de l'accueil rend 12 px sur les petits écrans, qui sont aussi
-     les plus courts : un 360 × 780 laisse environ 650 px à la page sous
-     Chrome. */
+/* ── L'accueil d'un téléphone, resserré ───────────────────────────────────
+   Mesuré en production le 30/09/2026 sur 393 px (All Stars, à jour, un
+   favori) : 674 px de haut. Safari sur iPhone, barres dépliées, n'en montre
+   qu'environ 664 : il restait dix pixels à faire défiler. L'emblème rend
+   12 px, les écarts de la page et de la carte une vingtaine : 642. */
+@media (width < 30rem) {
+  .home {
+    --stack-gap: 0.75rem;
+  }
+
   .hero-animation svg {
     width: 2.25rem;
     height: 2.25rem;
+  }
+
+  /* Préfixés : la règle de `.caught-up` vient plus bas dans ce fichier, et
+     l'emporterait à spécificité égale. */
+  .home .tiles {
+    margin-top: 0.5rem;
+  }
+
+  .home .caught-up {
+    margin-top: 0.6rem;
   }
 }
 
