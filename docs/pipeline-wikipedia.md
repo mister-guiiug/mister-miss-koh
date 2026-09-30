@@ -890,9 +890,21 @@ depuis plus d'un jour.
 
 Rejouée sur la révision 239943413 contre la 239752857 publiée : sept
 différences sur huit se valident seules, la garde vérifie douze modifications
-de la soirée, toutes de comptes confirmés. La huitième reste ambiguë : une
-cellule « Camille (x2) », le vote double de Yassin, que l'extraction ne lit pas
-encore.
+de la soirée, toutes de comptes confirmés. La huitième restait ambiguë : une
+cellule « Camille (x2) », le vote double de Yassin, que l'extraction ne lisait
+pas.
+
+**Le vote double** (extraction 14, migration `0037`). C'est la seule cellule
+de cette forme dans les dix-huit pages au 30/09/2026, et c'est elle qui fait le
+« 5/6 » de l'épisode 6 : cinq votants, dont un qui vote deux fois. Elle se lit
+désormais comme un bulletin de POIDS 2 (`Nom (x2)` ou `Nom (×2)`, de 2 à 9, le
+nom vérifié comme les autres) ; le poids n'entre dans le payload que s'il
+dépasse 1, pour ne pas changer les voix déjà publiées. La publication l'écrit
+dans `council_votes.weight`, l'application compte les voix au poids et le
+bulletin affiche « (2 voix) ». Rejouée sur la révision 239943413 contre la
+239752857 publiée, avec la version 14 : neuf différences (le bulletin de
+Yassin rejoint les quatre autres de la soirée), toutes validées seules, et le
+lot se publie.
 
 **Une lecture « inchangée » ne lève plus une attente.** Elle effaçait
 `hold_reason` : trente minutes après un lot ambigu, le site cessait de dire

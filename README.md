@@ -5,10 +5,10 @@ PWA de suivi des saisons d'aventure — en cours comme passées : candidats,
 favoris et partage révocable.
 
 > **État : la saison en cours est publiée, et lue par le site.**
-> Les **36 migrations** sont appliquées sur le projet Supabase hébergé, qui
-> suit les **18 pages de saison** déclarées par Wikipédia. Six suites pgTAP,
-> 209 assertions (isolation 34, publication 86, suivi du compte 21, partage
-> éphémère 26, planification 40, structure de sécurité 2), passent sur une pile
+> Les **37 migrations** sont appliquées sur le projet Supabase hébergé, qui
+> suit les **18 pages de saison** déclarées par Wikipédia. Sept suites pgTAP,
+> 217 assertions (isolation 34, publication 86, suivi du compte 21, partage
+> éphémère 26, planification 40, structure de sécurité 2, vote double 8), passent sur une pile
 > jetable à chaque PR qui touche aux migrations ou aux tests
 > (`supabase-tests.yml`, vertes le 30/09/2026) ; les mêmes se rejouent à la
 > main contre cette base.
@@ -234,8 +234,8 @@ fixe aucun. Pour le port 5236, celui de la liste d'URL autorisées (voir
 | ----------------------------------- | ------------------------------------------------------------------------ | ------------------------- |
 | `npm run lint`                      | ESLint (socle : react-hooks, jsx-a11y, react-refresh)                    | 0 erreur, 1 avertissement |
 | `npm run type-check`                | TypeScript strict, `tsc -b`                                              | propre                    |
-| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 515 tests verts           |
-| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage, garde du soir     | 220 tests verts           |
+| `npm test`                          | Vitest : cœur métier, adaptateur, écrans, composants                     | 519 tests verts           |
+| `npm run test:edge`                 | Deno : pipeline d'import, catalogue, lieu de tournage, garde du soir     | 224 tests verts           |
 | `npm run test:rls:remote`           | pgTAP : RLS et partages, contre la base liée                             | 34 assertions vertes      |
 | `npm run test:publication:remote`   | pgTAP : publication, lieu et retour arrière                              | 86 assertions vertes      |
 | `npm run test:personnel:remote`     | pgTAP : suivi multi-appareils, suppression, annulation                   | 21 assertions vertes      |
@@ -383,10 +383,12 @@ supabase/
                  chaque soir · 0033 publication d'un lot certain sans relecteur
                  · 0034 log_event fermée aux clients · 0035 la nuit lit
                  une saison à la fois · 0036 la soirée sondée toutes les
-                 deux minutes
+                 deux minutes · 0037 le poids d'un bulletin (vote
+                 double)
   functions/     pipeline d'import (Deno, sans dépendance) + fonction Edge
   tests/         isolation RLS, publication, suivi du compte, partage
-                 éphémère, planification, structure de sécurité (pgTAP)
+                 éphémère, planification, structure de sécurité, vote
+                 double (pgTAP)
 ```
 
 Six choix qui structurent le code :

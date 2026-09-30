@@ -124,6 +124,9 @@ const VoteRow = z.object({
   voter_id: z.string(),
   target_id: z.string().nullable(),
   is_annulled: z.boolean(),
+  // Absente avant la migration 0037, nulle sur une ligne reposée d'avant elle :
+  // dans les deux cas, une voix.
+  weight: z.number().int().nullish(),
 });
 
 const RoundRow = z.object({
@@ -398,6 +401,7 @@ export function mapReferential(input: unknown, today: string): Referential {
           voterId: v.voter_id,
           targetId: v.target_id,
           struck: v.is_annulled,
+          weight: v.weight ?? 1,
         }))
       )
     )
@@ -705,7 +709,10 @@ export async function fetchRows(
       client
         .from('episodes')
         .select(
-          'id, number, air_date, day_end, challenges(kind, challenge_results(season_contestant_id, pair_id, team_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(voter_id, target_id, is_annulled)))'
+          // `council_votes(*)` ET NON UNE LISTE, pour la même raison que les
+          // départs plus bas : nommer `weight` avant que la migration 0037
+          // soit passée ferait échouer toute la lecture.
+          'id, number, air_date, day_end, challenges(kind, challenge_results(season_contestant_id, pair_id, team_id, is_winner)), councils(id, council_rounds(id, round_number, outcome, reported_votes_for, reported_votes_total, votes_complete, council_votes(*)))'
         )
         .eq('season_id', season.id)
         .order('number'),

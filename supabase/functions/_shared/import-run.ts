@@ -108,8 +108,11 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *      « Évincé(e) », et tout nom dont le premier mot est un statut
  *      (« Éliminée à l'épreuve initiale »). Onze lignes au 24/09/2026 ; une
  *      « Évincée » glissée entre deux séjours masquait une sortie
+ * 14 : un bulletin peut compter plusieurs fois : « Camille (x2) » est un vote
+ *      de POIDS 2 (`weight`), et non une valeur inconnue. Une seule cellule
+ *      au 30/09/2026 : le vote double de Yassin, épisode 6 d'All Stars
  */
-export const EXTRACTOR_VERSION = "13";
+export const EXTRACTOR_VERSION = "14";
 
 export interface SourceDocument {
   readonly id: string;
@@ -1019,10 +1022,14 @@ export function buildRecords(
   }
 
   for (const v of votes.votes) {
+    // LE POIDS N'ENTRE QUE S'IL COMPTE. Écrit sur chaque bulletin, `weight: 1`
+    // changerait le payload de toutes les voix déjà publiées : autant de
+    // complétions à valider pour ne rien dire de neuf.
     push("council_vote", v.naturalKey, {
       voter: v.voter,
       target: v.target,
       struck: v.struck,
+      ...(v.weight > 1 ? { weight: v.weight } : {}),
     }, byRow.get(v.voter) ?? []);
   }
 

@@ -49,7 +49,10 @@ export function inGame(ref: Referential, upToEpisode: number): string[] {
     .map(c => c.id);
 }
 
-/** Voix reçues, hors tours annulés et hors voix barrées. */
+/**
+ * Voix reçues, hors tours annulés et hors voix barrées. Un vote double en
+ * compte deux : c'est ce que dit le décompte de la source (« 5/6 »).
+ */
 export function votesReceived(
   ref: Referential,
   contestantId: string,
@@ -57,9 +60,11 @@ export function votesReceived(
 ): Counted {
   const rounds = votingRounds(ref, upToEpisode);
   const roundIds = new Set(rounds.map(r => r.id));
-  const value = ref.votes.filter(
-    v => roundIds.has(v.roundId) && v.targetId === contestantId && !v.struck
-  ).length;
+  const value = ref.votes
+    .filter(
+      v => roundIds.has(v.roundId) && v.targetId === contestantId && !v.struck
+    )
+    .reduce((sum, v) => sum + v.weight, 0);
   return { value, complete: rounds.every(r => r.votesComplete) };
 }
 
@@ -71,13 +76,15 @@ export function votesCast(
 ): Counted {
   const rounds = votingRounds(ref, upToEpisode);
   const roundIds = new Set(rounds.map(r => r.id));
-  const value = ref.votes.filter(
-    v =>
-      roundIds.has(v.roundId) &&
-      v.voterId === contestantId &&
-      !v.struck &&
-      v.targetId
-  ).length;
+  const value = ref.votes
+    .filter(
+      v =>
+        roundIds.has(v.roundId) &&
+        v.voterId === contestantId &&
+        !v.struck &&
+        v.targetId
+    )
+    .reduce((sum, v) => sum + v.weight, 0);
   return { value, complete: rounds.every(r => r.votesComplete) };
 }
 

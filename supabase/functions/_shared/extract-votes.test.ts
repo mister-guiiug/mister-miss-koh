@@ -538,3 +538,68 @@ Deno.test("23/09 : l'arène sort quatre bannis sans scrutin, et rien ne les caus
     ["vote", "Lola", null],
   ]);
 });
+
+Deno.test("« Camille (x2) » : un bulletin de poids 2, pas une valeur inconnue", () => {
+  const grid = gridOf([
+    ["► Épisode", "6"],
+    ["► Éliminé", "Camille"],
+    ["► Votes", "3/4"],
+    ["▼ Candidats", "Votes"],
+    ["Camille", "Vincent"],
+    ["Vincent", "Camille"],
+    ["Yassin", "Camille (x2)"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+
+  assertEquals(out.anomalies, []);
+  assertEquals(out.votes.map((v) => [v.voter, v.target, v.weight]), [
+    ["Camille", "Vincent", 1],
+    ["Vincent", "Camille", 1],
+    ["Yassin", "Camille", 2],
+  ]);
+  assertEquals(out.rounds[0].kind, "vote");
+});
+
+Deno.test("le multiplicateur s'écrit « x » ou « × », de 2 à 9, et le nom reste vérifié", () => {
+  const grid = gridOf([
+    ["► Épisode", "6"],
+    ["► Éliminé", "Camille"],
+    ["► Votes", "4/5"],
+    ["▼ Candidats", "Votes"],
+    ["Vincent", "Camille (×3)"],
+    ["Yassin", "Quelquun (x2)"],
+    ["Camille", "Vincent (x1)"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+
+  assertEquals(out.votes.map((v) => [v.voter, v.target, v.weight]), [
+    ["Vincent", "Camille", 3],
+  ]);
+  // Un nom inconnu reste inconnu, multiplié ou non ; « x1 » n'est pas une forme lue.
+  assertEquals(
+    out.anomalies.filter((a) => a.code === "valeur_inconnue").map((a) => a.row),
+    ["Yassin", "Camille"],
+  );
+});
+
+const fixture0930 = await Deno.readTextFile(
+  new URL("./fixtures/all-stars-votes-2026-09-30.html", import.meta.url),
+);
+const real0930 = extractVotes(
+  parseTables(fixture0930).find((t) => looksLikeVotes(t.grid))!.grid,
+  SEASON,
+);
+
+Deno.test("30/09 : le vote double de Yassin fait le 5/6 de l'épisode 6", () => {
+  assertEquals(real0930.anomalies.filter((a) => a.code === "valeur_inconnue"), []);
+  const [tour] = real0930.rounds.filter((r) => r.episodeNumber === 6);
+  assertEquals([tour.kind, tour.eliminated, tour.rawTally], ["vote", "Camille", "5/6"]);
+
+  const bulletins = real0930.votes.filter((v) => v.columnIndex === tour.columnIndex);
+  const yassin = bulletins.find((v) => v.voter === "Yassin");
+  assertEquals([yassin?.target, yassin?.weight], ["Camille", 2]);
+  const voix = (cible: string | null) =>
+    bulletins.filter((v) => v.target === cible).reduce((n, v) => n + v.weight, 0);
+  assertEquals(voix("Camille"), tour.reportedVotesFor);
+  assertEquals(bulletins.reduce((n, v) => n + v.weight, 0), tour.reportedVotesTotal);
+});

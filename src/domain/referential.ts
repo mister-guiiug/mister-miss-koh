@@ -174,6 +174,12 @@ export const VoteSchema = z.object({
   voterId: z.string(),
   targetId: z.string().nullable(),
   struck: z.boolean(),
+  /**
+   * Les voix que porte ce bulletin : 1, ou 2 pour un vote double (« Camille
+   * (x2) », épisode 6 d'All Stars). Absent d'un cache ou d'une démonstration
+   * d'avant : une voix.
+   */
+  weight: z.number().int().min(1).max(9).default(1),
 });
 
 export const DepartureKindSchema = z.enum([
