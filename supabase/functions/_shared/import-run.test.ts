@@ -102,6 +102,7 @@ function fakePort(overrides: Partial<ImportPort> & {
       calls.renamed.push(title);
       return Promise.resolve();
     },
+    noteObserved: () => Promise.resolve(),
     loadPolicy: () =>
       Promise.resolve(
         overrides.policy ?? { autoValidateUnambiguous: false, maxAutoChanges: 20 },
@@ -979,4 +980,32 @@ Deno.test("un avertissement de l'API se journalise une fois par exécution", asy
   const journal = calls.logs.filter((l) => l.action === "import.avertissement_api");
   assertEquals(journal.length, 1, "une ligne, même si chaque lecture le répète");
   assert(journal[0].summary.includes("has been deprecated"));
+});
+
+Deno.test("la révision que la sonde a jugée calme n'est pas redemandée", async () => {
+  // Redemander la dernière révision ferait lire une modification arrivée
+  // entre la sonde et l'import, sans l'avoir laissée se calmer.
+  const { impl, urls } = recording(fakeFetch({ revId: "239999999" }));
+  const { port } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: impl,
+    revision: {
+      pageId: 17479409,
+      title: DOC.title,
+      revId: "239179935",
+      revisedAt: "2026-09-29T21:20:00Z",
+      sizeBytes: 22668,
+    },
+  });
+
+  assertEquals(outcome.revision, "239179935");
+  assertEquals(
+    urls.filter((u) => u.searchParams.get("prop") === "revisions").length,
+    0,
+    "aucune révision redemandée",
+  );
+  for (const u of urls.filter((u) => u.searchParams.get("action") === "parse")) {
+    assertEquals(u.searchParams.get("oldid"), "239179935");
+  }
 });

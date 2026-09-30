@@ -11,6 +11,7 @@ import {
   extractHash,
   fetchCoordinates,
   fetchRevision,
+  fetchRevisionHistory,
   fetchSectionHtml,
   fetchSections,
   findSection,
@@ -145,6 +146,37 @@ Deno.test("la page se désigne par son pageid, le titre ne sert qu'en repli", as
   const repli = new URL(parTitre.calls[0].url);
   assertEquals(repli.searchParams.get("titles"), "Koh-Lanta All Stars");
   assertEquals(repli.searchParams.get("redirects"), "1");
+});
+
+Deno.test("l'historique : les dernières révisions, en un appel, sans contenu", async () => {
+  const { impl, calls } = stubFetch({
+    query: {
+      pages: [{
+        pageid: 17479409,
+        title: "Koh-Lanta All Stars",
+        revisions: [
+          { revid: 239179936, timestamp: "2026-09-29T21:28:00Z", size: 22700 },
+          { revid: 239179935, timestamp: "2026-09-29T21:25:00Z", size: 22690 },
+        ],
+      }],
+    },
+  });
+  const history = await fetchRevisionHistory(config(impl), {
+    title: "Koh-Lanta All Stars",
+    pageId: "17479409",
+  }, 20);
+
+  assertEquals(history.revisions.map((r) => r.revId), ["239179936", "239179935"]);
+  assertEquals(history.revisions[0].revisedAt, "2026-09-29T21:28:00Z");
+  const url = new URL(calls[0].url);
+  assertEquals(url.searchParams.get("rvlimit"), "20");
+  assertEquals(url.searchParams.get("rvprop"), "ids|timestamp|size");
+  assertEquals(calls.length, 1);
+
+  // La dernière révision seule : le même appel, limité à une.
+  const une = stubFetch(REVISION_OK);
+  await fetchRevision(config(une.impl), { title: "X", pageId: "17479409" });
+  assertEquals(new URL(une.calls[0].url).searchParams.get("rvlimit"), "1");
 });
 
 Deno.test("le titre rendu est celui d'aujourd'hui : un renommage se voit", async () => {

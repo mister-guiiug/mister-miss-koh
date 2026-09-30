@@ -237,6 +237,28 @@ export async function fetchRevision(
   config: WikiConfig,
   page: string | PageRef,
 ): Promise<RevisionInfo> {
+  return (await fetchRevisionHistory(config, page, 1)).revisions[0];
+}
+
+export interface RevisionHistory {
+  readonly pageId: number;
+  readonly title: string;
+  /** Les dernières révisions, la plus récente d'abord. Jamais vide. */
+  readonly revisions: readonly RevisionInfo[];
+}
+
+/**
+ * Les dernières révisions de la page, la plus récente d'abord.
+ *
+ * C'est la sonde de la soirée de diffusion : en un seul appel, sans lire une
+ * ligne de contenu, elle dit si la page a bougé, quand pour la dernière fois,
+ * et depuis quand elle attend d'être lue.
+ */
+export async function fetchRevisionHistory(
+  config: WikiConfig,
+  page: string | PageRef,
+  limit = 20,
+): Promise<RevisionHistory> {
   const ref: PageRef = typeof page === "string" ? { title: page } : page;
   const pageId = ref.pageId == null ? "" : String(ref.pageId).trim();
   const target: Record<string, string> = /^\d+$/.test(pageId)
@@ -248,7 +270,7 @@ export async function fetchRevision(
     prop: "revisions",
     ...target,
     rvprop: "ids|timestamp|size",
-    rvlimit: "1",
+    rvlimit: String(limit),
   }) as {
     query?: {
       pages?: Array<
@@ -268,18 +290,23 @@ export async function fetchRevision(
       `page introuvable : ${ref.title}${pageId ? ` (pageid ${pageId})` : ""}`,
     );
   }
-  const rev = found.revisions?.[0];
-  if (!rev?.revid || !rev.timestamp) {
+  const pageid = found.pageid;
+  const title = found.title ?? ref.title;
+  const revisions: RevisionInfo[] = [];
+  for (const rev of found.revisions ?? []) {
+    if (!rev.revid || !rev.timestamp) continue;
+    revisions.push({
+      pageId: pageid,
+      title,
+      revId: String(rev.revid),
+      revisedAt: rev.timestamp,
+      sizeBytes: rev.size ?? 0,
+    });
+  }
+  if (revisions.length === 0) {
     throw new WikiError(`aucune révision lisible pour ${ref.title}`);
   }
-
-  return {
-    pageId: found.pageid,
-    title: found.title ?? ref.title,
-    revId: String(rev.revid),
-    revisedAt: rev.timestamp,
-    sizeBytes: rev.size ?? 0,
-  };
+  return { pageId: pageid, title, revisions };
 }
 
 type RawSection = { index?: string; number?: string; line?: string };

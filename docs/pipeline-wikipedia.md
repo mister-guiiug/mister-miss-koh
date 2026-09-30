@@ -800,12 +800,42 @@ données anciennes.
 
 C'est le genre de panne qu'une CI verte ne voit pas : tout le code marchait.
 
-**Deux tâches `pg_cron`** (migrations `0026`, `0032` et `0035`) :
+**Deux tâches `pg_cron`** (migrations `0026`, `0032`, `0035` et `0036`) :
 
-| tâche                  | quand                  | quoi                                  |
-| ---------------------- | ---------------------- | ------------------------------------- |
-| `koh-import-quotidien` | `1-59/2 4-5 * * *` UTC | une page de saison par réveil, les 18 |
-| `koh-import-diffusion` | `*/30 14-22 * * *` UTC | la seule saison `airing`              |
+| tâche                  | quand                     | quoi                                  |
+| ---------------------- | ------------------------- | ------------------------------------- |
+| `koh-import-quotidien` | `1-59/2 4-5 * * *` UTC    | une page de saison par réveil, les 18 |
+| `koh-import-diffusion` | `*/2 0-1,14-23 * * *` UTC | une sonde de la seule saison `airing` |
+
+**La soirée se lit en quasi direct** (migration `0036`). Elle relisait la
+saison en diffusion toutes les trente minutes : une élimination pouvait
+attendre une demi-heure avant d'être seulement lue. Toutes les deux minutes,
+elle envoie désormais une **sonde** (`action: "sonder"`, `_shared/sonde.ts`) :
+
+- **un appel, aucune exécution en base** quand la page n'a pas bougé (les
+  vingt dernières révisions, sans contenu) ; l'heure de lecture se note, et
+  c'est tout. Relire aussi souvent par l'import aurait créé une exécution
+  « inchangée » à chaque passage ;
+- **une révision nouvelle attend que la page se calme** : trois minutes sans
+  modification. Pendant l'émission, les contributeurs écrivent par rafales ;
+  lire chaque état intermédiaire donnerait des lots incomplets, souvent
+  ambigus, donc arrêtés en relecture. Une page qui ne se calme pas est lue
+  quand même au bout de quinze minutes d'attente ;
+- la révision jugée calme est passée à `runImport`, qui la lit **elle**, sans
+  redemander la dernière : une modification arrivée entre-temps attendra son
+  tour ;
+- après minuit, la soirée continue **jusqu'à 2 h tant que la page a bougé dans
+  l'heure** (`dans_la_soiree`, une fonction que le test éprouve directement).
+
+Le site est ainsi à jour trois à cinq minutes après la dernière retouche d'une
+rafale. Le coût : une trentaine de petites requêtes par heure vers Wikipédia
+pendant la fenêtre, et environ neuf mille appels de fonction par mois (quota
+gratuit : cinq cent mille).
+
+**Une lecture « inchangée » ne lève plus une attente.** Elle effaçait
+`hold_reason` : trente minutes après un lot ambigu, le site cessait de dire
+qu'une révision plus récente attend une relecture. Seule une publication
+(`publish_run`) ou une nouvelle lecture la change désormais.
 
 **La nuit lit une saison à la fois** (migration `0035`). Jusque-là, 4 h 17
 déclenchait les dix-huit imports dans une seule transaction, et `pg_net`
@@ -834,7 +864,8 @@ Depuis la migration `0032`, la fenêtre n'est plus limitée au mardi et au
 mercredi. Une saison en diffusion bouge aussi le jeudi : le dimanche 27
 septembre 2026, la page avait déjà une révision de plus (239859339) que celle
 publiée (239752857), et le prochain passage serré n'était que le mardi. Chaque
-soir, 16 h à minuit, heure de Paris. La même migration note
+soir, 16 h à minuit, heure de Paris (jusqu'à 2 h depuis `0036`, tant que la
+page bouge). La même migration note
 `observed_revision` à chaque lecture, publiée ou non, pour que le site dise
 quand une révision plus récente attend.
 
