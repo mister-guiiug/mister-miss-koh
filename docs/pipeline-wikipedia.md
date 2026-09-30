@@ -221,6 +221,20 @@ Cinq classes, et **une seule est automatisable**. Un diff qui dirait
 | `conflicting` | deux propositions du même lot se contredisent | jamais            |
 | `suspicious`  | le lot lui-même est anormal                   | jamais            |
 
+**Compléter n'est pas réécrire.** Un épisode est publié avant sa diffusion, sa
+date seule ; le soir venu, ses résultats remplissent des cases vides. Les
+classer `retroactive` réservait à un humain la seule mise à jour qu'une soirée
+apporte : relevé du 30/09/2026, l'épisode 6 d'All Stars (`aired`, `eliminated`,
+`immunityWinners`…) et la fin de séjour de Camille dans sa tribu
+(`teams[].toDay`, de `null` à 17) attendaient une relecture. Une ligne publiée
+dont **rien d'écrit ne change**, où des cases vides se remplissent, où une liste
+s'allonge par la fin et un objet gagne des clés, est une **complétion** :
+`unambiguous` si l'extraction n'y relève rien (`completes`, `diff.ts`).
+Remplacer, effacer ou réordonner reste `retroactive`. Un seul drapeau passe de
+faux à vrai, `aired`, que l'extraction déduit des résultats ; et seulement si la
+date de diffusion est passée ou du jour, à Paris : des résultats écrits avant
+l'émission sont une fuite ou un faux, jamais une complétion.
+
 **La suppression est le danger principal, et il n'est pas théorique.** Une
 extraction qui échoue à moitié — tableau renommé, section déplacée, réponse
 tronquée — ne lève pas : elle rend simplement **moins** d'enregistrements. Sans
@@ -827,10 +841,58 @@ elle envoie désormais une **sonde** (`action: "sonder"`, `_shared/sonde.ts`) :
 - après minuit, la soirée continue **jusqu'à 2 h tant que la page a bougé dans
   l'heure** (`dans_la_soiree`, une fonction que le test éprouve directement).
 
-Le site est ainsi à jour trois à cinq minutes après la dernière retouche d'une
+Le lot est ainsi prêt trois à cinq minutes après la dernière retouche d'une
 rafale. Le coût : une trentaine de petites requêtes par heure vers Wikipédia
 pendant la fenêtre, et environ neuf mille appels de fonction par mois (quota
 gratuit : cinq cent mille).
+
+**Prêt ne voulait pas dire publié.** Relevé le 30/09/2026, le lendemain de
+l'épisode 6 : le lot du soir comptait huit différences, dont les résultats de
+l'épisode, classés `retroactive` parce que l'épisode était publié vide. Il
+attendait un humain, et l'aurait attendu chaque semaine. Deux changements l'ont
+levé : la **complétion** (voir « Le diff »), et une **garde anti-vandalisme**
+qu'elle rendait nécessaire.
+
+**La garde** (`_shared/garde.ts`). Un faux résultat serait publié par la même
+complétion, et sa révocation ne le retirerait pas du site : défaire une donnée
+publiée est `retroactive`, réservé à un humain. Avant qu'un lot se valide seul,
+chaque modification de la page depuis la révision en ligne sur le site est donc
+lue, avec son auteur. **Une seule qui ne vient pas d'un compte confirmé** de
+Wikipédia (groupe `autoconfirmed`, le seuil que Wikipédia exige pour écrire sur
+une page semi-protégée) : adresse IP, compte temporaire, compte trop récent, et
+tout ce qui se serait validé seul devient `suspicious`, avec la raison, et le
+lot attend un humain. Ne comptent pas : une modification annulée depuis
+(balise `mw-reverted`), dont l'effet a quitté la page ; une modification restée
+en ligne plus d'un jour, sur une page que ses contributeurs suivent. Dans le
+doute (historique ou comptes illisibles, plus de cinquante modifications), le
+lot attend. La garde ne lit rien quand rien ne se serait validé seul, et son
+verdict se journalise (`import.garde`).
+
+**Pourquoi pas le modèle de Wikimedia.** Lift Wing estime le risque qu'une
+modification soit annulée (`revertrisk-language-agnostic`, sans compte). Mesuré
+le 30/09/2026 sur 628 modifications d'All Stars, de La Tribu maudite et des
+Reliques du destin : les 23 modifications annulées d'anonymes étaient toutes
+notées au-dessus de 0,5, mais 121 des 126 modifications anonymes **jamais**
+annulées aussi ; les 10 annulées d'inscrits, des propositions de mise en page,
+toutes à 0,45 ou moins. La note sépare les anonymes des inscrits, et rien de
+plus. La règle sur l'auteur fait la même chose, sans service tiers, et se lit
+d'une phrase.
+
+**Ce qu'elle coûte.** Sur les six soirées de diffusion d'All Stars, trois ne
+portaient que des comptes confirmés (1er, 22 et 29 septembre) et se seraient
+publiées seules. Les trois autres avaient un compte temporaire (le 15, dont
+deux modifications annulées dans la soirée) ou un compte de deux modifications
+(le 25 août et le 8 septembre) : elles attendent un humain. Les soirées des
+deux autres saisons relevées, écrites surtout par des anonymes, attendraient
+presque toutes. Un lot retenu se publie à la main, ou se relit seul à la
+modification suivante de la page, une fois la modification douteuse en ligne
+depuis plus d'un jour.
+
+Rejouée sur la révision 239943413 contre la 239752857 publiée : sept
+différences sur huit se valident seules, la garde vérifie douze modifications
+de la soirée, toutes de comptes confirmés. La huitième reste ambiguë : une
+cellule « Camille (x2) », le vote double de Yassin, que l'extraction ne lit pas
+encore.
 
 **Une lecture « inchangée » ne lève plus une attente.** Elle effaçait
 `hold_reason` : trente minutes après un lot ambigu, le site cessait de dire

@@ -126,6 +126,10 @@ function fakeFetch(options: {
   html?: Record<string, string>;
   /** Avertissements joints aux réponses `action=parse`. */
   warnings?: Record<string, { warnings: string }>;
+  /** L'historique que la garde lit (`rvstartid`) ; la révision seule sinon. */
+  edits?: Array<{ revid: number; timestamp: string; user?: string; anon?: boolean }>;
+  /** Chaque requête reçue, pour vérifier ce que la garde a lu ou non. */
+  seen?: URL[];
 } = {}): typeof fetch {
   const sections = options.sections ?? [
     { index: "4", line: "Candidats" },
@@ -137,11 +141,28 @@ function fakeFetch(options: {
 
   return (input) => {
     const url = new URL(String(input));
+    options.seen?.push(url);
     const action = url.searchParams.get("action");
     const prop = url.searchParams.get("prop");
     let body: unknown;
 
-    if (action === "query" && prop === "coordinates") {
+    if (action === "query" && url.searchParams.get("list") === "users") {
+      // Des comptes confirmés, comme ceux qui tiennent la page d'All Stars.
+      body = {
+        query: {
+          users: (url.searchParams.get("ususers") ?? "").split("|").map((name) => ({
+            name,
+            groups: ["*", "user", "autoconfirmed"],
+          })),
+        },
+      };
+    } else if (action === "query" && url.searchParams.has("rvstartid") && options.edits) {
+      body = {
+        query: {
+          pages: [{ pageid: 17479409, title: DOC.title, revisions: options.edits }],
+        },
+      };
+    } else if (action === "query" && prop === "coordinates") {
       // La page du lieu, telle que l'API la géolocalise (relevé du 06/09/2026).
       body = {
         query: {
@@ -562,6 +583,120 @@ Deno.test("une publication refusée laisse le lot en attente", async () => {
   assert(
     calls.logs.some((log) => log.action === "import.publish_refused"),
     "le refus est journalisé",
+  );
+});
+
+// ── Le soir : la complétion, et la garde qui la laisse passer ou non ────────
+
+/**
+ * Le référentiel tel qu'il était AVANT l'émission : tout est publié, et le
+ * dernier épisode diffusé de la page ne l'était pas encore (sa date seule,
+ * ses cases vides). C'est l'état du 29/09/2026 à 21 h, épisode 6 d'All Stars.
+ */
+async function avantLEmission() {
+  const first = fakePort();
+  await runImport(first.port, { ...baseOptions, fetchImpl: fakeFetch() });
+  const soir = first.calls.records
+    .filter((r) => r.entity === "episode" && r.payload.aired === true)
+    .filter((r) => (r.anomalies ?? []).length === 0)
+    .at(-1);
+  assert(soir, "la page porte un épisode diffusé, sans anomalie");
+  const published: StoredRecord[] = first.calls.records.map((r) => ({
+    entity: r.entity,
+    naturalKey: r.naturalKey,
+    payload: r === soir
+      ? {
+        ...r.payload,
+        comfortWinners: [],
+        immunityWinners: [],
+        eliminated: [],
+        rawTally: "",
+        departureDay: null,
+        aired: false,
+      }
+      : r.payload,
+    published: true,
+  }));
+  // 23 h 30 à Paris, le soir de la diffusion.
+  const now = Date.parse(`${soir.payload.airDate}T21:30:00Z`);
+  return { soir, published, now };
+}
+
+Deno.test("LE SOIR : les résultats d'un épisode publié vide se publient seuls", async () => {
+  const { soir, published, now } = await avantLEmission();
+  const { port, calls } = fakePort({ published, lastRevision: "1" });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    now: () => now,
+    fetchImpl: fakeFetch({
+      edits: [
+        {
+          revid: 239179934,
+          timestamp: new Date(now - 5 * 60_000).toISOString(),
+          user: "Cocojean29",
+        },
+      ],
+    }),
+  });
+
+  assertEquals(calls.differences.length, 1);
+  assertEquals(calls.differences[0].naturalKey, soir.naturalKey);
+  assertEquals(calls.differences[0].class, "unambiguous");
+  assertEquals(calls.autoValidated, [`episode:${soir.naturalKey}`]);
+  assertEquals(calls.publishedRuns, ["run-1"]);
+  assertEquals(outcome.published, true);
+  assert(
+    calls.logs.some((l) =>
+      l.action === "import.garde" && l.summary.includes("toutes de comptes confirmés")
+    ),
+    "la garde dit ce qu'elle a vérifié",
+  );
+});
+
+Deno.test("LE SOIR : une modification anonyme suspend le lot, qui attend un humain", async () => {
+  const { published, now } = await avantLEmission();
+  const { port, calls } = fakePort({ published, lastRevision: "1" });
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    now: () => now,
+    fetchImpl: fakeFetch({
+      edits: [
+        {
+          revid: 239179934,
+          timestamp: new Date(now - 5 * 60_000).toISOString(),
+          anon: true,
+        },
+      ],
+    }),
+  });
+
+  assertEquals(calls.differences.map((d) => d.class), ["suspicious"]);
+  assertEquals(calls.autoValidated, []);
+  assertEquals(calls.publishedRuns, []);
+  assertEquals(outcome.published, false);
+  const garde = calls.logs.find((l) => l.action === "import.garde");
+  assert(garde?.summary.includes("adresse IP ou d'un compte temporaire"), garde?.summary);
+  assertEquals(calls.differences[0].reasons.at(-1), garde?.summary);
+});
+
+Deno.test("LE SOIR : des résultats datés de demain attendent, sans que la garde lise rien", async () => {
+  const { published, now } = await avantLEmission();
+  const seen: URL[] = [];
+  const { port, calls } = fakePort({ published, lastRevision: "1" });
+  await runImport(port, {
+    ...baseOptions,
+    trigger: "scheduled",
+    now: () => now - 24 * 3_600_000,
+    fetchImpl: fakeFetch({ seen }),
+  });
+
+  assertEquals(calls.differences.map((d) => d.class), ["retroactive"]);
+  assertEquals(calls.publishedRuns, []);
+  assert(
+    !seen.some((u) => u.searchParams.has("rvstartid") || u.searchParams.has("ususers")),
+    "rien à publier seul : la garde ne lit rien",
   );
 });
 

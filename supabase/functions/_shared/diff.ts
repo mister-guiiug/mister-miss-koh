@@ -18,6 +18,13 @@
  *  - `conflicting` — deux propositions du même lot se contredisent ;
  *  - `suspicious`  — le lot lui-même est anormal (volume, effondrement).
  *
+ * COMPLÉTER N'EST PAS RÉÉCRIRE. Un épisode est publié AVANT sa diffusion, sa
+ * date seule ; le soir venu, ses résultats remplissent des cases vides. Les
+ * classer `retroactive` réservait à un humain la seule mise à jour que la
+ * soirée apporte (30/09/2026, épisode 6 d'All Stars). Une ligne publiée dont
+ * rien d'écrit ne change, et dont seules des cases vides se remplissent, est
+ * donc une COMPLÉTION, `unambiguous` si l'extraction n'y relève rien.
+ *
  * LA SUPPRESSION EST LE DANGER PRINCIPAL, et il n'est pas théorique. Une
  * extraction qui échoue à moitié — tableau renommé, section déplacée, réponse
  * tronquée — ne lève pas : elle rend simplement MOINS d'enregistrements. Sans
@@ -91,6 +98,13 @@ export interface DiffOptions {
    * hebdomadaire ne réécrit pas cent lignes.
    */
   readonly maxChangesPerEntity?: number;
+  /**
+   * Le jour, `AAAA-MM-JJ`, à l'heure de Paris. Un épisode ne passe à
+   * « diffusé » sans humain que si sa date de diffusion est passée ou du jour :
+   * des résultats écrits avant l'émission sont une fuite ou un vandalisme,
+   * jamais une complétion. `null` : aucun épisode ne passe seul.
+   */
+  readonly today?: string | null;
 }
 
 export interface DiffResult {
@@ -103,7 +117,56 @@ export interface DiffResult {
 const DEFAULTS: Required<DiffOptions> = {
   minCoverage: 0.8,
   maxChangesPerEntity: 50,
+  today: null,
 };
+
+/** Une case où rien n'était encore écrit. */
+function isBlank(value: Json | undefined): boolean {
+  return value === undefined || value === null || value === "" ||
+    (Array.isArray(value) && value.length === 0);
+}
+
+/**
+ * `after` ne fait-il que COMPLÉTER `before` ?
+ *
+ * Tout ce qui était écrit l'est encore, à l'identique, à la même place : une
+ * case vide peut se remplir, une liste peut s'allonger par la fin, un objet
+ * gagner des clés. Remplacer, effacer ou réordonner n'est pas compléter.
+ */
+export function completes(before: Json | undefined, after: Json | undefined): boolean {
+  if (isBlank(before)) return true;
+  if (Array.isArray(before)) {
+    return Array.isArray(after) && after.length >= before.length &&
+      before.every((value, i) => completes(value, after[i]));
+  }
+  if (before !== null && typeof before === "object") {
+    if (after === null || typeof after !== "object" || Array.isArray(after)) return false;
+    return Object.entries(before).every(([key, value]) => completes(value, after[key]));
+  }
+  return before === after;
+}
+
+/**
+ * Une ligne publiée est-elle seulement complétée ?
+ *
+ * `aired` est le seul drapeau qui passe de faux à vrai : l'extraction le
+ * déduit des résultats, il bascule avec eux. Et il ne bascule sans humain que
+ * si l'épisode est diffusé, date à l'appui (`today`).
+ */
+function isCompletion(
+  before: Record<string, Json>,
+  after: Record<string, Json>,
+  fields: readonly string[],
+  today: string | null,
+): boolean {
+  return fields.every((field) => {
+    if (field !== "aired") return completes(before[field], after[field]);
+    const airDate = after.airDate;
+    return before.aired === false && after.aired === true &&
+      today !== null && typeof airDate === "string" && airDate !== "" &&
+      airDate <= today;
+  });
+}
 
 /** Champs dont la valeur diffère, à comparaison stable. */
 function changedFields(
@@ -213,7 +276,9 @@ export function diffRecords(
 
       const reasons: string[] = [];
       let klass: DifferenceClass;
-      if (existing.published) {
+      const completion = existing.published &&
+        isCompletion(existing.payload, record.payload, fields, opts.today);
+      if (existing.published && !completion) {
         klass = "retroactive";
         reasons.push(
           `modifie une donnée déjà publiée (${
@@ -223,6 +288,13 @@ export function diffRecords(
       } else if (anomalies.length > 0) {
         klass = "ambiguous";
         reasons.push(...anomalies.map((a) => `anomalie relevée à l'extraction : ${a}`));
+      } else if (completion) {
+        klass = "unambiguous";
+        reasons.push(
+          `complète une donnée publiée (${
+            fields.join(", ")
+          }) : des cases vides se remplissent, rien d'écrit ne change`,
+        );
       } else {
         klass = "unambiguous";
         reasons.push(`champs modifiés : ${fields.join(", ")}`);
@@ -304,6 +376,30 @@ export function diffRecords(
     suspicious: summary.suspicious > 0,
     summary,
   };
+}
+
+/**
+ * Le lot est suspendu, pour une raison qui tient à la SOURCE et non aux
+ * données : la garde anti-vandalisme n'a pas pu se prononcer, ou a vu une
+ * modification à risque. Ce qui se serait validé seul (`unambiguous`) devient
+ * `suspicious` ; le reste garde sa classe, qui demandait déjà un humain.
+ * Chaque différence dit pourquoi.
+ */
+export function suspendBatch(result: DiffResult, reason: string): DiffResult {
+  const differences: Difference[] = result.differences.map((d) => ({
+    ...d,
+    class: d.class === "unambiguous" ? "suspicious" : d.class,
+    reasons: [...d.reasons, reason],
+  }));
+  const summary: Record<DifferenceClass, number> = {
+    unambiguous: 0,
+    ambiguous: 0,
+    retroactive: 0,
+    conflicting: 0,
+    suspicious: 0,
+  };
+  for (const d of differences) summary[d.class] += 1;
+  return { differences, suspicious: summary.suspicious > 0, summary };
 }
 
 /**

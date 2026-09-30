@@ -10,10 +10,12 @@ import { assert, assertEquals, assertRejects } from "jsr:@std/assert@^1";
 import {
   extractHash,
   fetchCoordinates,
+  fetchEdits,
   fetchRevision,
   fetchRevisionHistory,
   fetchSectionHtml,
   fetchSections,
+  fetchUserGroups,
   findSection,
   MAX_RETRIES,
   MAX_WAIT_MS,
@@ -177,6 +179,77 @@ Deno.test("l'historique : les dernières révisions, en un appel, sans contenu",
   const une = stubFetch(REVISION_OK);
   await fetchRevision(config(une.impl), { title: "X", pageId: "17479409" });
   assertEquals(new URL(une.calls[0].url).searchParams.get("rvlimit"), "1");
+});
+
+Deno.test("les modifications, depuis une révision vers le passé, avec leurs balises", async () => {
+  const { impl, calls } = stubFetch({
+    continue: { rvcontinue: "20260929212000|239179930", continue: "||" },
+    query: {
+      pages: [{
+        pageid: 17479409,
+        title: "Koh-Lanta All Stars",
+        revisions: [
+          {
+            revid: 239179936,
+            timestamp: "2026-09-29T21:28:00Z",
+            tags: [],
+            user: "Cocojean29",
+          },
+          {
+            revid: 239179935,
+            timestamp: "2026-09-29T21:25:00Z",
+            tags: ["mw-reverted", "visualeditor"],
+            user: "192.0.2.7",
+            anon: true,
+          },
+        ],
+      }],
+    },
+  });
+  const window = await fetchEdits(
+    config(impl),
+    { title: "Koh-Lanta All Stars", pageId: "17479409" },
+    "239179936",
+    2,
+  );
+
+  assertEquals(window.edits.map((e) => e.revId), ["239179936", "239179935"]);
+  assertEquals(window.edits[1].tags, ["mw-reverted", "visualeditor"]);
+  assertEquals(
+    window.edits.map((e) => e.user),
+    ["Cocojean29", null],
+    "une IP n'a pas de compte",
+  );
+  assertEquals(window.more, true, "l'API a d'autres modifications, plus anciennes");
+  const url = new URL(calls[0].url);
+  assertEquals(url.searchParams.get("pageids"), "17479409");
+  assertEquals(url.searchParams.get("rvstartid"), "239179936");
+  assertEquals(url.searchParams.get("rvprop"), "ids|timestamp|tags|user");
+  assertEquals(url.searchParams.get("rvlimit"), "2");
+});
+
+Deno.test("les groupes des comptes, en un appel ; un nom inconnu n'a aucun groupe", async () => {
+  const { impl, calls } = stubFetch({
+    query: {
+      users: [
+        { userid: 1, name: "Cocojean29", groups: ["*", "user", "autoconfirmed"] },
+        { name: "Fantôme", missing: true },
+      ],
+    },
+  });
+  const groups = await fetchUserGroups(config(impl), ["Cocojean29", "Fantôme"]);
+
+  assertEquals(groups.get("Cocojean29"), ["*", "user", "autoconfirmed"]);
+  assertEquals(groups.get("Fantôme"), []);
+  const url = new URL(calls[0].url);
+  assertEquals(url.searchParams.get("list"), "users");
+  assertEquals(url.searchParams.get("ususers"), "Cocojean29|Fantôme");
+  assertEquals(url.searchParams.get("usprop"), "groups");
+
+  // Rien à demander : aucun appel.
+  const vide = stubFetch({});
+  assertEquals((await fetchUserGroups(config(vide.impl), [])).size, 0);
+  assertEquals(vide.calls.length, 0);
 });
 
 Deno.test("le titre rendu est celui d'aujourd'hui : un renommage se voit", async () => {

@@ -49,10 +49,11 @@ export interface ProbeOutcome {
   readonly run?: RunOutcome;
 }
 
-export interface ProbeOptions extends RunOptions {
-  /** Injectable pour les tests : l'horloge, en millisecondes. */
-  readonly now?: () => number;
-}
+/**
+ * Celles de l'import. L'horloge (`now`) est la même pour la sonde, qui juge
+ * le calme de la page, et pour l'import, dont la garde date les modifications.
+ */
+export type ProbeOptions = RunOptions;
 
 /**
  * Depuis quand la page attend d'être lue : la date de la plus ancienne des
