@@ -1,4 +1,4 @@
--- mister-miss-koh : deux invariants de sécurité de la base. pgTAP, joué par
+-- mister-miss-koh : trois invariants de sécurité de la base. pgTAP, joué par
 -- `supabase test db` sur la pile jetable de la CI.
 --
 -- 1. Aucune table de `public` sans RLS. Supabase expose `public` à la clé
@@ -13,6 +13,12 @@
 --    `anon`. Une fonction neuve absente de la liste fait échouer ce test :
 --    lui retirer `anon`, ou l'ajouter après avoir relu son contrôle de
 --    l'appelant.
+-- 3. Aucune fonction de `public` ne lève `40001` (`serialization_failure`).
+--    PostgREST prend ce code pour un échec de sérialisation passager et
+--    rejoue la transaction SANS FIN : la requête ne répond jamais, et le
+--    backend tourne jusqu'à ce qu'on le tue (PostgREST 14, corrigé en 16).
+--    Un conflit métier se signale par `PT409`, rendu en HTTP 409. Ajouté le
+--    01/10/2026, après une boucle en production sur mister-molkky.
 --
 -- Le même fichier vit dans chaque application Supabase du parc (29/09/2026).
 -- Les tables et fonctions d'une extension ne relèvent pas des migrations :
@@ -24,7 +30,7 @@ set search_path to public, extensions;
 
 begin;
 
-select plan(2);
+select plan(3);
 
 select is_empty(
   $$
@@ -78,6 +84,25 @@ select set_eq(
     -- log_event en est sortie avec 0034.
   ],
   'les fonctions SECURITY DEFINER exécutables par anon sont exactement la liste relue'
+);
+
+-- Le corps entier est lu, commentaires compris : une fonction qui ne fait que
+-- CITER le code échoue aussi. C'est voulu, la règle reste simple à tenir.
+select is_empty(
+  $$
+    select p.proname::text
+      from pg_proc p
+     where p.pronamespace = 'public'::regnamespace
+       and p.prokind in ('f', 'p')
+       and pg_get_functiondef(p.oid) ~* '40001|serialization_failure'
+       and not exists (
+         select 1 from pg_depend d
+          where d.classid = 'pg_proc'::regclass
+            and d.objid = p.oid
+            and d.deptype = 'e'
+       )
+  $$,
+  'aucune fonction de public ne lève 40001 : PostgREST la rejouerait sans fin'
 );
 
 select * from finish();
