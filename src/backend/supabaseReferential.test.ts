@@ -400,12 +400,39 @@ describe('mapReferential', () => {
     expect(ref.provenance).toEqual({
       kind: 'wikipedia',
       pendingRevision: null,
+      observedAt: null,
       label: 'Wikipédia (fr)',
       title: 'Page fictive',
       url: 'https://exemple.test/page',
       revision: '239179934',
       fetchedAt: '2026-09-05T08:00:00Z',
       version: 7,
+    });
+  });
+
+  it('une révision en attente expose sa date d’observation, pas seulement son numéro', () => {
+    // Sans observedAt, l'accueil ne peut dire que « une révision attend » —
+    // et on se redemande pourquoi « publiées le 30 sept. » alors que la page
+    // a bougé le 4. La date d'observation coupe le doute.
+    const attente = mapReferential(
+      {
+        ...rows,
+        provenance: {
+          ...rows.provenance!,
+          last_seen_revision: '239943413',
+          last_seen_at: '2026-09-30T19:12:02Z',
+          observed_revision: '240028849',
+          observed_at: '2026-10-04T04:01:02Z',
+          hold_reason: 'en_attente',
+        },
+      },
+      TODAY
+    );
+    expect(attente.provenance).toMatchObject({
+      revision: '239943413',
+      fetchedAt: '2026-09-30T19:12:02Z',
+      pendingRevision: '240028849',
+      observedAt: '2026-10-04T04:01:02Z',
     });
   });
 
