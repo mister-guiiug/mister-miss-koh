@@ -18,6 +18,7 @@ import { useSession } from '../../hooks/useSession';
 import { useRefreshReferential } from '../../hooks/useRefreshReferential';
 import { useRereadWikipedia } from '../../hooks/useRereadWikipedia';
 import { usePublishHeldLot } from '../../hooks/usePublishHeldLot';
+import { usePendingReviews } from '../../hooks/usePendingReviews';
 import { useReviewer } from '../../hooks/useReviewer';
 import { Provenance } from '../../components/Provenance';
 import { SpoilerModePicker } from '../../components/SpoilerModePicker';
@@ -60,6 +61,13 @@ export function SettingsScreen() {
   const reviewer = useReviewer(account?.id);
   const { reread, reading } = useRereadWikipedia();
   const { publish, publishing } = usePublishHeldLot();
+  const {
+    items: pendingReviews,
+    loading: loadingReviews,
+    busyId: busyReviewId,
+    resume: resumeReview,
+    decide: decideReview,
+  } = usePendingReviews(reviewer);
   const pendingLot =
     Boolean(referential?.provenance.pendingRevision) &&
     referential?.provenance.pendingRevision !==
@@ -282,13 +290,71 @@ export function SettingsScreen() {
               <p className="muted">
                 Relit la page tout de suite, sans attendre le soir.
               </p>
+              {pendingReviews.length > 0 && (
+                <div className="stack">
+                  <p className="muted">
+                    {pendingReviews.length === 1
+                      ? 'Une proposition attend une décision.'
+                      : `${pendingReviews.length} propositions attendent une décision.`}
+                  </p>
+                  <ul
+                    className="stack"
+                    style={{ listStyle: 'none', padding: 0, margin: 0 }}
+                  >
+                    {pendingReviews.map(item => (
+                      <li key={item.id} className="stack">
+                        <p>{resumeReview(item)}</p>
+                        <div
+                          className="row"
+                          style={{ gap: '0.5rem', flexWrap: 'wrap' }}
+                        >
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            loading={busyReviewId === item.id}
+                            disabled={
+                              loading ||
+                              reading ||
+                              publishing ||
+                              loadingReviews ||
+                              busyReviewId !== null
+                            }
+                            onClick={() =>
+                              void decideReview(item.id, 'validated')
+                            }
+                          >
+                            Valider
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            loading={busyReviewId === item.id}
+                            disabled={
+                              loading ||
+                              reading ||
+                              publishing ||
+                              loadingReviews ||
+                              busyReviewId !== null
+                            }
+                            onClick={() =>
+                              void decideReview(item.id, 'rejected')
+                            }
+                          >
+                            Rejeter
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {pendingLot && (
                 <>
                   <Button
                     variant="primary"
                     size="sm"
                     loading={publishing}
-                    disabled={loading || reading}
+                    disabled={loading || reading || busyReviewId !== null}
                     onClick={() => void publish()}
                   >
                     Publier le lot en attente
