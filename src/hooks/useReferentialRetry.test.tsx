@@ -18,11 +18,13 @@
  * ferait un serveur injoignable. Remplacer le magasin aurait testé le test.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, waitFor } from '@testing-library/react';
+import {
+  wrapWithQueryClient,
+  clearQueryClient,
+} from '@mister-guiiug/dev-pwa-config/testing/query';
 import { backend } from '../backend/referentialRepository';
 import { DEMO_REFERENTIAL } from '../backend/demo';
-import { getQueryClient } from '../shared/queries/client';
 import { useAppStore } from '../store/useAppStore';
 
 const reseau = vi.hoisted(() => ({ online: true }));
@@ -42,11 +44,7 @@ function Sonde() {
 }
 
 function renderSonde() {
-  return render(
-    <QueryClientProvider client={getQueryClient()}>
-      <Sonde />
-    </QueryClientProvider>
-  );
+  return render(wrapWithQueryClient(<Sonde />));
 }
 
 /** L'état du magasin au sortir d'une lecture, quelle que soit son origine. */
@@ -65,7 +63,7 @@ function poseLEtat(etat: EtatPartiel) {
 
 beforeEach(() => {
   reseau.online = true;
-  getQueryClient().clear();
+  clearQueryClient();
   vi.restoreAllMocks();
 });
 
@@ -137,22 +135,14 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
 
     reseau.online = false;
     poseLEtat({ origin: 'cache' });
-    const { rerender } = render(
-      <QueryClientProvider client={getQueryClient()}>
-        <Sonde />
-      </QueryClientProvider>
-    );
+    const { rerender } = render(wrapWithQueryClient(<Sonde />));
 
     await new Promise(r => setTimeout(r, 20));
     // Redemander sans réseau, c'est ajouter une panne à une panne.
     expect(load).not.toHaveBeenCalled();
 
     reseau.online = true;
-    rerender(
-      <QueryClientProvider client={getQueryClient()}>
-        <Sonde />
-      </QueryClientProvider>
-    );
+    rerender(wrapWithQueryClient(<Sonde />));
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
