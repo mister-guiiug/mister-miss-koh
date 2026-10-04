@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { backend } from './backend/referentialRepository';
+import { getQueryClient } from './shared/queries/client';
 import { useAppStore } from './store/useAppStore';
 import { shareOrCopy } from '@mister-guiiug/dev-pwa-config/share';
 
@@ -16,6 +17,7 @@ vi.mock('@mister-guiiug/dev-pwa-config/share', async importer => ({
 // Le magasin est un module : chaque test repart d'un référentiel non chargé,
 // sinon `init()` — qui ne recharge pas une fois prêt — ne ferait rien.
 beforeEach(() => {
+  getQueryClient().clear();
   useAppStore.setState({
     ready: false,
     loading: false,

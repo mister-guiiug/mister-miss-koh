@@ -34,7 +34,6 @@ import {
 import {
   backend,
   DEFAULT_SEASON_SLUG,
-  peekCachedReferential,
   type Origin,
   type SeasonOption,
 } from '../backend/referentialRepository';
@@ -43,6 +42,7 @@ import {
   DEFAULT_CONTESTANT_FILTER,
   type ContestantFilter,
 } from '../domain/contestantFilter';
+import { fetchReferential } from '../shared/queries/referential';
 
 const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
@@ -325,41 +325,13 @@ export const useAppStore = create<AppState>((set, get) => {
     for (const n of current) if (!apres.has(n)) remote?.watched(n, false);
   };
 
-  const load = async (options?: { manual?: boolean }) => {
-    // La copie locale s'affiche tout de suite. Le serveur la remplace s'il
-    // répond ; s'il tarde, l'écran n'attend plus derrière la boussole.
-    const cached = peekCachedReferential(get().season);
-    if (cached && !get().referential) {
-      set({ referential: cached, origin: 'cache', ready: true });
-    }
-    set({ loading: true });
-    try {
-      // Sans option, un seul argument : un `undefined` explicite change
-      // l'appel, et le test qui vérifie la saison choisie le verrait.
-      const { referential, origin, notice } = await (options
-        ? backend.referential.load(get().season, options)
-        : backend.referential.load(get().season));
-      set({
-        referential,
-        origin,
-        notice: notice ?? null,
-        ready: true,
-        error: null,
-      });
-    } catch (error) {
-      // Rien d'autre ne bouge : référentiel, origine et avis restent ceux de
-      // la dernière lecture réussie. Un rechargement qui échoue se signale, il
-      // ne remplace pas l'application ; seul le premier chargement, qui ne
-      // laisse rien derrière lui, bloque l'écran — et App le sait par
-      // `referential`, pas par `error`.
-      set({
-        ready: true,
-        error: error instanceof Error ? error.message : 'référentiel illisible',
-      });
-    } finally {
-      set({ loading: false });
-    }
-  };
+  /**
+   * Lecture via TanStack Query (`fetchReferential`) : cache réseau dédupliqué,
+   * miroir Zustand inchangé pour les écrans. `force` pour un reload explicite
+   * (suivi de version, rattrapage, geste manuel).
+   */
+  const load = (options?: { manual?: boolean; force?: boolean }) =>
+    fetchReferential(options);
 
   return {
     ready: false,
@@ -379,7 +351,9 @@ export const useAppStore = create<AppState>((set, get) => {
       await load();
     },
 
-    reload: options => load(options),
+    // Toujours forcer : un reload explicite ne doit pas servir un cache Query
+    // encore frais (suivi de version, rattrapage réseau, bouton Réglages).
+    reload: options => load({ ...options, force: true }),
 
     setSpoiler(mode) {
       set({ spoiler: mode });
@@ -455,7 +429,9 @@ export const useAppStore = create<AppState>((set, get) => {
         watched: carte[slug] ?? [],
       });
       persist();
-      void load();
+      // Nouvelle saison = nouvelle clé Query, mais on force quand même pour
+      // ne pas resservir un cache encore frais si on revient sur une saison.
+      void load({ force: true });
     },
 
     async loadSeasons() {

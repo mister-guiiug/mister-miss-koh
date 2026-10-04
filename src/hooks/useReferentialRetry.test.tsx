@@ -18,9 +18,11 @@
  * ferait un serveur injoignable. Remplacer le magasin aurait testé le test.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { backend } from '../backend/referentialRepository';
 import { DEMO_REFERENTIAL } from '../backend/demo';
+import { getQueryClient } from '../shared/queries/client';
 import { useAppStore } from '../store/useAppStore';
 
 const reseau = vi.hoisted(() => ({ online: true }));
@@ -39,6 +41,14 @@ function Sonde() {
   return null;
 }
 
+function renderSonde() {
+  return render(
+    <QueryClientProvider client={getQueryClient()}>
+      <Sonde />
+    </QueryClientProvider>
+  );
+}
+
 /** L'état du magasin au sortir d'une lecture, quelle que soit son origine. */
 type EtatPartiel = Partial<ReturnType<typeof useAppStore.getState>>;
 
@@ -55,6 +65,7 @@ function poseLEtat(etat: EtatPartiel) {
 
 beforeEach(() => {
   reseau.online = true;
+  getQueryClient().clear();
   vi.restoreAllMocks();
 });
 
@@ -72,7 +83,7 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
       origin: 'cache',
       notice: 'Serveur injoignable : dernière version enregistrée.',
     });
-    render(<Sonde />);
+    renderSonde();
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     // Et l'avis s'efface de lui-même : c'est le seul message utile, le
@@ -92,7 +103,7 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
       referential: null,
       error: 'serveur injoignable',
     });
-    render(<Sonde />);
+    renderSonde();
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
@@ -101,7 +112,7 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
     const load = vi.spyOn(backend.referential, 'load');
 
     poseLEtat({ origin: 'server' });
-    render(<Sonde />);
+    renderSonde();
 
     await new Promise(r => setTimeout(r, 20));
     expect(load).not.toHaveBeenCalled();
@@ -113,7 +124,7 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
     const load = vi.spyOn(backend.referential, 'load');
 
     poseLEtat({ origin: 'demo', notice: 'aucune saison' });
-    render(<Sonde />);
+    renderSonde();
 
     await new Promise(r => setTimeout(r, 20));
     expect(load).not.toHaveBeenCalled();
@@ -126,14 +137,22 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
 
     reseau.online = false;
     poseLEtat({ origin: 'cache' });
-    const { rerender } = render(<Sonde />);
+    const { rerender } = render(
+      <QueryClientProvider client={getQueryClient()}>
+        <Sonde />
+      </QueryClientProvider>
+    );
 
     await new Promise(r => setTimeout(r, 20));
     // Redemander sans réseau, c'est ajouter une panne à une panne.
     expect(load).not.toHaveBeenCalled();
 
     reseau.online = true;
-    rerender(<Sonde />);
+    rerender(
+      <QueryClientProvider client={getQueryClient()}>
+        <Sonde />
+      </QueryClientProvider>
+    );
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
@@ -149,7 +168,7 @@ describe('reprendre le référentiel quand on est sur un repli', () => {
     });
 
     poseLEtat({ origin: 'cache' });
-    render(<Sonde />);
+    renderSonde();
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await new Promise(r => setTimeout(r, 60));

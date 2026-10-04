@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { backend } from '../backend/referentialRepository';
 import { DEMO_REFERENTIAL } from '../backend/demo';
+import { getQueryClient } from '../shared/queries/client';
 import { useAppStore } from './useAppStore';
 
 const VIERGE = {
@@ -25,7 +26,11 @@ const LECTURE_EN_CACHE = {
 } as const;
 
 // Le magasin est un module : chaque test repart d'un référentiel non chargé.
-beforeEach(() => useAppStore.setState(VIERGE));
+// Le client Query aussi — sinon un cache frais d'un test précédent court-circuite `load`.
+beforeEach(() => {
+  getQueryClient().clear();
+  useAppStore.setState(VIERGE);
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe('useAppStore — chargement du référentiel', () => {

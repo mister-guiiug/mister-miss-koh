@@ -11,9 +11,11 @@
  * sont remplacés.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render } from '@testing-library/react';
 import { backend } from '../backend/referentialRepository';
 import { DEMO_REFERENTIAL } from '../backend/demo';
+import { getQueryClient } from '../shared/queries/client';
 import { useAppStore } from '../store/useAppStore';
 import type { Referential } from '../domain/referential';
 
@@ -54,6 +56,14 @@ function Sonde(props: {
   return null;
 }
 
+function renderSonde(latestVersion: (seasonId: string) => Promise<number | null>) {
+  return render(
+    <QueryClientProvider client={getQueryClient()}>
+      <Sonde latestVersion={latestVersion} />
+    </QueryClientProvider>
+  );
+}
+
 function poseLEtat(etat: Partial<ReturnType<typeof useAppStore.getState>>) {
   useAppStore.setState({
     ready: true,
@@ -82,6 +92,7 @@ beforeEach(() => {
     get: () => visibilite,
   });
   toastApi.info.mockClear();
+  getQueryClient().clear();
   vi.restoreAllMocks();
 });
 
@@ -98,7 +109,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     const latestVersion = vi.fn().mockResolvedValue(6);
 
     poseLEtat({});
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
 
     expect(latestVersion).toHaveBeenCalledWith(DEMO_REFERENTIAL.season.id);
@@ -114,7 +125,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     const latestVersion = vi.fn().mockResolvedValue(5);
 
     poseLEtat({});
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
     await unTour();
 
@@ -128,7 +139,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     const latestVersion = vi.fn().mockResolvedValue(null);
 
     poseLEtat({});
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
 
     expect(load).not.toHaveBeenCalled();
@@ -139,7 +150,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     visibilite = 'hidden';
 
     poseLEtat({});
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
     expect(latestVersion).not.toHaveBeenCalled();
 
@@ -155,7 +166,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     const latestVersion = vi.fn().mockResolvedValue(9);
 
     poseLEtat({ origin: 'demo', referential: DEMO_REFERENTIAL });
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
 
     expect(latestVersion).not.toHaveBeenCalled();
@@ -166,7 +177,7 @@ describe('suivre les publications pendant qu’on regarde', () => {
     reseau.online = false;
 
     poseLEtat({});
-    render(<Sonde latestVersion={latestVersion} />);
+    renderSonde(latestVersion);
     await unTour();
 
     expect(latestVersion).not.toHaveBeenCalled();

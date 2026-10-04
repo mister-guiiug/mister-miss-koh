@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -20,6 +21,7 @@ import { SkeletonGroup } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { ToastProvider } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { useIdlePrefetch } from '@mister-guiiug/dev-pwa-config/react/use-prefetch';
 import { THEME_COLOR, THEME_STORAGE_KEY } from './theme';
+import { getQueryClient } from './shared/queries/client';
 import { useAppStore } from './store/useAppStore';
 import { usePhotosStore } from './store/usePhotosStore';
 import { useReferentialRetry } from './hooks/useReferentialRetry';
@@ -194,58 +196,70 @@ export function App() {
   useReferentialRetry();
 
   return (
-    <ThemeProvider
-      storageKey={THEME_STORAGE_KEY}
-      defaultTheme="system"
-      themeColor={THEME_COLOR}
-      paint={false}
-    >
-      <LabelsProvider locale="fr">
-        <IconsProvider icons={ICONS}>
-          <ToastProvider>
-            <ErrorBoundary
-              fallback={
-                <EmptyState
-                  icon={<AppAnimation name="recoverable-error" />}
-                  title="Quelque chose s’est mal passé"
-                  description="Rechargez la page. Vos données locales sont conservées."
-                />
-              }
-            >
-              {!ready ? (
-                <div className="loading">
-                  {/* LA BOUSSOLE EST LE REPLI du rôle de chargement : le jour
-                      où un `.riv` le porte, Rive la remplace. En attendant,
-                      elle bat en CSS, et le squelette esquisse la forme du
-                      contenu à venir — c'est lui qui annonce l'attente.
-
-                      C'ÉTAIT UNE FLAMME, et c'est précisément l'image dont la
-                      marque vient de se défaire : la laisser sur le premier
-                      écran d'un démarrage à froid aurait gardé vivante
-                      l'association qu'on voulait rompre. La flamme reste là où
-                      elle veut dire quelque chose — un partage qui s'éteint —,
-                      pas là où elle ne faisait que signer. */}
-                  <AppAnimation
-                    name="referential-loading"
-                    fallback={
-                      <Compass className="loading-mark" size={44} aria-hidden />
-                    }
+    <QueryClientProvider client={getQueryClient()}>
+      <ThemeProvider
+        storageKey={THEME_STORAGE_KEY}
+        defaultTheme="system"
+        themeColor={THEME_COLOR}
+        paint={false}
+      >
+        <LabelsProvider locale="fr">
+          <IconsProvider icons={ICONS}>
+            <ToastProvider>
+              <ErrorBoundary
+                fallback={
+                  <EmptyState
+                    icon={<AppAnimation name="recoverable-error" />}
+                    title="Quelque chose s’est mal passé"
+                    description="Rechargez la page. Vos données locales sont conservées."
                   />
-                  <SkeletonGroup label="Chargement du référentiel" lines={3} />
-                </div>
-              ) : error && !referential ? (
-                /* Le PREMIER chargement a échoué : rien à montrer, l'écran
-                   bloque. Un rechargement en échec ne passe jamais ici — la
-                   lecture précédente reste en place, et l'échec se dit
-                   (toast de useRefreshReferential, avis des Réglages). */
-                <EmptyState title="Référentiel illisible" description={error} />
-              ) : (
-                <RoutedApp />
-              )}
-            </ErrorBoundary>
-          </ToastProvider>
-        </IconsProvider>
-      </LabelsProvider>
-    </ThemeProvider>
+                }
+              >
+                {!ready ? (
+                  <div className="loading">
+                    {/* LA BOUSSOLE EST LE REPLI du rôle de chargement : le jour
+                        où un `.riv` le porte, Rive la remplace. En attendant,
+                        elle bat en CSS, et le squelette esquisse la forme du
+                        contenu à venir — c'est lui qui annonce l'attente.
+
+                        C'ÉTAIT UNE FLAMME, et c'est précisément l'image dont la
+                        marque vient de se défaire : la laisser sur le premier
+                        écran d'un démarrage à froid aurait gardé vivante
+                        l'association qu'on voulait rompre. La flamme reste là où
+                        elle veut dire quelque chose — un partage qui s'éteint —,
+                        pas là où elle ne faisait que signer. */}
+                    <AppAnimation
+                      name="referential-loading"
+                      fallback={
+                        <Compass
+                          className="loading-mark"
+                          size={44}
+                          aria-hidden
+                        />
+                      }
+                    />
+                    <SkeletonGroup
+                      label="Chargement du référentiel"
+                      lines={3}
+                    />
+                  </div>
+                ) : error && !referential ? (
+                  /* Le PREMIER chargement a échoué : rien à montrer, l'écran
+                     bloque. Un rechargement en échec ne passe jamais ici — la
+                     lecture précédente reste en place, et l'échec se dit
+                     (toast de useRefreshReferential, avis des Réglages). */
+                  <EmptyState
+                    title="Référentiel illisible"
+                    description={error}
+                  />
+                ) : (
+                  <RoutedApp />
+                )}
+              </ErrorBoundary>
+            </ToastProvider>
+          </IconsProvider>
+        </LabelsProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
