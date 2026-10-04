@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { Card, CardHeader } from '@mister-guiiug/dev-pwa-config/react/card';
-import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
 import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
@@ -19,8 +18,6 @@ import { useSession } from '../../hooks/useSession';
 import { useRefreshReferential } from '../../hooks/useRefreshReferential';
 import { useRereadWikipedia } from '../../hooks/useRereadWikipedia';
 import { useReviewer } from '../../hooks/useReviewer';
-import { BACKEND, MISSING_FOR_SUPABASE } from '../../backend/config';
-import { coverage, type Origin } from '../../backend/referentialRepository';
 import { Provenance } from '../../components/Provenance';
 import { SpoilerModePicker } from '../../components/SpoilerModePicker';
 import { REPO_URL } from '../../links';
@@ -41,15 +38,6 @@ const MOTION_OPTIONS = [
   },
 ] as const;
 
-const ORIGIN_LABEL: Record<
-  Origin,
-  { text: string; tone: 'success' | 'warning' | 'muted' }
-> = {
-  server: { text: 'le serveur', tone: 'success' },
-  cache: { text: 'la dernière version enregistrée', tone: 'warning' },
-  demo: { text: 'la démonstration (donnée fictive)', tone: 'muted' },
-};
-
 export function SettingsScreen() {
   const theme = useThemeContext();
   const { account, available } = useSession();
@@ -60,7 +48,6 @@ export function SettingsScreen() {
   const reduceMotion = useAppStore(s => s.reduceMotion);
   const setReduceMotion = useAppStore(s => s.setReduceMotion);
   const referential = useAppStore(s => s.referential);
-  const origin = useAppStore(s => s.origin);
   const notice = useAppStore(s => s.notice);
   const error = useAppStore(s => s.error);
   const loading = useAppStore(s => s.loading);
@@ -385,41 +372,10 @@ export function SettingsScreen() {
         )}
       </Card>
 
-      <Card>
-        <CardHeader title="Données" />
-        <dl className="stats">
-          <dt>Backend</dt>
-          <dd>
-            <Badge tone={BACKEND === 'supabase' ? 'success' : 'muted'}>
-              {BACKEND}
-            </Badge>
-          </dd>
-          <dt>Adaptateur du référentiel</dt>
-          <dd>
-            {coverage.remote.includes('referential')
-              ? 'distant (Supabase)'
-              : 'local'}
-          </dd>
-          {origin && (
-            <>
-              <dt>Cette lecture vient de</dt>
-              <dd>
-                <Badge tone={ORIGIN_LABEL[origin].tone}>
-                  {ORIGIN_LABEL[origin].text}
-                </Badge>
-              </dd>
-            </>
-          )}
-          {MISSING_FOR_SUPABASE.length > 0 && (
-            <>
-              <dt>Pour activer Supabase</dt>
-              <dd>
-                <code>{MISSING_FOR_SUPABASE.join(', ')}</code>
-              </dd>
-            </>
-          )}
-        </dl>
-      </Card>
+      {/* Plus de carte « Données » : Backend / adaptateur / supabase étaient
+          du diagnostic de déploiement, pas un réglage. L'origine d'une
+          lecture (cache, démo) se dit déjà sous « Source de vérité » via
+          `notice`, et le toast après « Actualiser ». */}
 
       {/* CE BOUTON EXISTE PARCE QUE LE CACHE PEUT MENTIR. L'application se met
           à jour en mode « prompt » : la nouvelle version se télécharge en fond
