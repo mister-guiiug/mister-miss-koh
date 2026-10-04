@@ -11,11 +11,13 @@
  * sont remplacés.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render } from '@testing-library/react';
+import {
+  wrapWithQueryClient,
+  clearQueryClient,
+} from '@mister-guiiug/dev-pwa-config/testing/query';
 import { backend } from '../backend/referentialRepository';
 import { DEMO_REFERENTIAL } from '../backend/demo';
-import { getQueryClient } from '../shared/queries/client';
 import { useAppStore } from '../store/useAppStore';
 import type { Referential } from '../domain/referential';
 
@@ -59,11 +61,7 @@ function Sonde(props: {
 function renderSonde(
   latestVersion: (seasonId: string) => Promise<number | null>
 ) {
-  return render(
-    <QueryClientProvider client={getQueryClient()}>
-      <Sonde latestVersion={latestVersion} />
-    </QueryClientProvider>
-  );
+  return render(wrapWithQueryClient(<Sonde latestVersion={latestVersion} />));
 }
 
 function poseLEtat(etat: Partial<ReturnType<typeof useAppStore.getState>>) {
@@ -94,7 +92,7 @@ beforeEach(() => {
     get: () => visibilite,
   });
   toastApi.info.mockClear();
-  getQueryClient().clear();
+  clearQueryClient();
   vi.restoreAllMocks();
 });
 

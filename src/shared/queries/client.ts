@@ -1,28 +1,19 @@
-import { QueryClient } from '@tanstack/react-query';
+import { getQueryClient as getFamilyQueryClient } from '@mister-guiiug/dev-pwa-config/react/query-client';
 
 /**
- * Client Query partagé — défauts PWA.
+ * Client Query — defaults famille + staleTime 60 s.
  *
- * `refetchOnWindowFocus: false` est volontaire : le référentiel se suit par
+ * `refetchOnWindowFocus: false` vient du socle : le référentiel se suit par
  * un contrôle léger de version (`useReferentialWatch`), pas par une relecture
  * complète à chaque focus d'onglet.
  */
-function createAppQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60_000,
-        retry: 1,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
-      },
-    },
+export function getQueryClient() {
+  return getFamilyQueryClient({
+    queries: { staleTime: 60_000 },
   });
 }
 
-let client: QueryClient | undefined;
-
-export function getQueryClient(): QueryClient {
-  client ??= createAppQueryClient();
-  return client;
-}
+export {
+  resetQueryClient,
+  createQueryClient,
+} from '@mister-guiiug/dev-pwa-config/react/query-client';
