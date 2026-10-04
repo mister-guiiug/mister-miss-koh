@@ -328,18 +328,21 @@ export function SettingsScreen() {
                   </dd>
                 </>
               )}
-              {referential.provenance.pendingRevision && (
-                <>
-                  <dt>Révision lue, en attente</dt>
-                  <dd>
-                    <code>{referential.provenance.pendingRevision}</code>
-                  </dd>
-                </>
-              )}
               {referential.provenance.fetchedAt && (
                 <>
-                  <dt>Lue le</dt>
+                  <dt>Publiées le</dt>
                   <dd>{formatDate(referential.provenance.fetchedAt)}</dd>
+                </>
+              )}
+              {referential.provenance.pendingRevision && (
+                <>
+                  <dt>Révision relue, en attente</dt>
+                  <dd>
+                    <code>{referential.provenance.pendingRevision}</code>
+                    {referential.provenance.observedAt && (
+                      <> · le {formatDate(referential.provenance.observedAt)}</>
+                    )}
+                  </dd>
                 </>
               )}
               <dt>Version du référentiel</dt>

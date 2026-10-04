@@ -194,6 +194,7 @@ const ProvenanceRow = z.object({
   last_seen_revision: z.string().nullable(),
   last_seen_at: z.string().nullable(),
   observed_revision: z.string().nullable().default(null),
+  observed_at: z.string().nullable().default(null),
   hold_reason: z.string().nullable().default(null),
   reference_sources: z.object({ label: z.string() }).nullable(),
 });
@@ -559,21 +560,29 @@ export function mapReferential(input: unknown, today: string): Referential {
     votes,
     departures,
     advantages,
-    provenance: {
-      kind: 'wikipedia',
-      label: rows.provenance?.reference_sources?.label ?? 'Source externe',
-      title: rows.provenance?.title ?? null,
-      url: rows.provenance?.url ?? null,
-      revision: rows.provenance?.last_seen_revision ?? null,
-      fetchedAt: rows.provenance?.last_seen_at ?? null,
-      pendingRevision:
+    provenance: (() => {
+      const pendingRevision =
         rows.provenance?.hold_reason === 'en_attente' &&
         rows.provenance.observed_revision &&
         rows.provenance.observed_revision !== rows.provenance.last_seen_revision
           ? rows.provenance.observed_revision
+          : null;
+      return {
+        kind: 'wikipedia' as const,
+        label: rows.provenance?.reference_sources?.label ?? 'Source externe',
+        title: rows.provenance?.title ?? null,
+        url: rows.provenance?.url ?? null,
+        revision: rows.provenance?.last_seen_revision ?? null,
+        fetchedAt: rows.provenance?.last_seen_at ?? null,
+        pendingRevision,
+        // La date d'observation n'a de sens que tant qu'une révision attend :
+        // sinon `observed_at` suit chaque relecture sans rien dire de plus.
+        observedAt: pendingRevision
+          ? (rows.provenance?.observed_at ?? null)
           : null,
-      version: rows.version,
-    },
+        version: rows.version,
+      };
+    })(),
   };
 
   // Validé une seconde fois, dans la forme que les écrans consomment : le
@@ -623,14 +632,15 @@ export async function fetchSeasonOptions(
  * l'utilisateur ne doit pas pouvoir casser l'application.
  */
 const PROVENANCE_COLONNES =
-  'url, title, last_seen_revision, last_seen_at, observed_revision, hold_reason, reference_sources(label)';
+  'url, title, last_seen_revision, last_seen_at, observed_revision, observed_at, hold_reason, reference_sources(label)';
 const PROVENANCE_COLONNES_ANCIENNES =
   'url, title, last_seen_revision, last_seen_at, reference_sources(label)';
 
 /**
- * La lecture notée (`observed_revision`) n'existe qu'après la migration 0032.
- * Tant qu'elle n'est pas appliquée, PostgREST refuse la colonne : on relit
- * l'ancienne forme plutôt que de rendre tout le référentiel illisible.
+ * La lecture notée (`observed_revision` / `observed_at`) n'existe qu'après
+ * la migration 0032. Tant qu'elle n'est pas appliquée, PostgREST refuse la
+ * colonne : on relit l'ancienne forme plutôt que de rendre tout le
+ * référentiel illisible.
  */
 function loadProvenance(client: SupabaseClient, documentId: string) {
   return client
@@ -640,7 +650,9 @@ function loadProvenance(client: SupabaseClient, documentId: string) {
     .maybeSingle()
     .then(result => {
       const message = result.error?.message ?? '';
-      if (!/observed_revision|hold_reason/.test(message)) return result;
+      if (!/observed_revision|observed_at|hold_reason/.test(message)) {
+        return result;
+      }
       return client
         .from('source_documents')
         .select(PROVENANCE_COLONNES_ANCIENNES)

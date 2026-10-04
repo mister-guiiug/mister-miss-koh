@@ -22,6 +22,7 @@ import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { useAppStore } from '../store/useAppStore';
 import { useNotes } from '../hooks/useNotes';
 import { useSpoilerLimit } from '../hooks/useSpoilerLimit';
+import type { Provenance, Season } from '../domain/referential';
 import { episodesBehind, homeFigures } from '../domain/summary';
 
 interface Tile {
@@ -151,24 +152,41 @@ export function HomeTiles() {
       )}
       {referential.provenance.kind === 'wikipedia' &&
         referential.provenance.fetchedAt && (
-          <p className="muted tiles-note">
-            Wikipédia, lu le {formatDate(referential.provenance.fetchedAt)}
-            {referential.provenance.pendingRevision &&
-              referential.provenance.pendingRevision !==
-                referential.provenance.revision &&
-              ' — une révision plus récente est en attente de publication'}
-            {readingIsLate(referential.provenance.fetchedAt) &&
-              referential.season.status === 'airing' &&
-              !referential.provenance.pendingRevision &&
-              ' — cette lecture a plus d’un jour, la page a pu bouger'}
-            .
-          </p>
+          <p className="muted tiles-note">{provenanceNote(referential)}</p>
         )}
     </>
   );
 }
 
-/** Plus d’un jour depuis la lecture : le cron du soir n’a pas encore repris. */
+/**
+ * Deux dates distinctes : publication du référentiel vs relecture Wikipédia.
+ * « Lu le » mélangeait les deux et faisait croire que la page n'avait pas
+ * bougé alors qu'une révision attendait déjà.
+ */
+function provenanceNote(referential: {
+  provenance: Provenance;
+  season: Pick<Season, 'status'>;
+}): string {
+  const { provenance, season } = referential;
+  const fetchedAt = provenance.fetchedAt!;
+  const pending =
+    provenance.pendingRevision &&
+    provenance.pendingRevision !== provenance.revision;
+
+  let note = `Données publiées le ${formatDate(fetchedAt)}`;
+  if (pending) {
+    note += provenance.observedAt
+      ? ` · page Wikipédia relue le ${formatDate(provenance.observedAt)}, en attente de validation`
+      : ' — une révision plus récente est en attente de publication';
+  } else if (readingIsLate(fetchedAt) && season.status === 'airing') {
+    note += ' — cette publication a plus d’un jour, la page a pu bouger';
+  } else {
+    note += ' (à jour avec la dernière lecture)';
+  }
+  return `${note}.`;
+}
+
+/** Plus d’un jour depuis la publication : le cron du soir n’a pas encore repris. */
 function readingIsLate(fetchedAt: string): boolean {
   const then = Date.parse(fetchedAt);
   if (Number.isNaN(then)) return false;

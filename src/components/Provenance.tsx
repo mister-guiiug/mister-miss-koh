@@ -33,11 +33,16 @@ export function Provenance({ data }: { data: ProvenanceData }) {
             </a>
           </>
         )}
-        {data.revision && <> · révision {data.revision}</>}
+        {data.revision && <> · révision publiée {data.revision}</>}
+        {data.fetchedAt && <> · publiées le {formatDate(data.fetchedAt)}</>}
         {data.pendingRevision && (
-          <> · {data.pendingRevision} lue, en attente de publication</>
+          <>
+            {' '}
+            · révision {data.pendingRevision} relue
+            {data.observedAt && <> le {formatDate(data.observedAt)}</>}, en
+            attente de publication
+          </>
         )}
-        {data.fetchedAt && <> · lue le {formatDate(data.fetchedAt)}</>}
         {'. Ces informations ne sont pas officielles.'}
       </span>
     </p>

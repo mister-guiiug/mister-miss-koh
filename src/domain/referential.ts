@@ -241,12 +241,18 @@ export const ProvenanceSchema = z.object({
   title: z.string().nullable().default(null),
   url: z.string().nullable(),
   revision: z.string().nullable(),
+  /** Dernière fois que cette révision a été **publiée** dans le référentiel. */
   fetchedAt: z.string().nullable(),
   /**
    * Une révision lue mais pas encore publiée. `null` : la lecture publiée
    * est la dernière qu'on a vue.
    */
   pendingRevision: z.string().nullable().default(null),
+  /**
+   * Moment où la révision en attente a été observée sur Wikipédia.
+   * `null` si rien n'attend, ou si la base ne le dit pas encore.
+   */
+  observedAt: z.string().nullable().default(null),
   version: z.number().int().nonnegative(),
 });
 
