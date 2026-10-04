@@ -17,6 +17,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useSession } from '../../hooks/useSession';
 import { useRefreshReferential } from '../../hooks/useRefreshReferential';
 import { useRereadWikipedia } from '../../hooks/useRereadWikipedia';
+import { usePublishHeldLot } from '../../hooks/usePublishHeldLot';
 import { useReviewer } from '../../hooks/useReviewer';
 import { Provenance } from '../../components/Provenance';
 import { SpoilerModePicker } from '../../components/SpoilerModePicker';
@@ -58,6 +59,11 @@ export function SettingsScreen() {
   const refresh = useRefreshReferential({ manual: true });
   const reviewer = useReviewer(account?.id);
   const { reread, reading } = useRereadWikipedia();
+  const { publish, publishing } = usePublishHeldLot();
+  const pendingLot =
+    Boolean(referential?.provenance.pendingRevision) &&
+    referential?.provenance.pendingRevision !==
+      referential?.provenance.revision;
 
   // La liste ne sert qu'ici : on la demande en arrivant, pas au démarrage de
   // l'application. Un échec ne se dit pas — sans liste, il n'y a simplement
@@ -268,7 +274,7 @@ export function SettingsScreen() {
                 variant="outline"
                 size="sm"
                 loading={reading}
-                disabled={loading}
+                disabled={loading || publishing}
                 onClick={() => void reread()}
               >
                 Relire Wikipédia
@@ -276,6 +282,23 @@ export function SettingsScreen() {
               <p className="muted">
                 Relit la page tout de suite, sans attendre le soir.
               </p>
+              {pendingLot && (
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={publishing}
+                    disabled={loading || reading}
+                    onClick={() => void publish()}
+                  >
+                    Publier le lot en attente
+                  </Button>
+                  <p className="muted">
+                    Applique la partie déjà validée de la dernière relecture,
+                    sans relire Wikipédia.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
