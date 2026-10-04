@@ -22,6 +22,7 @@ import { useEffect, useRef } from 'react';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { backend } from '../backend/referentialRepository';
+import { invalidateReferential } from '../shared/queries/referential';
 import { useAppStore } from '../store/useAppStore';
 
 /** Le rythme de l'import de la soirée : rien ne sert de demander plus vite. */
@@ -75,6 +76,10 @@ export function useReferentialWatch(
       try {
         const derniere = await lire(seasonId);
         if (!actif || derniere === null || derniere <= version) return;
+        // Contrôle léger d'abord ; relecture complète seulement si plus récent.
+        // Jamais via refetchOnWindowFocus — ce serait une lecture entière à
+        // chaque focus d'onglet.
+        await invalidateReferential(useAppStore.getState().season);
         await reload();
         // Ne l'annoncer que si la relecture l'a vraiment apportée : un échec
         // de relecture se dit ailleurs (avis des Réglages, rattrapage).
