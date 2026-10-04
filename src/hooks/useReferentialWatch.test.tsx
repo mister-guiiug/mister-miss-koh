@@ -56,7 +56,9 @@ function Sonde(props: {
   return null;
 }
 
-function renderSonde(latestVersion: (seasonId: string) => Promise<number | null>) {
+function renderSonde(
+  latestVersion: (seasonId: string) => Promise<number | null>
+) {
   return render(
     <QueryClientProvider client={getQueryClient()}>
       <Sonde latestVersion={latestVersion} />
