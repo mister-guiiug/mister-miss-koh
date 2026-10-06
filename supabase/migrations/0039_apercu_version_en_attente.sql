@@ -228,7 +228,7 @@ create table apercus_en_attente (
 alter table apercus_en_attente enable row level security;
 revoke all on apercus_en_attente from anon, authenticated;
 
-/** L'état d'un lot, tel que l'aperçu le décrit. */
+--  L'état d'un lot, tel que l'aperçu le décrit.
 create or replace function empreinte_du_lot(p_run_id uuid, p_season_id uuid)
 returns text
 language sql
@@ -394,10 +394,8 @@ end $$;
 revoke all on function preparer_apercu(uuid) from public, anon;
 grant execute on function preparer_apercu(uuid) to authenticated, service_role;
 
-/**
- * Le même calcul, désigné par la saison : c'est ce que l'application connaît
- * quand un relecteur vient de trancher une proposition.
- */
+-- Le même calcul, désigné par la saison : c'est ce que l'application connaît
+-- quand un relecteur vient de trancher une proposition.
 create or replace function preparer_apercu_de_saison(p_saison text)
 returns text
 language plpgsql
@@ -459,22 +457,20 @@ $$;
 
 revoke all on function apercu_courant(text) from public, anon, authenticated;
 
-/**
- * L'IDENTITÉ de l'aperçu servi (`<révision>:<empreinte>`), ou `null`.
- * Légère : c'est elle que l'application demande pour savoir s'il y a quelque
- * chose à proposer, et que l'écran ouvert surveille. Elle change dès que
- * l'aperçu rangé change : une décision d'un relecteur garde la révision mais
- * change le lot, et un écran ouvert ne doit pas continuer à montrer une
- * proposition rejetée. Le suivi des publications ne le verrait pas : aucune
- * version ne bouge tant que rien n'est publié.
- */
+-- L'IDENTITÉ de l'aperçu servi (`<révision>:<empreinte>`), ou `null`.
+-- Légère : c'est elle que l'application demande pour savoir s'il y a quelque
+-- chose à proposer, et que l'écran ouvert surveille. Elle change dès que
+-- l'aperçu rangé change : une décision d'un relecteur garde la révision mais
+-- change le lot, et un écran ouvert ne doit pas continuer à montrer une
+-- proposition rejetée. Le suivi des publications ne le verrait pas : aucune
+-- version ne bouge tant que rien n'est publié.
 create or replace function apercu_en_attente_disponible(p_saison text)
 returns text
 language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select r.source_revision || ':' || a.empreinte
     from apercu_courant(p_saison) a
     join import_runs r on r.id = a.run_id
@@ -484,7 +480,7 @@ $$;
 revoke all on function apercu_en_attente_disponible(text) from public;
 grant execute on function apercu_en_attente_disponible(text) to anon, authenticated;
 
-/** La saison telle qu'elle serait si le lot en attente était accepté, ou `null`. */
+--  La saison telle qu'elle serait si le lot en attente était accepté, ou `null`.
 create or replace function apercu_version_en_attente(p_saison text)
 returns jsonb
 language sql
