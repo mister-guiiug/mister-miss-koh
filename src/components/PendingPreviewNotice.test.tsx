@@ -39,7 +39,7 @@ describe('le bandeau de la version non validée', () => {
   it('un aperçu prêt : il est PROPOSÉ, avec ce qu’il risque, et le geste l’accepte', async () => {
     const accepter = vi.fn(() => Promise.resolve());
     useAppStore.setState({
-      apercuDisponible: '240140469',
+      apercuDisponible: '240140469:e1',
       accepterApercu: accepter,
     });
     render(<PendingPreviewNotice />);
@@ -55,8 +55,8 @@ describe('le bandeau de la version non validée', () => {
   it('affiché : il le DIT, et on revient à la version publiée', async () => {
     const quitter = vi.fn();
     useAppStore.setState({
-      apercu: { revision: '240140469', publie: PUBLIE },
-      apercuDisponible: '240140469',
+      apercu: { identifiant: '240140469:e1', publie: PUBLIE },
+      apercuDisponible: '240140469:e1',
       quitterApercu: quitter,
     });
     render(<PendingPreviewNotice />);

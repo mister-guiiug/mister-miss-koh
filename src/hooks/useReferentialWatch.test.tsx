@@ -50,18 +50,25 @@ let visibilite: DocumentVisibilityState = 'visible';
 
 function Sonde(props: {
   latestVersion: (seasonId: string) => Promise<number | null>;
+  previewIdentity?: (seasonSlug: string) => Promise<string | null>;
 }) {
   useReferentialWatch({
     intervalMs: TOUR_MS,
     latestVersion: props.latestVersion,
+    previewIdentity: props.previewIdentity,
   });
   return null;
 }
 
 function renderSonde(
-  latestVersion: (seasonId: string) => Promise<number | null>
+  latestVersion: (seasonId: string) => Promise<number | null>,
+  previewIdentity?: (seasonSlug: string) => Promise<string | null>
 ) {
-  return render(wrapWithQueryClient(<Sonde latestVersion={latestVersion} />));
+  return render(
+    wrapWithQueryClient(
+      <Sonde latestVersion={latestVersion} previewIdentity={previewIdentity} />
+    )
+  );
 }
 
 function poseLEtat(etat: Partial<ReturnType<typeof useAppStore.getState>>) {
@@ -181,5 +188,40 @@ describe('suivre les publications pendant qu’on regarde', () => {
     await unTour();
 
     expect(latestVersion).not.toHaveBeenCalled();
+  });
+
+  // L'aperçu non validé (0039) change sans qu'aucune version n'avance : une
+  // décision d'un relecteur, un nouveau lot retenu.
+  it('un aperçu qui change fait relire, sans toast : rien n’a été publié', async () => {
+    const load = vi
+      .spyOn(backend.referential, 'load')
+      .mockResolvedValue({ referential: aLaVersion(5), origin: 'server' });
+    const latestVersion = vi.fn().mockResolvedValue(5);
+    const previewIdentity = vi.fn().mockResolvedValue('240140469:b');
+
+    poseLEtat({ apercuDisponible: '240140469:a', apercu: null });
+    renderSonde(latestVersion, previewIdentity);
+    await unTour();
+
+    expect(previewIdentity).toHaveBeenCalledWith(useAppStore.getState().season);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(toastApi.info).not.toHaveBeenCalled();
+  });
+
+  it('un aperçu inchangé, ou une panne en le demandant : rien', async () => {
+    const load = vi.spyOn(backend.referential, 'load');
+    const latestVersion = vi.fn().mockResolvedValue(5);
+    const previewIdentity = vi
+      .fn()
+      .mockResolvedValueOnce('240140469:a')
+      .mockRejectedValueOnce(new Error('réseau'));
+
+    poseLEtat({ apercuDisponible: '240140469:a', apercu: null });
+    renderSonde(latestVersion, previewIdentity);
+    await unTour();
+    await unTour();
+
+    expect(previewIdentity).toHaveBeenCalledTimes(2);
+    expect(load).not.toHaveBeenCalled();
   });
 });

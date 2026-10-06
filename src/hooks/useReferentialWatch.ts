@@ -14,6 +14,13 @@
  * un toast neutre. Jamais le CONTENU de la nouveauté : c'est la limite
  * anti-spoiler qui décide de ce qui se montre, pas une notification.
  *
+ * L'APERÇU NON VALIDÉ AUSSI (migration 0039). Une décision d'un relecteur, ou
+ * un nouveau lot retenu, change l'aperçu sans faire avancer aucune version :
+ * le même tour demande donc aussi l'identité de l'aperçu servi. Si elle a
+ * changé, la relecture le remplace, ou le retire, et propose le nouveau. Un
+ * écran ouvert ne montre pas une proposition qu'un relecteur vient de
+ * rejeter. Sans toast : rien n'a été publié.
+ *
  * CE QUI N'EST PAS FAIT. En arrière-plan, rien : un onglet caché ne coûte
  * aucune requête, et le retour au premier plan rattrape d'un coup. Sur la
  * démonstration, rien non plus : elle n'a pas de serveur à suivre.
@@ -34,6 +41,8 @@ export interface ReferentialWatchOptions {
   readonly intervalMs?: number;
   /** Injectable pour les tests ; le port du référentiel sinon. */
   readonly latestVersion?: (seasonId: string) => Promise<number | null>;
+  /** Injectable pour les tests ; le port du référentiel sinon. */
+  readonly previewIdentity?: (seasonSlug: string) => Promise<string | null>;
 }
 
 export function useReferentialWatch(
@@ -41,6 +50,8 @@ export function useReferentialWatch(
 ): void {
   const intervalMs = options.intervalMs ?? SUIVI_MS;
   const lire = options.latestVersion ?? backend.referential.latestVersion;
+  const lireApercu =
+    options.previewIdentity ?? backend.referential.previewRevision;
   const referential = useAppStore(s => s.referential);
   const origin = useAppStore(s => s.origin);
   const reload = useAppStore(s => s.reload);
@@ -70,12 +81,26 @@ export function useReferentialWatch(
 
     let actif = true;
     let enCours = false;
+    /** L'aperçu servi n'est plus celui que l'écran connaît. Une panne : non. */
+    const apercuAChange = async (): Promise<boolean> => {
+      if (!lireApercu) return false;
+      const etat = useAppStore.getState();
+      try {
+        const identite = await lireApercu(etat.season);
+        const connue = etat.apercu?.identifiant ?? etat.apercuDisponible;
+        return identite !== connue;
+      } catch {
+        return false;
+      }
+    };
     const verifier = async () => {
       if (enCours || document.visibilityState !== 'visible') return;
       enCours = true;
       try {
         const derniere = await lire(seasonId);
-        if (!actif || derniere === null || derniere <= version) return;
+        const avance = derniere !== null && derniere > version;
+        const apercuChange = !avance && (await apercuAChange());
+        if (!actif || (!avance && !apercuChange)) return;
         // Contrôle léger d'abord ; relecture complète seulement si plus récent.
         // Jamais via refetchOnWindowFocus — ce serait une lecture entière à
         // chaque focus d'onglet.
@@ -84,7 +109,7 @@ export function useReferentialWatch(
         // Ne l'annoncer que si la relecture l'a vraiment apportée : un échec
         // de relecture se dit ailleurs (avis des Réglages, rattrapage).
         const apres = useAppStore.getState().referential?.provenance.version;
-        if (monte.current && apres !== undefined && apres > version) {
+        if (avance && monte.current && apres !== undefined && apres > version) {
           toast.info(MESSAGE_NOUVEAUTE);
         }
       } finally {
@@ -100,5 +125,15 @@ export function useReferentialWatch(
       clearInterval(minuteur);
       document.removeEventListener('visibilitychange', auRetour);
     };
-  }, [lire, suivable, online, seasonId, version, reload, toast, intervalMs]);
+  }, [
+    lire,
+    lireApercu,
+    suivable,
+    online,
+    seasonId,
+    version,
+    reload,
+    toast,
+    intervalMs,
+  ]);
 }

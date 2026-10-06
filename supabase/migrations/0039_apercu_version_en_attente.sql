@@ -460,9 +460,13 @@ $$;
 revoke all on function apercu_courant(text) from public, anon, authenticated;
 
 /**
- * La révision Wikipédia dont un aperçu est prêt, ou `null`. Légère : c'est
- * elle que l'application demande pour savoir s'il y a quelque chose à
- * proposer, sans rapatrier la saison.
+ * L'IDENTITÉ de l'aperçu servi (`<révision>:<empreinte>`), ou `null`.
+ * Légère : c'est elle que l'application demande pour savoir s'il y a quelque
+ * chose à proposer, et que l'écran ouvert surveille. Elle change dès que
+ * l'aperçu rangé change : une décision d'un relecteur garde la révision mais
+ * change le lot, et un écran ouvert ne doit pas continuer à montrer une
+ * proposition rejetée. Le suivi des publications ne le verrait pas : aucune
+ * version ne bouge tant que rien n'est publié.
  */
 create or replace function apercu_en_attente_disponible(p_saison text)
 returns text
@@ -470,8 +474,8 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
-  select r.source_revision
+as $
+  select r.source_revision || ':' || a.empreinte
     from apercu_courant(p_saison) a
     join import_runs r on r.id = a.run_id
    where a.run_id is not null

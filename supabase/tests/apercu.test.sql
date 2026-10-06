@@ -12,7 +12,7 @@
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 begin;
-select plan(17);
+select plan(20);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-0000000000a1', 'relecteur-apercu@exemple.test'),
@@ -132,11 +132,14 @@ select is(
 -- ── Tout le monde le lit ─────────────────────────────────────────────────────
 
 select pg_temp.devenir_anonyme();
-select is(
+select matches(
   apercu_en_attente_disponible('saison-apercu'),
-  '300',
+  '^300:[0-9a-f]{32}$',
   'un visiteur apprend qu''un aperçu de la révision 300 est prêt'
 );
+-- Retenue pour la comparer plus bas : un réglage libre, que tout rôle pose.
+select set_config('test.identite_apercu',
+  apercu_en_attente_disponible('saison-apercu'), true);
 select is(
   (select jsonb_agg(e->>'number')
      from jsonb_array_elements(apercu_version_en_attente('saison-apercu')->'episodes') e),
@@ -171,6 +174,11 @@ select is(
   null,
   'une décision rend l''aperçu périmé : il n''est plus servi'
 );
+select is(
+  apercu_en_attente_disponible('saison-apercu'),
+  null,
+  'ni proposé : un écran ouvert sait qu''il doit relire'
+);
 
 -- ── Le rôle de service simule, il ne publie pas ──────────────────────────────
 
@@ -184,6 +192,18 @@ select is(
   relecture_automatique_autorisee('dddddddd-0000-0000-0000-0000000000a1'),
   false,
   'hors du calcul, le lot non validé reste impubliable par le rôle de service'
+);
+
+select pg_temp.devenir_anonyme();
+select isnt(
+  apercu_en_attente_disponible('saison-apercu'),
+  current_setting('test.identite_apercu', true),
+  'l''aperçu recalculé a une autre identité, à révision égale'
+);
+select is(
+  jsonb_array_length(apercu_version_en_attente('saison-apercu')->'episodes'),
+  0,
+  'et la proposition rejetée ne s''y voit plus'
 );
 reset role;
 

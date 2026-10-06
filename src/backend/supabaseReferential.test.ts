@@ -965,7 +965,21 @@ describe('createSupabaseRepository : la version non validée (0039)', () => {
     expect(written).toHaveLength(0);
   });
 
-  it('fonction absente, aperçu périmé, réseau coupé : rien à proposer, sans erreur', async () => {
+  it('rien à proposer : null ; une PANNE lève, pour que l’écran garde ce qu’il montre', async () => {
+    const rien = createSupabaseRepository({
+      ...deps,
+      writeCache: () => undefined,
+      getClient: () =>
+        Promise.resolve(
+          clientRpc({
+            apercu_en_attente_disponible: { data: null, error: null },
+            apercu_version_en_attente: { data: null, error: null },
+          }) as never
+        ),
+    });
+    expect(await rien.previewRevision?.('all-stars-2026')).toBeNull();
+    expect(await rien.loadPreview?.('all-stars-2026')).toBeNull();
+
     const sansFonction = createSupabaseRepository({
       ...deps,
       writeCache: () => undefined,
@@ -976,19 +990,23 @@ describe('createSupabaseRepository : la version non validée (0039)', () => {
               data: null,
               error: { message: 'Could not find the function' },
             },
-            apercu_version_en_attente: { data: null, error: null },
           }) as never
         ),
     });
-    expect(await sansFonction.previewRevision?.('all-stars-2026')).toBeNull();
-    expect(await sansFonction.loadPreview?.('all-stars-2026')).toBeNull();
+    await expect(
+      sansFonction.previewRevision?.('all-stars-2026')
+    ).rejects.toThrow('Could not find the function');
 
     const injoignable = createSupabaseRepository({
       ...deps,
       writeCache: () => undefined,
       getClient: () => Promise.reject(new Error('réseau')),
     });
-    expect(await injoignable.previewRevision?.('all-stars-2026')).toBeNull();
-    expect(await injoignable.loadPreview?.('all-stars-2026')).toBeNull();
+    await expect(
+      injoignable.previewRevision?.('all-stars-2026')
+    ).rejects.toThrow('réseau');
+    await expect(injoignable.loadPreview?.('all-stars-2026')).rejects.toThrow(
+      'réseau'
+    );
   });
 });

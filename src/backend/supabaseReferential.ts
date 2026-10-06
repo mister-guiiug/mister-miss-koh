@@ -873,38 +873,32 @@ export function createSupabaseRepository(
       }
     },
 
-    // L'aperçu non validé (0039). Tout échec rend `null` (hors ligne,
-    // fonction pas encore déployée, aperçu périmé) : il n'y a alors rien à
-    // proposer, et la version publiée reste ce qu'on montre.
+    // L'aperçu non validé (0039). `null` : le serveur n'a rien à proposer
+    // (aucun lot en attente, aperçu périmé). UNE PANNE LÈVE, au contraire :
+    // hors ligne, réseau coupé, fonction pas encore déployée. L'appelant
+    // garde alors ce qu'il montre, plutôt que de prendre une coupure d'une
+    // seconde pour « plus rien n'attend ».
     async previewRevision(seasonSlug: string): Promise<string | null> {
-      if (horsLigne()) return null;
-      try {
-        const client = await deps.getClient();
-        const { data, error } = await client.rpc(
-          'apercu_en_attente_disponible',
-          { p_saison: seasonSlug }
-        );
-        if (error) return null;
-        return typeof data === 'string' && data !== '' ? data : null;
-      } catch {
-        return null;
-      }
+      if (horsLigne()) throw new Error('hors ligne');
+      const client = await deps.getClient();
+      const { data, error } = await client.rpc('apercu_en_attente_disponible', {
+        p_saison: seasonSlug,
+      });
+      if (error) throw new Error(`aperçu : ${error.message}`);
+      return typeof data === 'string' && data !== '' ? data : null;
     },
 
     async loadPreview(seasonSlug: string): Promise<Referential | null> {
-      if (horsLigne()) return null;
-      try {
-        const client = await deps.getClient();
-        const { data, error } = await client.rpc('apercu_version_en_attente', {
-          p_saison: seasonSlug,
-        });
-        if (error || !data) return null;
-        // Le serveur rend les lignes de `fetchRows` : même frontière, même
-        // mappage. Et JAMAIS `writeCache`.
-        return mapReferential(data, today());
-      } catch {
-        return null;
-      }
+      if (horsLigne()) throw new Error('hors ligne');
+      const client = await deps.getClient();
+      const { data, error } = await client.rpc('apercu_version_en_attente', {
+        p_saison: seasonSlug,
+      });
+      if (error) throw new Error(`aperçu : ${error.message}`);
+      if (!data) return null;
+      // Le serveur rend les lignes de `fetchRows` : même frontière, même
+      // mappage. Et JAMAIS `writeCache`.
+      return mapReferential(data, today());
     },
 
     async load(

@@ -19,7 +19,19 @@ import { backend } from '../../backend/referentialRepository';
 import type { Referential } from '../../domain/referential';
 import { useAppStore } from '../../store/useAppStore';
 
+/**
+ * Une panne du serveur ne change rien à ce qu'on montre : une coupure d'une
+ * seconde n'est pas « plus rien n'attend ». Seule une RÉPONSE le dit.
+ */
 export async function synchroniserApercu(publie: Referential): Promise<void> {
+  try {
+    await synchroniser(publie);
+  } catch {
+    // On garde l'écran tel qu'il est ; le tour suivant redemandera.
+  }
+}
+
+async function synchroniser(publie: Referential): Promise<void> {
   const repo = backend.referential;
   const season = useAppStore.getState().season;
   const toujoursLa = () => useAppStore.getState().season === season;
@@ -35,12 +47,12 @@ export async function synchroniserApercu(publie: Referential): Promise<void> {
     return;
   }
 
-  const revision = await repo.previewRevision(season);
+  const identifiant = await repo.previewRevision(season);
   if (!toujoursLa()) return;
-  useAppStore.setState({ apercuDisponible: revision });
+  useAppStore.setState({ apercuDisponible: identifiant });
 
   const demande = useAppStore.getState().apercuSaison === season;
-  if (!revision || !demande || !repo.loadPreview) {
+  if (!identifiant || !demande || !repo.loadPreview) {
     // Pas (ou plus) d'aperçu servi (périmé par une décision, pas encore
     // calculé) : la version publiée, et la demande reste en attente.
     if (useAppStore.getState().apercu) {
@@ -57,6 +69,6 @@ export async function synchroniserApercu(publie: Referential): Promise<void> {
   }
   useAppStore.setState({
     referential: { ...lu, provenance: publie.provenance },
-    apercu: { revision, publie },
+    apercu: { identifiant, publie },
   });
 }

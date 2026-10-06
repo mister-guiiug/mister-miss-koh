@@ -201,15 +201,15 @@ interface AppState {
    */
   referential: Referential | null;
   /**
-   * La version NON VALIDÉE est affichée à la place de la publiée : sa
-   * révision Wikipédia, et la version publiée qu'elle remplace à l'écran.
-   * Jamais persistée, jamais mise en cache.
+   * La version NON VALIDÉE est affichée à la place de la publiée : l'identité
+   * de l'aperçu servi (révision et état du lot), et la version publiée
+   * qu'elle remplace à l'écran. Jamais persistée, jamais mise en cache.
    */
-  apercu: { revision: string; publie: Referential } | null;
+  apercu: { identifiant: string; publie: Referential } | null;
   /**
-   * La révision dont un aperçu non validé est prêt pour la saison courante,
-   * ou `null` : c'est ce qui fait proposer « Afficher la version non
-   * validée ».
+   * L'identité de l'aperçu non validé prêt pour la saison courante, ou
+   * `null` : c'est ce qui fait proposer « Afficher la version non validée »,
+   * et ce que le suivi des publications compare au serveur.
    */
   apercuDisponible: string | null;
   apercuSaison: string | null;

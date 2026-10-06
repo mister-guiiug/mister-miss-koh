@@ -65,15 +65,16 @@ export interface ReferentialRepository {
    */
   latestVersion?(seasonId: string): Promise<number | null>;
   /**
-   * La révision Wikipédia dont un APERÇU NON VALIDÉ est prêt pour cette
-   * saison (migration 0039), ou `null`. Légère : c'est la question « y
-   * a-t-il quelque chose à proposer ? », sans rapatrier la saison.
+   * L'IDENTITÉ de l'APERÇU NON VALIDÉ prêt pour cette saison (migration
+   * 0039 : `<révision>:<empreinte du lot>`), ou `null`. Légère : c'est la
+   * question « y a-t-il quelque chose à proposer ? », sans rapatrier la
+   * saison. Elle change dès que l'aperçu change. Lève en cas de panne.
    */
   previewRevision?(seasonSlug: string): Promise<string | null>;
   /**
    * La saison telle qu'elle serait si le lot en attente était accepté, ou
    * `null`. Jamais mise en cache : ce n'est pas le référentiel, et elle ne
-   * doit pas survivre hors ligne comme si elle l'était.
+   * doit pas survivre hors ligne comme si elle l'était. Lève en cas de panne.
    */
   loadPreview?(seasonSlug: string): Promise<Referential | null>;
 }

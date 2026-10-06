@@ -13,6 +13,8 @@ import { synchroniserApercu } from './apercu';
 
 const SAISON = DEMO_REFERENTIAL.season.slug;
 const REVISION = '240140469';
+/** L'identité de l'aperçu servi : la révision, et l'état du lot. */
+const IDENTIFIANT = `${REVISION}:0f3a`;
 
 /** La version publiée, avec une relecture qui attend un relecteur. */
 const PUBLIE: Referential = {
@@ -62,19 +64,19 @@ afterEach(() => {
 
 describe('synchroniserApercu', () => {
   it('propose la version non validée quand un aperçu est prêt, sans l’afficher', async () => {
-    brancherApercu(REVISION, APERCU_LU);
+    brancherApercu(IDENTIFIANT, APERCU_LU);
 
     await synchroniserApercu(PUBLIE);
 
     const etat = useAppStore.getState();
-    expect(etat.apercuDisponible).toBe(REVISION);
+    expect(etat.apercuDisponible).toBe(IDENTIFIANT);
     expect(etat.apercu).toBeNull();
     expect(etat.referential).toBe(PUBLIE);
     expect(port.loadPreview).not.toHaveBeenCalled();
   });
 
   it('l’affiche quand l’utilisateur l’a demandée, avec la provenance du PUBLIÉ', async () => {
-    brancherApercu(REVISION, APERCU_LU);
+    brancherApercu(IDENTIFIANT, APERCU_LU);
     useAppStore.setState({ apercuSaison: SAISON });
 
     await synchroniserApercu(PUBLIE);
@@ -83,14 +85,14 @@ describe('synchroniserApercu', () => {
     expect(etat.referential?.season.name).toBe('Saison, version non validée');
     // « Données publiées le » parle de la version publiée, pas de la simulée.
     expect(etat.referential?.provenance).toEqual(PUBLIE.provenance);
-    expect(etat.apercu).toEqual({ revision: REVISION, publie: PUBLIE });
+    expect(etat.apercu).toEqual({ identifiant: IDENTIFIANT, publie: PUBLIE });
   });
 
   it('un aperçu périmé ou absent : la version publiée, et la demande attend', async () => {
     brancherApercu(null, null);
     useAppStore.setState({
       apercuSaison: SAISON,
-      apercu: { revision: REVISION, publie: PUBLIE },
+      apercu: { identifiant: IDENTIFIANT, publie: PUBLIE },
       referential: APERCU_LU,
     });
 
@@ -104,10 +106,10 @@ describe('synchroniserApercu', () => {
   });
 
   it('plus rien n’attend : la demande tombe d’elle-même', async () => {
-    brancherApercu(REVISION, APERCU_LU);
+    brancherApercu(IDENTIFIANT, APERCU_LU);
     useAppStore.setState({
       apercuSaison: SAISON,
-      apercu: { revision: REVISION, publie: PUBLIE },
+      apercu: { identifiant: IDENTIFIANT, publie: PUBLIE },
       referential: APERCU_LU,
     });
 
@@ -120,6 +122,26 @@ describe('synchroniserApercu', () => {
     expect(port.previewRevision).not.toHaveBeenCalled();
   });
 
+  it('une PANNE ne change rien à ce qu’on montre : seule une réponse le peut', async () => {
+    port.previewRevision = vi.fn(() => Promise.reject(new Error('réseau')));
+    port.loadPreview = vi.fn(() => Promise.resolve(APERCU_LU));
+    const affiche = { ...APERCU_LU, provenance: PUBLIE.provenance };
+    useAppStore.setState({
+      apercuSaison: SAISON,
+      apercuDisponible: IDENTIFIANT,
+      apercu: { identifiant: IDENTIFIANT, publie: PUBLIE },
+      referential: affiche,
+    });
+
+    await synchroniserApercu(PUBLIE);
+
+    const etat = useAppStore.getState();
+    expect(etat.referential).toBe(affiche);
+    expect(etat.apercu).toEqual({ identifiant: IDENTIFIANT, publie: PUBLIE });
+    expect(etat.apercuDisponible).toBe(IDENTIFIANT);
+    expect(etat.apercuSaison).toBe(SAISON);
+  });
+
   it('sans aperçu côté serveur (démonstration), rien n’est proposé', async () => {
     await synchroniserApercu(PUBLIE);
 
@@ -130,7 +152,7 @@ describe('synchroniserApercu', () => {
 
 describe('accepterApercu / quitterApercu', () => {
   it('accepter affiche la version non validée ; quitter rend la publiée et oublie la demande', async () => {
-    brancherApercu(REVISION, APERCU_LU);
+    brancherApercu(IDENTIFIANT, APERCU_LU);
 
     await useAppStore.getState().accepterApercu();
     expect(useAppStore.getState().referential?.season.name).toBe(
