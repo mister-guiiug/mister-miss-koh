@@ -317,8 +317,11 @@ begin
 
   select * into v_run from import_runs where id = p_run_id;
   if not found then
+    -- `PT404` : un lot introuvable n'est pas une panne. Le code d'erreur
+    -- « introuvable » de PL/pgSQL, PostgREST le range dans le fourre-tout
+    -- 500 (convention et garde dans rls.test.sql).
     raise exception 'exécution d''import introuvable : %', p_run_id
-      using errcode = 'P0002';
+      using errcode = 'PT404';
   end if;
 
   select * into v_season from seasons
