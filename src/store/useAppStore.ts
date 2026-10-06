@@ -43,7 +43,6 @@ import {
   type ContestantFilter,
 } from '../domain/contestantFilter';
 import { fetchReferential } from '../shared/queries/referential';
-import { synchroniserApercu } from '../shared/queries/apercu';
 
 const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
@@ -394,7 +393,11 @@ export const useAppStore = create<AppState>((set, get) => {
       set({ apercuSaison: season });
       persist();
       const publie = apercu?.publie ?? referential;
-      if (publie) await synchroniserApercu(publie);
+      if (!publie) return;
+      // À LA DEMANDE : l'aperçu ne sert qu'aux soirs où un lot attend, et le
+      // chemin critique (`preloadGzipKb`) n'a pas à le porter.
+      const { synchroniserApercu } = await import('../shared/queries/apercu');
+      await synchroniserApercu(publie);
     },
 
     quitterApercu() {
