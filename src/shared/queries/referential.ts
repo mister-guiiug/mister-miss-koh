@@ -85,9 +85,17 @@ export async function fetchReferential(
       retry: false,
     });
     syncReferentialToStore(result);
-    // À LA DEMANDE, comme dans le magasin : hors du chemin critique.
-    const { synchroniserApercu } = await import('./apercu');
-    await synchroniserApercu(result.referential);
+    // À LA DEMANDE, comme dans le magasin : hors du chemin critique. Et SANS
+    // L'ATTENDRE : la relecture rend la main dès que la version publiée est
+    // là, comme avant l'aperçu. L'attendre retardait d'un chargement de module
+    // tout ce qui suit une relecture (le toast du suivi des publications, par
+    // exemple), pour une fonction qui ne sert que les soirs où un lot attend.
+    void import('./apercu')
+      .then(({ synchroniserApercu }) => synchroniserApercu(result.referential))
+      .catch(() => {
+        // Module introuvable (hors ligne, déploiement en cours) : la version
+        // publiée reste à l'écran, et la relecture suivante réessaiera.
+      });
   } catch (error) {
     // Rien d'autre ne bouge : référentiel, origine et avis restent ceux de
     // la dernière lecture réussie. Un rechargement qui échoue se signale, il
