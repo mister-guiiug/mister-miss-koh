@@ -861,7 +861,13 @@ export async function runImport(
       anomalies,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    // Ce message part dans `import_runs` ET dans la réponse HTTP. Seul celui
+    // d'une `Error` y entre : une autre valeur jetée, sérialisée telle quelle,
+    // pourrait y recopier une pile ou un objet entier (CodeQL
+    // js/stack-trace-exposure).
+    const message = error instanceof Error
+      ? error.message
+      : "exception sans message : la valeur jetée n'est pas une Error";
     await port.finishRun(runId, { status: "failed", error: message });
     await port.log("import.failed", message, runId);
     return { runId, status: "failed", message };

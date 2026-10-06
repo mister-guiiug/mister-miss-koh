@@ -501,6 +501,20 @@ Deno.test("une panne réseau termine l'exécution en échec, proprement", async 
   assertEquals(calls.finished[0].patch.status, "failed");
 });
 
+Deno.test("une valeur jetée qui n'est pas une Error ne sort pas telle quelle", async () => {
+  // Le message de l'échec part dans la réponse HTTP : seul celui d'une
+  // `Error` y entre, jamais la valeur sérialisée (une pile, un objet entier).
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, {
+    ...baseOptions,
+    fetchImpl: () => Promise.reject("Error: secret\n    at lire (/srv/fonction.ts:1:1)"),
+  });
+
+  assertEquals(outcome.status, "failed");
+  assert(!outcome.message?.includes("secret"), `message : ${outcome.message}`);
+  assert(!String(calls.finished[0].patch.error).includes("secret"));
+});
+
 Deno.test("le PREMIER import, massif, ne se valide jamais tout seul", async () => {
   // Cinquante-deux voix d'un coup dépassent le plafond de changements par
   // entité : le lot bascule en suspect, et rien n'est validé — même avec une
