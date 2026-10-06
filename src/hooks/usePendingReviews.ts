@@ -9,6 +9,7 @@ import { useToast } from '@mister-guiiug/dev-pwa-config/react/toast';
 import {
   annonceRevue,
   listPendingDifferences,
+  refreshPendingPreview,
   reviewPendingDifference,
   resumeDifference,
   type PendingDifference,
@@ -65,6 +66,8 @@ export function usePendingReviews(enabled: boolean): {
         };
       }
       try {
+        // AVANT de relire : la relecture propose l'aperçu s'il est prêt.
+        if (resultat.kind === 'ok') await refreshPendingPreview(season);
         await reloadReferential({ manual: true });
         await reload();
       } finally {
@@ -75,7 +78,7 @@ export function usePendingReviews(enabled: boolean): {
       else if (annonce?.tone === 'info') toast.info(annonce.text);
       else if (annonce?.tone === 'error') toast.error(annonce.text);
     },
-    [reload, reloadReferential, toast]
+    [reload, reloadReferential, season, toast]
   );
 
   return {

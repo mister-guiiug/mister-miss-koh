@@ -2144,6 +2144,14 @@ export type Database = {
       _table_privs: { Args: never; Returns: unknown[] };
       _temptypes: { Args: { '': string }; Returns: string };
       _todo: { Args: never; Returns: string };
+      apercu_en_attente_disponible: {
+        Args: { p_saison: string };
+        Returns: string | null;
+      };
+      apercu_version_en_attente: {
+        Args: { p_saison: string };
+        Returns: Json | null;
+      };
       col_is_null:
         | {
             Args: {
@@ -2288,6 +2296,11 @@ export type Database = {
       pg_version: { Args: never; Returns: string };
       pg_version_num: { Args: never; Returns: number };
       pgtap_version: { Args: never; Returns: number };
+      preparer_apercu: { Args: { p_run_id: string }; Returns: string };
+      preparer_apercu_de_saison: {
+        Args: { p_saison: string };
+        Returns: string;
+      };
       publish_run: {
         Args: { p_notes?: string; p_run_id: string };
         Returns: string;

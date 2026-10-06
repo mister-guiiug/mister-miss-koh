@@ -35,6 +35,7 @@ interface Tile {
 
 export function HomeTiles() {
   const referential = useAppStore(s => s.referential);
+  const apercu = useAppStore(s => s.apercu);
   const favorites = useAppStore(s => s.favorites);
   const watched = useAppStore(s => s.watched);
   const spoiler = useAppStore(s => s.spoiler);
@@ -152,7 +153,9 @@ export function HomeTiles() {
       )}
       {referential.provenance.kind === 'wikipedia' &&
         referential.provenance.fetchedAt && (
-          <p className="muted tiles-note">{provenanceNote(referential)}</p>
+          <p className="muted tiles-note">
+            {provenanceNote(referential, apercu !== null)}
+          </p>
         )}
     </>
   );
@@ -163,10 +166,14 @@ export function HomeTiles() {
  * « Lu le » mélangeait les deux et faisait croire que la page n'avait pas
  * bougé alors qu'une révision attendait déjà.
  */
-function provenanceNote(referential: {
-  provenance: Provenance;
-  season: Pick<Season, 'status'>;
-}): string {
+function provenanceNote(
+  referential: {
+    provenance: Provenance;
+    season: Pick<Season, 'status'>;
+  },
+  /** La version non validée est à l'écran (migration 0039) : le dire ici aussi. */
+  nonValidee = false
+): string {
   const { provenance, season } = referential;
   const fetchedAt = provenance.fetchedAt!;
   const pending =
@@ -183,6 +190,7 @@ function provenanceNote(referential: {
   } else {
     note += ' (à jour avec la dernière lecture)';
   }
+  if (nonValidee) note += '. Vous en voyez la version non validée';
   return `${note}.`;
 }
 

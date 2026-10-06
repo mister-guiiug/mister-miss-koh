@@ -172,6 +172,27 @@ export async function reviewPendingDifference(
   return { kind: 'ok', decision };
 }
 
+/**
+ * Recalcule l'aperçu non validé de la saison (migration 0039).
+ *
+ * Une décision change l'état du lot : l'aperçu rangé cesse aussitôt d'être
+ * servi, et sans recalcul les visiteurs ne se verraient plus rien proposer
+ * jusqu'à la relecture suivante. Silencieux : un échec laisse un aperçu
+ * absent, jamais un aperçu faux.
+ */
+export async function refreshPendingPreview(
+  season: string,
+  deps: ReviewDeps = defaut
+): Promise<void> {
+  if (!deps.configured) return;
+  try {
+    const client = await deps.getClient();
+    await client.rpc('preparer_apercu_de_saison', { p_saison: season });
+  } catch {
+    // Rien à dire : l'aperçu reste simplement indisponible.
+  }
+}
+
 /** Toast après Valider / Rejeter. */
 export function annonceRevue(
   resultat: ReviewPending

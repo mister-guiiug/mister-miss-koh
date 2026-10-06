@@ -23,6 +23,7 @@ import { councilView } from '../../domain/council';
 import { useUndo } from '../../hooks/useUndo';
 import { SpoilerStatusChip } from '../../components/SpoilerStatusChip';
 import { CouncilDetail } from '../../components/CouncilDetail';
+import { PendingPreviewNotice } from '../../components/PendingPreviewNotice';
 
 /** Ce que le garde d'un épisode dessine quand il le cache : toujours pareil. */
 const EPISODE_ROWS = ['Confort', 'Immunité', 'Conseil'] as const;
@@ -171,6 +172,7 @@ export function EpisodesScreen() {
       <p className="muted">
         Cochez les épisodes vus : l’anti-spoiler masque ce qui vient après.
       </p>
+      <PendingPreviewNotice />
       {/* Une enveloppe, et rien d'autre : elle met les cartes en grille quand
           la fenêtre le permet. Sans elle, elles sont sœurs du titre d'écran et
           la grille l'emporterait avec elles. */}

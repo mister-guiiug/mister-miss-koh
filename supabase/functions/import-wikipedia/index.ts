@@ -347,6 +347,17 @@ function makePort(admin: SupabaseClient): ImportPort {
       if (error) throw new Error(error.message);
     },
 
+    async prepareApercu(runId) {
+      const { data, error } = await admin.rpc("preparer_apercu", {
+        p_run_id: runId,
+      });
+      if (error) throw new Error(error.message);
+      // `echec` : la raison est rangée dans `apercus_en_attente.erreur`.
+      if (data === "echec") {
+        throw new Error("aperçu non calculé (voir apercus_en_attente)");
+      }
+    },
+
     async holdRevision(documentId) {
       await admin
         .from("source_documents")

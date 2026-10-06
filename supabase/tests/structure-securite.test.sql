@@ -80,7 +80,13 @@ select set_eq(
     -- Sans effet pour anon : export_my_data ne lit que auth.uid(),
     -- review_difference exige is_staff()
     'export_my_data',
-    'review_difference'
+    'review_difference',
+    -- Publiques par conception (0039) : l'aperçu de la version en attente,
+    -- en LECTURE seule. Elles rendent ce que `preparer_apercu` (relecteurs
+    -- et rôle de service seulement) a rangé, tant que le lot n'a pas bougé ;
+    -- aucune n'écrit, aucune ne publie.
+    'apercu_en_attente_disponible',
+    'apercu_version_en_attente'
     -- log_event en est sortie avec 0034.
   ],
   'les fonctions SECURITY DEFINER exécutables par anon sont exactement la liste relue'

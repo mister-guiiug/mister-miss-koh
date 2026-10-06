@@ -43,6 +43,7 @@ import {
   type ContestantFilter,
 } from '../domain/contestantFilter';
 import { fetchReferential } from '../shared/queries/referential';
+import { synchroniserApercu } from '../shared/queries/apercu';
 
 const PersonalSchema = z.object({
   spoiler: z.enum(['reveal_all', 'hide_unwatched', 'hide_future']),
@@ -111,6 +112,13 @@ const PersonalSchema = z.object({
    * nombre d'épisodes, jamais ce qui s'y passe ; décochable dans les Réglages.
    */
   appBadge: z.boolean().default(true),
+  /**
+   * La saison dont l'utilisateur a demandé à voir la version NON VALIDÉE
+   * (migration 0039), sur cet appareil. Le choix tombe de lui-même dès que
+   * plus rien n'attend pour cette saison : il vaut pour une attente, pas
+   * pour toujours. Même `default` que les champs précédents.
+   */
+  apercuSaison: z.string().nullable().default(null),
 });
 
 type Personal = z.infer<typeof PersonalSchema>;
@@ -143,6 +151,7 @@ const GRAINE: Personal = {
   jots: {},
   onboarded: false,
   appBadge: true,
+  apercuSaison: null,
 };
 
 const personalStore = createVersionedStore<Personal>({
@@ -185,8 +194,25 @@ interface AppState {
    * `useRefreshReferential`, avis des Réglages.
    */
   error: string | null;
-  /** La dernière lecture réussie. Un échec ne l'efface jamais. */
+  /**
+   * La dernière lecture réussie. Un échec ne l'efface jamais. Quand
+   * l'utilisateur a demandé la version non validée, c'est elle : `apercu`
+   * garde alors la version publiée à côté.
+   */
   referential: Referential | null;
+  /**
+   * La version NON VALIDÉE est affichée à la place de la publiée : l'identité
+   * de l'aperçu servi (révision et état du lot), et la version publiée
+   * qu'elle remplace à l'écran. Jamais persistée, jamais mise en cache.
+   */
+  apercu: { identifiant: string; publie: Referential } | null;
+  /**
+   * L'identité de l'aperçu non validé prêt pour la saison courante, ou
+   * `null` : c'est ce qui fait proposer « Afficher la version non validée »,
+   * et ce que le suivi des publications compare au serveur.
+   */
+  apercuDisponible: string | null;
+  apercuSaison: string | null;
   /** La saison regardée, et celles qu'on peut choisir. */
   season: string;
   watchedBySeason: Readonly<Record<string, readonly number[]>>;
@@ -226,6 +252,10 @@ interface AppState {
   /** Remet le suivi tel qu'il était — l'« Annuler » d'une cascade de coches. */
   restoreWatched(watched: readonly number[]): void;
   setOnboarded(done: boolean): void;
+  /** Affiche la version non validée de la saison courante, sur cet appareil. */
+  accepterApercu(): Promise<void>;
+  /** Revient à la version publiée, et oublie la demande. */
+  quitterApercu(): void;
   setAppBadge(enabled: boolean): void;
   /**
    * Change de saison : le suivi de celle qu'on quitte est mis de côté, celui
@@ -287,6 +317,7 @@ export const useAppStore = create<AppState>((set, get) => {
       jots,
       onboarded,
       appBadge,
+      apercuSaison,
     } = get();
     personalStore.save({
       spoiler,
@@ -307,6 +338,7 @@ export const useAppStore = create<AppState>((set, get) => {
       jots: { ...jots },
       onboarded,
       appBadge,
+      apercuSaison,
     });
   };
 
@@ -338,6 +370,8 @@ export const useAppStore = create<AppState>((set, get) => {
     loading: false,
     error: null,
     referential: null,
+    apercu: null,
+    apercuDisponible: null,
     origin: null,
     notice: null,
     ...initial,
@@ -354,6 +388,24 @@ export const useAppStore = create<AppState>((set, get) => {
     // Toujours forcer : un reload explicite ne doit pas servir un cache Query
     // encore frais (suivi de version, rattrapage réseau, bouton Réglages).
     reload: options => load({ ...options, force: true }),
+
+    async accepterApercu() {
+      const { season, apercu, referential } = get();
+      set({ apercuSaison: season });
+      persist();
+      const publie = apercu?.publie ?? referential;
+      if (publie) await synchroniserApercu(publie);
+    },
+
+    quitterApercu() {
+      const { apercu } = get();
+      set({
+        apercuSaison: null,
+        apercu: null,
+        ...(apercu ? { referential: apercu.publie } : {}),
+      });
+      persist();
+    },
 
     setSpoiler(mode) {
       set({ spoiler: mode });
@@ -427,6 +479,9 @@ export const useAppStore = create<AppState>((set, get) => {
         season: slug,
         watchedBySeason: carte,
         watched: carte[slug] ?? [],
+        // L'aperçu est celui d'UNE saison : il ne suit pas le changement.
+        apercu: null,
+        apercuDisponible: null,
       });
       persist();
       // Nouvelle saison = nouvelle clé Query, mais on force quand même pour
