@@ -121,6 +121,7 @@ function fakePort(options: {
     replayUnpublished: () => Promise.resolve(options.replay === true),
     publishRun: () => Promise.resolve(),
     holdRevision: () => Promise.resolve(),
+    prepareApercu: () => Promise.resolve(),
     renameDocument: () => Promise.resolve(),
     noteObserved: (_documentId, revisionId) => {
       calls.observed.push(revisionId);

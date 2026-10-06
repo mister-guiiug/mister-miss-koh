@@ -977,3 +977,41 @@ mécanisme : 22 h UTC un mardi de septembre, qui est minuit à Paris et doit
 rester dehors. Depuis `0035`, le fichier éprouve aussi le choix de la nuit :
 une saison par réveil, toutes en autant de réveils qu'il y a de saisons, rien
 au réveil suivant, et une saison lue la veille qui redevient la première.
+
+## L'aperçu de la version en attente (0039)
+
+Le soir d'un épisode, le lot de la relecture attend souvent un relecteur :
+une partie de ses différences n'est pas certaine, et le site montre la
+version précédente. Depuis `0039`, n'importe quel visiteur peut demander à
+voir, **sur son seul appareil**, la saison telle qu'elle serait si tout le lot
+était accepté. Rien n'est publié.
+
+**Qui calcule.** `preparer_apercu(run_id)` est réservé à ceux qui publient
+déjà : les relecteurs, et le rôle de service. La fonction Edge l'appelle
+juste après un lot retenu (`prepareApercu` du port), et l'application après
+chaque décision d'un relecteur (`refreshPendingPreview`). Le calcul APPELLE
+`publish_run`, toutes propositions acceptées, dans un bloc qui finit toujours
+par une exception : PostgreSQL défait tout ce que le bloc a écrit, mais garde
+la saison relue juste avant dans une variable. Elle est rangée dans
+`apercus_en_attente`, table fermée à tous. Pour le rôle de service seulement,
+`relecture_automatique_autorisee` accepte un réglage local
+(`koh.simulation_apercu`) que seul ce bloc pose ; hors du bloc, un lot non
+validé reste impubliable par la relecture automatique.
+
+**Qui lit.** `apercu_en_attente_disponible(saison)` (la révision, pour savoir
+s'il y a quelque chose à proposer) et `apercu_version_en_attente(saison)` (la
+saison, au format de `fetchRows`), ouvertes à tous, ne font que lire. Elles ne
+servent l'aperçu que s'il décrit encore l'état du lot : une empreinte (statut
+de chaque différence, version publiée) le rend périmé dès qu'un relecteur
+tranche ou qu'une publication passe.
+
+**Dans l'application.** L'écran Épisodes propose « Afficher la version non
+validée », en disant qu'elle n'a pas été vérifiée. Accepté, le choix vaut pour
+la saison et tombe de lui-même quand plus rien n'attend. La version affichée
+n'est jamais mise en cache, garde la provenance du publié, et le numéro de
+version du publié (sinon le suivi des publications relirait en boucle).
+
+**Vérification** : `supabase/tests/apercu.test.sql` (qui calcule, que rien
+n'est publié, que tout le monde lit, que l'aperçu périme, que le rôle de
+service ne gagne aucun droit de publier) ; côté application,
+`src/shared/queries/apercu.test.ts` et `PendingPreviewNotice.test.tsx`.

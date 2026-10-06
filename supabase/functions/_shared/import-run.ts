@@ -214,6 +214,12 @@ export interface ImportPort {
   /** La publication a échoué : la lecture reste visible comme en attente. */
   holdRevision(documentId: string): Promise<void>;
   /**
+   * Le lot reste en attente d'un relecteur : on range la saison telle
+   * qu'elle serait s'il était accepté, pour le visiteur qui demande à la voir
+   * (migration 0039). Rien n'est publié.
+   */
+  prepareApercu(runId: string): Promise<void>;
+  /**
    * La page a changé de nom sur Wikipédia : on garde son nouveau titre, celui
    * que le site affiche et que son lien vise.
    */
@@ -820,6 +826,18 @@ export async function runImport(
         const motif = error instanceof Error ? error.message : String(error);
         await port.holdRevision(document.id);
         await port.log("import.publish_refused", motif, runId);
+      }
+    }
+
+    // LE LOT ATTEND : SON APERÇU SE PRÉPARE MAINTENANT, pendant que le rôle
+    // de service est là. Un visiteur ne fait ensuite que le lire. Un échec
+    // ne touche pas l'import : il se journalise, et le lot attend comme avant.
+    if (!publie && result.differences.length > 0) {
+      try {
+        await port.prepareApercu(runId);
+      } catch (error) {
+        const motif = error instanceof Error ? error.message : String(error);
+        await port.log("import.apercu_echec", motif, runId);
       }
     }
 

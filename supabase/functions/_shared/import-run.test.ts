@@ -53,6 +53,7 @@ function fakePort(overrides: Partial<ImportPort> & {
     autoValidated: [] as string[],
     publishedRuns: [] as string[],
     held: [] as string[],
+    apercus: [] as string[],
     renamed: [] as string[],
     logs: [] as { action: string; summary: string }[],
   };
@@ -96,6 +97,10 @@ function fakePort(overrides: Partial<ImportPort> & {
     },
     holdRevision: (documentId) => {
       calls.held.push(documentId);
+      return Promise.resolve();
+    },
+    prepareApercu: (runId) => {
+      calls.apercus.push(runId);
       return Promise.resolve();
     },
     renameDocument: (_documentId, title) => {
@@ -552,6 +557,7 @@ Deno.test("un import de ROUTINE, sous plafond, se valide automatiquement", async
   );
   assertEquals(calls.publishedRuns, ["run-1"]);
   assertEquals(outcome.published, true);
+  assertEquals(calls.apercus, [], "un lot publié n'a pas d'aperçu à préparer");
 });
 
 Deno.test("une publication refusée laisse le lot en attente", async () => {
@@ -583,6 +589,29 @@ Deno.test("une publication refusée laisse le lot en attente", async () => {
   assert(
     calls.logs.some((log) => log.action === "import.publish_refused"),
     "le refus est journalisé",
+  );
+  assertEquals(calls.apercus, [outcome.runId], "le lot retenu prépare son aperçu");
+});
+
+Deno.test("un lot qui attend un relecteur prépare son aperçu", async () => {
+  // Sans politique, rien ne se valide seul : tout le lot attend.
+  const { port, calls } = fakePort();
+  const outcome = await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
+  assertEquals(outcome.published, false);
+  assertEquals(calls.apercus, [outcome.runId]);
+});
+
+Deno.test("un aperçu qui échoue ne fait pas échouer l'import", async () => {
+  const { port, calls } = fakePort({
+    prepareApercu: () => Promise.reject(new Error("pas de relecteur")),
+  });
+  const outcome = await runImport(port, { ...baseOptions, fetchImpl: fakeFetch() });
+  assertEquals(outcome.status, "diffed");
+  assert(
+    calls.logs.some((log) =>
+      log.action === "import.apercu_echec" && log.summary === "pas de relecteur"
+    ),
+    "l'échec de l'aperçu est journalisé",
   );
 });
 
