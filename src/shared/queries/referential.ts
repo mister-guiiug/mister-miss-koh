@@ -14,7 +14,6 @@ import {
 } from '../../backend/referentialRepository';
 import { useAppStore } from '../../store/useAppStore';
 import { getQueryClient } from './client';
-import { synchroniserApercu } from './apercu';
 import { queryKeys, REFERENTIAL_STALE_MS } from './keys';
 
 export type FetchReferentialOptions = LoadOptions & {
@@ -86,6 +85,8 @@ export async function fetchReferential(
       retry: false,
     });
     syncReferentialToStore(result);
+    // À LA DEMANDE, comme dans le magasin : hors du chemin critique.
+    const { synchroniserApercu } = await import('./apercu');
     await synchroniserApercu(result.referential);
   } catch (error) {
     // Rien d'autre ne bouge : référentiel, origine et avis restent ceux de
