@@ -913,3 +913,82 @@ describe('createSupabaseRepository : la dernière publication', () => {
     expect(await repo.latestVersion?.(rows.season.id)).toBeNull();
   });
 });
+
+describe('createSupabaseRepository : la version non validée (0039)', () => {
+  const deps = {
+    readCache: () => null,
+    today: () => TODAY,
+  };
+
+  /** Un client qui ne sait répondre qu'aux deux fonctions de l'aperçu. */
+  function clientRpc(
+    reponses: Record<string, { data: unknown; error: unknown }>
+  ) {
+    return {
+      rpc: (nom: string) =>
+        Promise.resolve(
+          reponses[nom] ?? { data: null, error: { message: '?' } }
+        ),
+    };
+  }
+
+  it('rend la révision dont un aperçu est prêt', async () => {
+    const repo = createSupabaseRepository({
+      ...deps,
+      writeCache: () => undefined,
+      getClient: () =>
+        Promise.resolve(
+          clientRpc({
+            apercu_en_attente_disponible: { data: '240140469', error: null },
+          }) as never
+        ),
+    });
+    expect(await repo.previewRevision?.('all-stars-2026')).toBe('240140469');
+  });
+
+  it('les lignes du serveur passent par le même mappage, et JAMAIS par le cache', async () => {
+    const written: unknown[] = [];
+    const repo = createSupabaseRepository({
+      ...deps,
+      writeCache: r => {
+        written.push(r);
+      },
+      getClient: () =>
+        Promise.resolve(
+          clientRpc({
+            apercu_version_en_attente: { data: rows, error: null },
+          }) as never
+        ),
+    });
+    const apercu = await repo.loadPreview?.('all-stars-2026');
+    expect(apercu).toEqual(mapReferential(rows, TODAY));
+    expect(written).toHaveLength(0);
+  });
+
+  it('fonction absente, aperçu périmé, réseau coupé : rien à proposer, sans erreur', async () => {
+    const sansFonction = createSupabaseRepository({
+      ...deps,
+      writeCache: () => undefined,
+      getClient: () =>
+        Promise.resolve(
+          clientRpc({
+            apercu_en_attente_disponible: {
+              data: null,
+              error: { message: 'Could not find the function' },
+            },
+            apercu_version_en_attente: { data: null, error: null },
+          }) as never
+        ),
+    });
+    expect(await sansFonction.previewRevision?.('all-stars-2026')).toBeNull();
+    expect(await sansFonction.loadPreview?.('all-stars-2026')).toBeNull();
+
+    const injoignable = createSupabaseRepository({
+      ...deps,
+      writeCache: () => undefined,
+      getClient: () => Promise.reject(new Error('réseau')),
+    });
+    expect(await injoignable.previewRevision?.('all-stars-2026')).toBeNull();
+    expect(await injoignable.loadPreview?.('all-stars-2026')).toBeNull();
+  });
+});

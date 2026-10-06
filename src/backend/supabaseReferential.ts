@@ -873,6 +873,40 @@ export function createSupabaseRepository(
       }
     },
 
+    // L'aperçu non validé (0039). Tout échec rend `null` (hors ligne,
+    // fonction pas encore déployée, aperçu périmé) : il n'y a alors rien à
+    // proposer, et la version publiée reste ce qu'on montre.
+    async previewRevision(seasonSlug: string): Promise<string | null> {
+      if (horsLigne()) return null;
+      try {
+        const client = await deps.getClient();
+        const { data, error } = await client.rpc(
+          'apercu_en_attente_disponible',
+          { p_saison: seasonSlug }
+        );
+        if (error) return null;
+        return typeof data === 'string' && data !== '' ? data : null;
+      } catch {
+        return null;
+      }
+    },
+
+    async loadPreview(seasonSlug: string): Promise<Referential | null> {
+      if (horsLigne()) return null;
+      try {
+        const client = await deps.getClient();
+        const { data, error } = await client.rpc('apercu_version_en_attente', {
+          p_saison: seasonSlug,
+        });
+        if (error || !data) return null;
+        // Le serveur rend les lignes de `fetchRows` : même frontière, même
+        // mappage. Et JAMAIS `writeCache`.
+        return mapReferential(data, today());
+      } catch {
+        return null;
+      }
+    },
+
     async load(
       seasonSlug?: string,
       options?: { manual?: boolean }

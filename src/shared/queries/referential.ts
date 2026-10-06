@@ -14,6 +14,7 @@ import {
 } from '../../backend/referentialRepository';
 import { useAppStore } from '../../store/useAppStore';
 import { getQueryClient } from './client';
+import { synchroniserApercu } from './apercu';
 import { queryKeys, REFERENTIAL_STALE_MS } from './keys';
 
 export type FetchReferentialOptions = LoadOptions & {
@@ -25,8 +26,21 @@ export type FetchReferentialOptions = LoadOptions & {
 };
 
 function syncReferentialToStore(result: LoadResult): void {
+  // LA VERSION NON VALIDÉE RESTE À L'ÉCRAN pendant qu'on la revérifie : la
+  // remplacer par la publiée le temps d'un aller-retour ferait clignoter les
+  // épisodes à chaque relecture. `synchroniserApercu` tranche juste après.
+  const { apercu, apercuSaison, season, referential } = useAppStore.getState();
+  const garder =
+    apercu !== null &&
+    apercuSaison === season &&
+    result.referential.season.slug === season &&
+    Boolean(result.referential.provenance.pendingRevision);
   useAppStore.setState({
-    referential: result.referential,
+    referential:
+      garder && referential
+        ? { ...referential, provenance: result.referential.provenance }
+        : result.referential,
+    apercu: garder ? { ...apercu, publie: result.referential } : null,
     origin: result.origin,
     notice: result.notice ?? null,
     ready: true,
@@ -72,6 +86,7 @@ export async function fetchReferential(
       retry: false,
     });
     syncReferentialToStore(result);
+    await synchroniserApercu(result.referential);
   } catch (error) {
     // Rien d'autre ne bouge : référentiel, origine et avis restent ceux de
     // la dernière lecture réussie. Un rechargement qui échoue se signale, il
