@@ -8,11 +8,20 @@ import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
 import { NAVIGATE_FALLBACK_DENY_FILES } from '@mister-guiiug/dev-pwa-config/vite-pwa';
+import { FAMILY_ORIGIN } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 // LA COULEUR DE LA BARRE VIENT DE L'APPLICATION, pas d'un littéral recopié
 // ici. Trois endroits la déclaraient et ne disaient pas la même chose ; c'est
 // `src/theme.ts` qui tranche, et ce fichier s'y branche pour les deux autres
 // (les balises du document, et le manifeste).
 import { THEME_COLOR } from './src/theme';
+
+/** Origine publique du manifeste (`id` absolu) — même règle que `pwaManifest`. */
+function siteOrigin() {
+  return (process.env.VITE_PUBLIC_SITE_ORIGIN || FAMILY_ORIGIN).replace(
+    /\/$/,
+    ''
+  );
+}
 
 const analyze = process.env.ANALYZE === '1';
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
@@ -242,7 +251,9 @@ export default defineConfig(({ command }) => {
           ],
         },
         manifest: {
-          id: basePath,
+          // ABSOLU : même forme que le hub et `pwaManifest`. `scope` /
+          // `start_url` restent des chemins (pathPrefix WebAPK).
+          id: `${siteOrigin()}${basePath}`,
           name: 'Mister & Miss Koh',
           // LE RACCOURCI DE L'ÉCRAN D'ACCUEIL LIT `short_name`, pas `name` :
           // il annonçait « Mister & miss », c'est-à-dire le nom AMPUTÉ de ce
