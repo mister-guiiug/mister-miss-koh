@@ -1,12 +1,62 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
+import { createElement, useEffect } from 'react';
 import { AppAnimation } from './AppAnimation';
 import { MARKS } from './marks';
 import { ANIMATIONS, type AnimationRole } from './registry';
 import { useAppStore } from '../store/useAppStore';
 
+/**
+ * Un faux moteur : le composant du socle construit le sien sur `useRive`, qui
+ * reçoit `onLoad` / `onLoadError`. Celui-ci rend l'issue que le test choisit.
+ */
+const moteur = vi.hoisted(() => ({
+  issue: 'attente' as 'attente' | 'pret' | 'echec',
+}));
+vi.mock('./riveLite', () => ({
+  chargerRive: async () => ({
+    useRive(params: {
+      onLoad?: () => void;
+      onLoadError?: (e: unknown) => void;
+    }) {
+      useEffect(() => {
+        if (moteur.issue === 'pret') params.onLoad?.();
+        if (moteur.issue === 'echec')
+          params.onLoadError?.({ data: 'corrompu' });
+      }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      return { RiveComponent: () => createElement('canvas') };
+    },
+  }),
+}));
+
+/**
+ * L'observateur du socle (`vitest-setup`) ne signale jamais rien : l'animation
+ * resterait hors écran, donc jamais montée. Celui-ci la dit visible tout de
+ * suite.
+ */
+function visibleToutDeSuite() {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(
+        private rappel: (entrees: { isIntersecting: boolean }[]) => void
+      ) {}
+      observe() {
+        this.rappel([{ isIntersecting: true }]);
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+}
+
 beforeEach(() => {
+  moteur.issue = 'attente';
   useAppStore.setState({ animations: true, reduceMotion: false });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('le repli d’une animation', () => {
@@ -81,6 +131,32 @@ describe('les rôles qui ont un fichier Rive', () => {
     expect(container.querySelector('[data-rive]')).not.toBeNull();
     expect(container.querySelector('.anim-attente')).not.toBeNull();
     expect(container.querySelector('svg.mark')).toBeNull();
+  });
+
+  it('passent à « prêt » sur le signal du moteur, transmis par le socle', async () => {
+    moteur.issue = 'pret';
+    visibleToutDeSuite();
+    const { container } = render(<AppAnimation name="app-start" />);
+    await waitFor(() =>
+      expect(container.querySelector('[data-rive]')).toHaveAttribute(
+        'data-rive',
+        'pret'
+      )
+    );
+    expect(container.querySelector('canvas')).not.toBeNull();
+  });
+
+  it('rendent la marque quand le fichier est refusé, sans attendre le délai', async () => {
+    // Avant la 6.27.0, le socle ne transmettait pas `onLoadError` : seul le
+    // délai de garde finissait par rendre la marque, 1,5 s plus tard.
+    moteur.issue = 'echec';
+    visibleToutDeSuite();
+    const { container } = render(<AppAnimation name="torch-out" />);
+    await waitFor(() =>
+      expect(container.querySelector('svg.mark')).toHaveClass('mark-braise')
+    );
+    expect(container.querySelector('[data-rive]')).toBeNull();
+    expect(container.querySelector('canvas')).toBeNull();
   });
 
   it('rendent la marque quand on a demandé moins de mouvement', () => {
