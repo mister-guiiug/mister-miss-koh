@@ -509,7 +509,7 @@ Vite les copie dans le bundle, et la clé anonyme est publique par construction
 `service_role`, elle, n'entre nulle part côté client.
 
 Le projet Free se met en pause après sept jours sans requête. Le workflow
-`supabase-keepalive.yml` fait un `select` anonyme tous les trois jours. Il
+`supabase-keepalive.yml` fait un `select` anonyme chaque jour. Il
 n'attend **aucun secret** : le réutilisable du socle déclare ses deux entrées
 en `secrets:`, mais un appelant y passe l'expression qu'il veut — ici les
 **variables** du dépôt, qui portent déjà l'URL et la clé anonyme pour le

@@ -15,7 +15,7 @@ name: Supabase keep-alive
 
 on:
   schedule:
-    - cron: '23 5 */3 * *' # ~tous les 3 jours, décalé de mister-molkky
+    - cron: '23 5 * * *' # chaque jour : tous les 3 jours n'a pas empêché la pause (miss-uwh, 13/10/2026)
   workflow_dispatch:
 
 jobs:
