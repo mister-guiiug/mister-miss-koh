@@ -93,6 +93,7 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 | `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable             |
 | `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement               |
 | `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées                 |
+| `extract-special.ts`    | Grille « Épreuves spéciales » → éliminations définitives à l'arène                    |
 
 Les pièges que les tests figent :
 
@@ -633,6 +634,44 @@ porte son épisode : c'est lui qui le protège. Un collier trouvé et pas encore
 joué n'est daté qu'en **jours**, et rien ne traduit un jour en épisode. Il est
 alors gardé jusqu'au **dernier épisode diffusé** : conservateur, mais jamais
 faux.
+
+## Les épreuves spéciales, et les tours sur deux colonnes
+
+Révision 240344480 d'All Stars, 13/10/2026. La source a déplacé deux choses,
+sans rien perdre ; cela a suffi à retenir tout le lot du soir, et les épisodes
+7 et 8 sont restés vides en ligne.
+
+| Ce qui a bougé                     | Révision publiée (30/09)                            | Révision du 13/10                                                   |
+| ---------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| l'élimination définitive à l'arène | quatre colonnes à zéro voix, en tête de l'épisode 4 | un tableau à part, « Épreuves spéciales » (épisodes 4 et 7)         |
+| le vote double de Yassin (ép. 6)   | « Camille (x2) » dans une cellule                   | deux cellules « Camille », sous un en-tête étendu sur deux colonnes |
+
+Lus par l'extraction 14, l'épisode 4 publié semblait perdre quatre tours (les
+clés `e4:r1` à `e4:r5` glissaient) et l'épisode 6 gagner un second scrutin.
+La règle « import probablement partiel » rendait alors douteux tous les tours
+neufs, ceux de l'épisode 7 compris.
+
+L'extraction 15 :
+
+- **un tour, c'est son en-tête.** Une colonne dont l'épisode, l'éliminé et le
+  décompte sont la MÊME cellule que la colonne précédente prolonge le même
+  tour. Une cellule propre y est un bulletin de plus : même cible, le poids
+  s'ajoute ; autre cible, anomalie `bulletins_divergents`. Une égalité garde
+  ses deux tours, parce que ses décomptes diffèrent (« / » puis « 3/6 ») ;
+- **l'arène reprend la forme qu'elle avait.** Chaque « Élimination
+  définitive » du tableau devient un tour `linked` à zéro voix, sans cause,
+  en tête de son épisode : l'épisode 4 ressort identique à ce qui est publié.
+  Pas de second tour pour qui est éliminé par un vote le même soir (Tania,
+  épisode 7) : une seule sortie par candidat et par épisode (0028), et un
+  second tour à son nom écraserait la première.
+
+Relevé sur les dix-huit pages, extractions 14 et 15 à la même révision : onze
+pages identiques. Six saisons (Fidji, La Légende, Le Feu sacré, Les Armes
+secrètes, Les Chasseurs d'immunité, Malaisie) écrivaient déjà un vote double
+en deux cellules, et l'extraction 14 en tirait un tour fantôme, copie du vrai.
+L'extraction 15 les lit juste ; mais un tour fantôme déjà publié ne part pas
+de lui-même, la publication refusant de supprimer un tour : c'est une
+correction à faire à la main.
 
 ## Les duos : autant que la source en dit, pas un de plus
 

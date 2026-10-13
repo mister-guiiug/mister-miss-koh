@@ -38,6 +38,7 @@ import {
 } from "./mediawiki.ts";
 import { type Grid, type ParsedTable, parseTables } from "./html-table.ts";
 import { extractVotes, looksLikeVotes } from "./extract-votes.ts";
+import { extractSpecial, looksLikeSpecial } from "./extract-special.ts";
 import {
   episodesFromRounds,
   extractContestants,
@@ -111,8 +112,16 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  * 14 : un bulletin peut compter plusieurs fois : « Camille (x2) » est un vote
  *      de POIDS 2 (`weight`), et non une valeur inconnue. Une seule cellule
  *      au 30/09/2026 : le vote double de Yassin, épisode 6 d'All Stars
+ * 15 : un tour peut s'étendre sur PLUSIEURS colonnes (même épisode, même
+ *      éliminé, même décompte : la même cellule d'en-tête) ; une cellule
+ *      propre à la colonne de suite est un bulletin de plus. Et les
+ *      éliminations DÉFINITIVES du tableau « Épreuves spéciales » redeviennent
+ *      des tours à zéro voix en tête de leur épisode. La révision 240344480
+ *      d'All Stars (13/10/2026) avait déplacé les deux : sans elles,
+ *      l'épisode 4 publié semblait perdre quatre tours et l'épisode 6
+ *      gagner un scrutin, et tout le lot restait retenu
  */
-export const EXTRACTOR_VERSION = "14";
+export const EXTRACTOR_VERSION = "15";
 
 export interface SourceDocument {
   readonly id: string;
@@ -324,6 +333,7 @@ function pickTable(
 
 /** Facultative : 9 pages de saison sur 18 la portent (relevé du 05/09/2026). */
 const SECTION_ADVANTAGES = "Colliers d'immunité";
+const SECTION_SPECIAL = "Épreuves spéciales";
 
 /** Anomalies qui interdisent d'aller plus loin. */
 function isFatal(anomaly: Anomaly): boolean {
@@ -546,6 +556,21 @@ export async function runImport(
       });
     }
 
+    // ── Les épreuves spéciales, s'il y en a ──────────────────────────────
+    //
+    // FACULTATIVE, comme les colliers : apparue sur All Stars le 13/10/2026.
+    // Elle porte désormais les éliminations DÉFINITIVES à l'arène, que la
+    // matrice des votes écrivait avant en colonnes à zéro voix — voir
+    // `extract-special.ts`. Elle se lit AVANT la matrice, qui en a besoin.
+    const roster = contestants.contestants.map((c) => c.displayName);
+    const specialSection = findSection(sections, SECTION_SPECIAL);
+    let special: ReturnType<typeof extractSpecial> = { exits: [], anomalies: [] };
+    if (specialSection) {
+      const specialHtml = await fetchSectionHtml(wiki, revision, specialSection.index);
+      const specialTable = pickTable(parseTables(specialHtml), looksLikeSpecial);
+      if (specialTable) special = extractSpecial(specialTable.grid, roster);
+    }
+
     let votes: ReturnType<typeof extractVotes> = {
       rounds: [],
       votes: [],
@@ -559,7 +584,8 @@ export async function runImport(
       votes = extractVotes(
         votesTable.grid,
         document.seasonSlug,
-        contestants.contestants.map((c) => c.displayName),
+        roster,
+        special.exits,
       );
     } else {
       const quoi = "aucune matrice des votes sur cette page";
@@ -646,6 +672,7 @@ export async function runImport(
       ...teams.anomalies,
       ...progress.anomalies,
       ...votes.anomalies,
+      ...special.anomalies,
       ...advantages.anomalies,
       ...crossCheck(contestants, progress, votes),
     ];
