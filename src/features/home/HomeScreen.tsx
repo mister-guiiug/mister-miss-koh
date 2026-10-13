@@ -31,7 +31,13 @@ export function HomeScreen() {
   return (
     <div className="stack home">
       <PullToRefresh />
-      <AppAnimation name="app-start" className="hero-animation" />
+      {/* `key` : au sortir de l'accueil (« C'est parti »), l'emblème remonte
+          et le soleil se lève une dernière fois — la fin du rite d'entrée. */}
+      <AppAnimation
+        key={onboarded ? 'pret' : 'accueil'}
+        name="app-start"
+        className="hero-animation"
+      />
       {welcome && !onboarded && (
         <Suspense fallback={null}>
           <Onboarding />

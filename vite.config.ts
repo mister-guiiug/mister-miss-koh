@@ -82,6 +82,16 @@ export default defineConfig(({ command }) => {
 
   return {
     base: basePath,
+    resolve: {
+      alias: {
+        // LE MOTEUR ALLÉGÉ, MÊME POUR LE SOCLE. `react/rive` importe
+        // `@rive-app/react-canvas` par défaut ; l'application n'installe que
+        // la version `-lite` (WASM de 316 Ko compressés au lieu de 824) et
+        // passe son propre `loader`. L'alias garde l'import par défaut du
+        // socle résolu vers le même paquet : un seul moteur dans le build.
+        '@rive-app/react-canvas': '@rive-app/react-canvas-lite',
+      },
+    },
     define: {
       __APP_VERSION__: JSON.stringify(version),
       __APP_BUILD_ID__: JSON.stringify(buildId),
@@ -204,6 +214,11 @@ export default defineConfig(({ command }) => {
         // qu'en console, sur le site déployé, une fois le consentement donné.
         analytics: true,
         connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
+        // Le moteur Rive est un WebAssembly : sans `'wasm-unsafe-eval'`, la
+        // CSP en refuse la compilation et l'animation retombe sur sa marque.
+        // Ce mot-clé n'ouvre PAS `eval` au JavaScript — seulement la
+        // compilation de modules WASM, servis ici par le site lui-même.
+        scriptSrc: ["'wasm-unsafe-eval'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org'],
       }),
       VitePWA({
@@ -231,6 +246,20 @@ export default defineConfig(({ command }) => {
           // Les fichiers Rive sont volumineux et facultatifs : mis en cache à
           // la première lecture, jamais préchargés.
           runtimeCaching: [
+            // Le moteur Rive (316 Ko compressés) : jamais préchargé — une
+            // visite qui n'affiche aucune animation ne le télécharge pas —,
+            // gardé à la première lecture.
+            {
+              urlPattern: /\.wasm$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'moteur-animations',
+                expiration: {
+                  maxEntries: 2,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+              },
+            },
             {
               urlPattern: /\.riv$/,
               handler: 'CacheFirst',

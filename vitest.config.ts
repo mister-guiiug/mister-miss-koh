@@ -9,6 +9,9 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
 
 export default defineConfig({
   plugins: [react()],
+  // Un `.riv` est un fichier binaire : sans cela, le test qui relit les
+  // animations publiées (`?inline`) le ferait analyser comme du JavaScript.
+  assetsInclude: ['**/*.riv'],
   // Les constantes de `vite.config.ts` : sans elles, un écran qui affiche la
   // version (Réglages) tombe en `ReferenceError` dès qu'un test le rend.
   define: {

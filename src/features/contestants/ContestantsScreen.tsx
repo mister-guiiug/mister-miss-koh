@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@mister-guiiug/dev-pwa-config/react/badge';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
@@ -18,6 +18,7 @@ import {
 import type { Contestant, Referential, Team } from '../../domain/referential';
 import { teamAt } from '../../domain/tribes';
 import { TribeName } from '../../components/TribeName';
+import { avecTransition } from '../../animations/transitions';
 import {
   CONTESTANT_FILTER_OPTIONS,
   filterLabel,
@@ -204,7 +205,14 @@ export function ContestantsScreen() {
           <SegmentedControl
             ariaLabel="Statut"
             value={status}
-            onChange={value => setStatus(value as ContestantFilter)}
+            // Les rangées qui restent GLISSENT à leur nouvelle place, les
+            // autres s'effacent : le filtre se lit au lieu de remplacer la
+            // liste d'un coup (`html[data-vt='filtre'] .list > li`).
+            onChange={value =>
+              avecTransition('filtre', () =>
+                setStatus(value as ContestantFilter)
+              )
+            }
             options={[...CONTESTANT_FILTER_OPTIONS]}
             fullWidth
           />
@@ -250,7 +258,11 @@ export function ContestantsScreen() {
             )}
             <ul className="list">
               {group.rows.map(c => (
-                <li key={c.id} className="row">
+                <li
+                  key={c.id}
+                  className="row"
+                  style={{ '--vt-ligne': `ligne-${c.id}` } as CSSProperties}
+                >
                   <Avatar contestant={c} colour={c.colour} />
                   {/* Le lien ne porte QUE le nom : y enfermer l'âge et le sexe
                       allongerait son nom accessible sans rien y ajouter. */}

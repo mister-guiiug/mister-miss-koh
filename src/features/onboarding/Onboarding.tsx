@@ -18,6 +18,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { WatchedPicker } from '../../components/WatchedPicker';
 import { SpoilerModePicker } from '../../components/SpoilerModePicker';
 import { FavoriteButton } from '../../components/FavoriteButton';
+import { avecTransition } from '../../animations/transitions';
 
 const STEPS = [
   {
@@ -36,6 +37,9 @@ const STEPS = [
 
 export function Onboarding() {
   const [step, setStep] = useState(0);
+  // LE SENS DU PASSAGE : « Suivant » fait entrer l'étape par la droite,
+  // « Retour » par la gauche, et le compteur défile dans le même sens.
+  const [sens, setSens] = useState<'avant' | 'arriere' | null>(null);
   const referential = useAppStore(s => s.referential);
   const favorites = useAppStore(s => s.favorites);
   const toggleFavorite = useAppStore(s => s.toggleFavorite);
@@ -45,48 +49,68 @@ export function Onboarding() {
   const current = STEPS[step] ?? STEPS[0];
   const last = step === STEPS.length - 1;
   const pad = (n: number) => String(n).padStart(2, '0');
+  const aller = (vers: number) => {
+    setSens(vers > step ? 'avant' : 'arriere');
+    setStep(vers);
+  };
+  // La fin de l'accueil : la carte s'efface et la page remonte dans une
+  // transition de vue ; le soleil de l'en-tête se lève une dernière fois
+  // (HomeScreen remonte l'emblème quand `onboarded` change).
+  const terminer = () => avecTransition('ecran', () => setOnboarded(true));
 
   return (
     <Card as="section" className="onboarding" aria-labelledby="bienvenue">
       <p className="onboarding-step">
-        {pad(step + 1)} / {pad(STEPS.length)}
+        {/* `key` : le numéro défile à chaque étape, dans le sens du geste. */}
+        <span
+          key={step}
+          className="onboarding-num"
+          data-sens={sens ?? undefined}
+        >
+          {pad(step + 1)}
+        </span>{' '}
+        / {pad(STEPS.length)}
       </p>
-      {/* \`key\` : chaque étape remonte son titre, et son entrée se rejoue. */}
-      <h2 id="bienvenue" key={step} className="onboarding-title">
-        {current.title}
-      </h2>
-      <p className="muted">{current.hint}</p>
+      {/* `key` : chaque étape remonte, et son entrée se rejoue — par la
+          droite en avançant, par la gauche en revenant. */}
+      <div
+        key={step}
+        className="onboarding-corps"
+        data-sens={sens ?? undefined}
+      >
+        <h2 id="bienvenue" className="onboarding-title">
+          {current.title}
+        </h2>
+        <p className="muted">{current.hint}</p>
 
-      {step === 0 && <WatchedPicker label="J’ai vu jusqu’à" />}
-      {step === 1 && <SpoilerModePicker idPrefix="bienvenue-spoiler" />}
-      {step === 2 && (
-        <ul className="onboarding-cast">
-          {referential.contestants.map(c => (
-            <li key={c.id}>
-              <span>{c.displayName}</span>
-              <FavoriteButton
-                name={c.displayName}
-                favorite={favorites.includes(c.id)}
-                onToggle={() => toggleFavorite(c.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+        {step === 0 && <WatchedPicker label="J’ai vu jusqu’à" />}
+        {step === 1 && <SpoilerModePicker idPrefix="bienvenue-spoiler" />}
+        {step === 2 && (
+          <ul className="onboarding-cast">
+            {referential.contestants.map(c => (
+              <li key={c.id}>
+                <span>{c.displayName}</span>
+                <FavoriteButton
+                  name={c.displayName}
+                  favorite={favorites.includes(c.id)}
+                  onToggle={() => toggleFavorite(c.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="onboarding-actions">
-        <Button variant="ghost" size="sm" onClick={() => setOnboarded(true)}>
+        <Button variant="ghost" size="sm" onClick={terminer}>
           Passer
         </Button>
         {step > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setStep(step - 1)}>
+          <Button variant="outline" size="sm" onClick={() => aller(step - 1)}>
             Retour
           </Button>
         )}
-        <Button
-          size="sm"
-          onClick={() => (last ? setOnboarded(true) : setStep(step + 1))}
-        >
+        <Button size="sm" onClick={() => (last ? terminer() : aller(step + 1))}>
           {last ? 'C’est parti' : 'Suivant'}
         </Button>
       </div>

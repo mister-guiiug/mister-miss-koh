@@ -2759,7 +2759,7 @@ a.catch-up-primary:focus-visible {
   animation: koh-degivre var(--motion-base) var(--ease-out) backwards;
 }
 
-.onboarding > .muted {
+.onboarding-corps > .muted {
   margin: 0 0 0.8rem;
 }
 
@@ -2796,6 +2796,323 @@ a.catch-up-primary:focus-visible {
   margin: 0 0 0.6rem;
 }
 
+/* ══ La continuité : transitions de vue, barre basse, moments de la soirée ══
+   Le module `animations/transitions.ts` pose `data-vt` (le type) et
+   `data-vt-sens` sur `<html>` le temps d'une transition de vue ; tout ce qui
+   suit lit ces deux attributs. Hors transition, aucune de ces règles ne
+   nomme quoi que ce soit : un nom permanent ferait de l'élément un groupe à
+   part dans TOUTES les transitions. */
+
+/* L'en-tête et la barre basse ne voyagent pas : ils restent en place pendant
+   que l'écran glisse, et la barre montre en direct son trait qui avance (la
+   photo de l'avant est masquée, sans quoi l'ancien trait resterait visible). */
+[data-dwc='app-header'] {
+  view-transition-name: en-tete;
+}
+
+[data-dwc='bottom-nav'] {
+  view-transition-name: barre-basse;
+}
+
+::view-transition-old(en-tete),
+::view-transition-new(en-tete),
+::view-transition-new(barre-basse) {
+  animation: none;
+}
+
+::view-transition-old(barre-basse) {
+  display: none;
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--motion-slow);
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-base);
+}
+
+/* L'entrée en cascade des écrans cède la place : la transition fait déjà
+   arriver l'écran, une seconde entrée le ferait bégayer. */
+html[data-vt] .screen > .stack > *,
+html[data-vt] .list > li,
+html[data-vt] .limit-marker::before,
+html[data-vt] .limit-badge {
+  animation: none;
+}
+
+/* Les onglets, dans le sens de la barre : vers la droite, l'écran part à
+   gauche et le suivant arrive de droite. La fiche s'ouvre comme un onglet
+   plus à droite, et le retour revient par la gauche. */
+html[data-vt='onglet'][data-vt-sens='avant']::view-transition-old(root),
+html[data-vt='fiche']::view-transition-old(root) {
+  animation: koh-vt-sort-gauche var(--motion-base) var(--ease-out) both;
+}
+
+html[data-vt='onglet'][data-vt-sens='avant']::view-transition-new(root),
+html[data-vt='fiche']::view-transition-new(root) {
+  animation: koh-vt-entre-droite var(--motion-slow) var(--ease-out) both;
+}
+
+html[data-vt='onglet'][data-vt-sens='arriere']::view-transition-old(root),
+html[data-vt='retour']::view-transition-old(root) {
+  animation: koh-vt-sort-droite var(--motion-base) var(--ease-out) both;
+}
+
+html[data-vt='onglet'][data-vt-sens='arriere']::view-transition-new(root),
+html[data-vt='retour']::view-transition-new(root) {
+  animation: koh-vt-entre-gauche var(--motion-slow) var(--ease-out) both;
+}
+
+/* L'avatar et le nom qui voyagent entre la liste et la fiche : un peu plus
+   longs que l'écran, avec un léger ressort à l'arrivée. */
+::view-transition-group(vt-avatar),
+::view-transition-group(vt-nom) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-spring);
+}
+
+/* La limite anti-spoiler : elle SEULE se déplace. Le reste de l'écran
+   change sur place — les cartes ont leur vague, le démasqué son dégivrage. */
+html[data-vt='limite'] .limit-marker {
+  view-transition-name: limite;
+}
+
+html[data-vt='limite']::view-transition-old(root) {
+  display: none;
+}
+
+html[data-vt='limite']::view-transition-new(root) {
+  animation: none;
+}
+
+html[data-vt='limite']::view-transition-group(limite) {
+  animation-duration: var(--motion-slow);
+  animation-timing-function: var(--ease-spring);
+}
+
+/* Le filtre des candidats : chaque rangée est son propre groupe, le temps du
+   changement — celles qui restent glissent, les autres s'effacent. */
+html[data-vt='filtre'] .list > li {
+  view-transition-name: var(--vt-ligne);
+}
+
+@keyframes koh-vt-sort-gauche {
+  to {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+@keyframes koh-vt-entre-droite {
+  from {
+    opacity: 0;
+    transform: translateX(2rem);
+  }
+}
+
+@keyframes koh-vt-sort-droite {
+  to {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes koh-vt-entre-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-2rem);
+  }
+}
+
+/* ── Le trait de l'onglet courant GLISSE d'un onglet à l'autre ────────────
+   Le socle peint un trait par onglet (`border-block-start` de l'onglet
+   courant) : il disparaissait d'un côté et apparaissait de l'autre. Un seul
+   trait, posé sous la barre et déplacé par `--onglet` (Layout.tsx), dit le
+   trajet. Hors onglet (Notes, Compte…), il s'efface. En contraste forcé, le
+   trait du socle (Highlight) reste — un fond y serait ramené à Canvas. */
+@media not (forced-colors: active) {
+  [data-dwc='bottom-nav-item'][data-current] {
+    border-block-start-color: transparent;
+  }
+
+  [data-dwc='bottom-nav']::after {
+    content: '';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: calc(100% / var(--onglets, 5));
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    background: var(--primary);
+    transform: translateX(calc(var(--onglet, 0) * 100%));
+    transition:
+      transform var(--motion-slow) var(--ease-spring),
+      opacity var(--motion-base);
+    pointer-events: none;
+  }
+
+  .app-shell[data-onglet='-1'] [data-dwc='bottom-nav']::after {
+    opacity: 0;
+  }
+}
+
+/* ── Le dépouillement (CouncilDetail) ─────────────────────────────────────
+   Une barre après l'autre, la plus votée en dernier (`--rang`). Le pas DOIT
+   rester celui de `PAS_VOIX_MS` : la braise attend la dernière barre en JS. */
+.council-detail {
+  --pas-voix: 220ms;
+}
+
+.council-fill {
+  animation-delay: calc(var(--rang, 0) * var(--pas-voix));
+}
+
+.council-bars li[data-sortant] .council-name {
+  font-weight: 600;
+}
+
+/* LA PLACE DE LA BRAISE EST RÉSERVÉE SUR CHAQUE LIGNE. Chaque ligne est sa
+   propre grille : la braise qui élargissait la colonne du nom de la SEULE
+   ligne éliminée faisait démarrer sa barre plus loin — plus courte à voix
+   plus nombreuses, ce qui fausse exactement ce que les barres comparent. */
+.council-bars li {
+  grid-template-columns: minmax(6.5rem, max-content) 1fr max-content;
+}
+
+/* Les bulletins arrivent une fois les barres posées. */
+.council-ballots,
+.council-ballots-title {
+  animation: koh-fondu var(--motion-slow) var(--ease-out) 420ms backwards;
+}
+
+.council-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.council-braise,
+.braise-mini {
+  display: inline-flex;
+  flex: none;
+}
+
+.council-braise {
+  --anim-taille: 1.4rem;
+}
+
+.braise-mini {
+  --anim-taille: 1.75rem;
+  align-self: center;
+}
+
+.council-braise .mark,
+.braise-mini .mark {
+  width: var(--anim-taille);
+  height: var(--anim-taille);
+}
+
+/* ── Sorti·e : le portrait se désature, une fois, à l'arrivée sur la fiche ─ */
+.avatar[data-sorti] {
+  filter: grayscale(1) saturate(0.4);
+  opacity: 0.85;
+  animation: koh-desature 600ms var(--ease-out) 150ms backwards;
+}
+
+@keyframes koh-desature {
+  from {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* ── Une tribu qui change de couleur passe en fondu ─────────────────────── */
+.tribe-swatch,
+.avatar-initials {
+  transition:
+    background-color var(--motion-slow) var(--ease-out),
+    color var(--motion-slow) var(--ease-out);
+}
+
+/* ── L'accueil : l'étape entre dans le sens du geste, le compteur défile ── */
+.onboarding-corps[data-sens='avant'] {
+  animation: koh-vt-entre-droite var(--motion-base) var(--ease-out) backwards;
+}
+
+.onboarding-corps[data-sens='arriere'] {
+  animation: koh-vt-entre-gauche var(--motion-base) var(--ease-out) backwards;
+}
+
+.onboarding-num {
+  display: inline-block;
+}
+
+/* Le compteur est un conteneur flex : l'espace entre le numéro (un élément à
+   part, pour défiler) et « / 03 » n'y est pas rendu. L'écart le remplace. */
+.onboarding-step {
+  gap: 0.3em;
+}
+
+.onboarding-num[data-sens='avant'] {
+  animation: koh-num-monte var(--motion-base) var(--ease-spring) backwards;
+}
+
+.onboarding-num[data-sens='arriere'] {
+  animation: koh-num-descend var(--motion-base) var(--ease-spring) backwards;
+}
+
+@keyframes koh-num-monte {
+  from {
+    opacity: 0;
+    transform: translateY(0.6em);
+  }
+}
+
+@keyframes koh-num-descend {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6em);
+  }
+}
+
+/* ── Le chiffre qui a changé depuis la dernière visite rebondit ─────────── */
+.tile-value[data-change] {
+  animation: koh-rebond 700ms var(--ease-spring) 150ms backwards;
+}
+
+@keyframes koh-rebond {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ── Rive : la place du dessin, tenue pendant le chargement ─────────────── */
+[data-animation] {
+  --anim-taille: 3rem;
+}
+
+[data-dwc='empty-state'] [data-animation] {
+  --anim-taille: 4rem;
+}
+
+[data-animation][data-rive] > div,
+.anim-attente {
+  display: block;
+  width: var(--anim-taille);
+  height: var(--anim-taille);
+}
+
 /* ── Les niveaux de mouvement (`data-motion`, posé par useMotionLevel) ───
    `essential` — « Animations » décochée : le décoratif est ramené à 0,01 ms.
    Pas `none` : `animationend` doit continuer de tomber, l'étoile s'en sert
@@ -2825,7 +3142,13 @@ a.catch-up-primary:focus-visible {
 [data-motion='essential'] .council-fill,
 [data-motion='essential'] .catch-up-meter span,
 [data-motion='essential'] .caught-up::before,
-[data-motion='essential'] .onboarding-title {
+[data-motion='essential'] .onboarding-title,
+[data-motion='essential'] .onboarding-corps,
+[data-motion='essential'] .onboarding-num,
+[data-motion='essential'] .avatar[data-sorti],
+[data-motion='essential'] .tile-value[data-change],
+[data-motion='essential'] .council-ballots,
+[data-motion='essential'] .council-ballots-title {
   animation-duration: 0.01ms;
   animation-iteration-count: 1;
   /* LE DÉLAI AUSSI, et pas seulement la durée. La cascade d'arrivée retarde

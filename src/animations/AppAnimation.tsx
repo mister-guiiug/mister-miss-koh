@@ -23,9 +23,28 @@ import {
   type ReactNode,
 } from 'react';
 import { useReducedMotion } from '@mister-guiiug/dev-pwa-config/react/use-media-query';
+import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provider';
 import { useAppStore } from '../store/useAppStore';
 import { ANIMATIONS, type AnimationRole } from './registry';
 import { MARKS } from './marks';
+import { attendre } from './riveSignal';
+
+/** Le moteur et son chargeur, à la première animation seulement. */
+const chargerRive = () => import('./riveLite').then(m => m.chargerRive());
+
+/**
+ * Le temps laissé à Rive pour arriver. Au-delà, la marque prend la place pour
+ * cette fois ; le moteur, lui, finit de se charger et reste en cache — la
+ * visite suivante l'aura tout de suite.
+ */
+const DELAI_RIVE_MS = 1500;
+
+/** L'utilisateur a demandé d'économiser les données : pas de moteur Rive. */
+function economieDeDonnees(): boolean {
+  const c = (navigator as Navigator & { connection?: { saveData?: boolean } })
+    .connection;
+  return c?.saveData === true;
+}
 
 const RiveAnimation = lazy(() =>
   import('@mister-guiiug/dev-pwa-config/react/rive').then(m => ({
@@ -80,9 +99,38 @@ export function AppAnimation({ name, fallback, className }: Props) {
     </>
   );
 
-  // Rien à animer, ou personne ne veut d'animation : le repli, sans runtime.
-  const wantsMotion = animations && !reduceMotion && !systemReduced;
-  if (!spec.src || !wantsMotion) {
+  // Un fichier par thème : les couleurs d'un `.riv` sont figées.
+  const theme = useThemeContext()?.resolved === 'light' ? 'clair' : 'sombre';
+  const src = spec.src
+    ? `${import.meta.env.BASE_URL}${spec.src.replace('{theme}', theme)}`
+    : null;
+
+  // Rive prêt, en retard, ou en échec : seul ce dernier rend la marque.
+  const [etat, setEtat] = useState<'attente' | 'pret' | 'echec'>('attente');
+  const wantsMotion =
+    animations && !reduceMotion && !systemReduced && !economieDeDonnees();
+  const avecRive = src !== null && wantsMotion;
+
+  // Le délai court à partir du moment où l'animation est VISIBLE : c'est là
+  // que le moteur commence à charger.
+  useEffect(() => {
+    if (!avecRive || !src || !visible) return;
+    const fin = attendre(src, pret =>
+      setEtat(e => (e === 'attente' ? (pret ? 'pret' : 'echec') : e))
+    );
+    const garde = window.setTimeout(
+      () => setEtat(e => (e === 'attente' ? 'echec' : e)),
+      DELAI_RIVE_MS
+    );
+    return () => {
+      fin();
+      window.clearTimeout(garde);
+    };
+  }, [avecRive, src, visible]);
+
+  // Rien à animer, personne ne veut d'animation, ou Rive n'est pas venu : le
+  // repli, sans runtime.
+  if (!avecRive || etat === 'echec') {
     return (
       <div
         ref={ref}
@@ -95,19 +143,34 @@ export function AppAnimation({ name, fallback, className }: Props) {
     );
   }
 
+  /**
+   * PENDANT QUE RIVE ARRIVE, UNE PLACE VIDE — pas la marque. La marque a son
+   * propre lever ; la montrer puis la remplacer ferait se lever le soleil deux
+   * fois. La place garde la taille du dessin : rien ne bouge autour.
+   */
+  const attente = <span className="anim-attente" aria-hidden="true" />;
+
   return (
-    <div ref={ref} className={className} data-animation={name}>
+    <div ref={ref} className={className} data-animation={name} data-rive={etat}>
       {visible ? (
-        <Suspense fallback={staticFallback}>
+        <Suspense fallback={attente}>
+          {/* `key` : un changement de thème change de fichier, et le
+              composant Rive ne recharge pas un `src` qui change. */}
           <RiveAnimation
-            src={spec.src}
+            key={src}
+            src={src}
             stateMachines={spec.stateMachine}
             ariaLabel={spec.ariaLabel ?? undefined}
-            fallback={staticFallback}
+            fallback={attente}
+            loader={chargerRive}
+            onError={() => setEtat('echec')}
           />
         </Suspense>
       ) : (
-        staticFallback
+        attente
+      )}
+      {spec.fallbackText && (
+        <span className="sr-only">{spec.fallbackText}</span>
       )}
     </div>
   );

@@ -29,3 +29,5 @@
 *.webp binary
 *.woff binary
 *.woff2 binary
+# Les animations Rive : un octet 0x0D y est une donnée, pas une fin de ligne.
+*.riv  binary

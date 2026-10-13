@@ -7,6 +7,7 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useAppStore } from '../../store/useAppStore';
 import { SpoilerGuard } from '../../components/SpoilerGuard';
 import { Avatar } from '../../components/Avatar';
+import { AppAnimation } from '../../animations/AppAnimation';
 import { ContestantTraits } from '../../components/ContestantTraits';
 import { PhotoPicker } from '../../components/PhotoPicker';
 import { PhotoShare } from '../../components/PhotoShare';
@@ -146,20 +147,27 @@ export function ContestantDetailScreen() {
             size="lg"
             zoomable
             colour={team?.colour}
+            sorti={!view.stillIn}
           />
           <div className="identity-main">
             <ContestantTraits contestant={contestant} size="md" />
-            <p className="chips-row">
+            {/* Un `div` : la braise animée est un bloc, interdit dans un `p`. */}
+            <div className="chips-row">
               <Badge tone={view.stillIn ? 'success' : 'muted'}>
                 {view.stillIn ? 'en jeu' : 'sorti·e'}
               </Badge>
+              {/* La braise s'éteint à côté du mot : un départ, dit une fois
+                  à l'arrivée sur la fiche. Décorative — le mot suffit. */}
+              {!view.stillIn && (
+                <AppAnimation name="torch-out" className="braise-mini" />
+              )}
               {team && (
                 <Badge tone="info">
                   <TribeName team={team} describe />
                 </Badge>
               )}
               {contestant.finalJury && <Badge tone="warning">Jury final</Badge>}
-            </p>
+            </div>
           </div>
         </div>
 

@@ -32,6 +32,12 @@ interface Props {
   zoomable?: boolean;
   /** Couleur de tribu à la limite anti-spoiler. Les initiales s'y posent. */
   colour?: string | null;
+  /**
+   * Sorti·e à la limite anti-spoiler : le portrait se DÉSATURE (une fois, à
+   * l'arrivée sur la fiche). Le texte « sorti·e » reste à côté : la couleur ne
+   * porte jamais seule l'information.
+   */
+  sorti?: boolean;
 }
 
 export function Avatar({
@@ -39,6 +45,7 @@ export function Avatar({
   size = 'sm',
   zoomable = false,
   colour = null,
+  sorti = false,
 }: Props) {
   const url = usePhotosStore(s => s.urls[contestant.id]);
   const [zoom, setZoom] = useState(false);
@@ -48,6 +55,7 @@ export function Avatar({
       <span
         className="avatar avatar-initials"
         data-size={size}
+        data-sorti={sorti ? '' : undefined}
         data-tint={colour ? undefined : tintOf(contestant.id)}
         style={
           colour ? { background: colour, color: inkOn(colour) } : undefined
@@ -60,7 +68,14 @@ export function Avatar({
   }
 
   const image = (
-    <img className="avatar" data-size={size} src={url} alt="" loading="lazy" />
+    <img
+      className="avatar"
+      data-size={size}
+      data-sorti={sorti ? '' : undefined}
+      src={url}
+      alt=""
+      loading="lazy"
+    />
   );
 
   if (!zoomable) return image;
