@@ -603,3 +603,199 @@ Deno.test("30/09 : le vote double de Yassin fait le 5/6 de l'épisode 6", () => 
   assertEquals(voix("Camille"), tour.reportedVotesFor);
   assertEquals(bulletins.reduce((n, v) => n + v.weight, 0), tour.reportedVotesTotal);
 });
+
+// ── La page du 13/10/2026 (révision 240344480) ────────────────────────────
+//
+// Deux déplacements de la source : le vote double s'écrit en DEUX cellules
+// sous un en-tête qui s'étend, et l'élimination définitive à l'arène a quitté
+// la matrice pour le tableau « Épreuves spéciales ».
+
+/** Une grille à partir de vrai HTML : seuls `colspan`/`rowspan` font des cellules PARTAGÉES. */
+function gridHtml(lignes: string) {
+  return parseTables(`<table>${lignes}</table>`)[0].grid;
+}
+
+Deno.test("un tour sur DEUX colonnes reste UN scrutin ; la cellule propre est un bulletin de plus", () => {
+  const out = extractVotes(
+    gridHtml(`
+<tr><th>► Épisode</th><th colspan="2">6</th></tr>
+<tr><th>► Éliminé</th><th colspan="2">Camille</th></tr>
+<tr><th>► Votes</th><th colspan="2">3/4</th></tr>
+<tr><th>▼ Candidats</th><th colspan="2">Votes</th></tr>
+<tr><td>Camille</td><td colspan="2">Vincent</td></tr>
+<tr><td>Vincent</td><td colspan="2">Camille</td></tr>
+<tr><td>Yassin</td><td>Camille</td><td>Camille</td></tr>`),
+    SEASON,
+  );
+  assertEquals(out.anomalies, []);
+  assertEquals(out.rounds.map((r) => [r.naturalKey, r.kind, r.rawTally]), [
+    [`${SEASON}:e6:r1`, "vote", "3/4"],
+  ]);
+  assertEquals(out.votes.map((v) => [v.voter, v.target, v.weight]), [
+    ["Camille", "Vincent", 1],
+    ["Vincent", "Camille", 1],
+    ["Yassin", "Camille", 2],
+  ]);
+});
+
+Deno.test("un éliminé étendu sous DEUX décomptes reste deux tours : l'égalité, puis le second", () => {
+  const out = extractVotes(
+    gridHtml(`
+<tr><th>► Épisode</th><th colspan="2">5</th></tr>
+<tr><th>► Éliminé</th><th colspan="2">Charlotte</th></tr>
+<tr><th>► Votes</th><th>/</th><th>2/3</th></tr>
+<tr><th>▼ Candidats</th><th colspan="2">Votes</th></tr>
+<tr><td>Camille</td><td><s>Charlotte</s></td><td>Charlotte</td></tr>
+<tr><td>Charlotte</td><td><s>Camille</s></td><td>Camille</td></tr>
+<tr><td>Vincent</td><td colspan="2">Charlotte</td></tr>`),
+    SEASON,
+  );
+  assertEquals(out.rounds.map((r) => [r.roundNumber, r.kind, r.eliminated]), [
+    [1, "annulled", "Charlotte"],
+    [2, "vote", "Charlotte"],
+  ]);
+});
+
+Deno.test("deux bulletins d'un même tour pour deux cibles : le premier reste, l'écart est signalé", () => {
+  const out = extractVotes(
+    gridHtml(`
+<tr><th>► Épisode</th><th colspan="2">6</th></tr>
+<tr><th>► Éliminé</th><th colspan="2">Camille</th></tr>
+<tr><th>► Votes</th><th colspan="2">2/3</th></tr>
+<tr><th>▼ Candidats</th><th colspan="2">Votes</th></tr>
+<tr><td>Camille</td><td colspan="2">Vincent</td></tr>
+<tr><td>Vincent</td><td colspan="2">Camille</td></tr>
+<tr><td>Yassin</td><td>Camille</td><td>Vincent</td></tr>`),
+    SEASON,
+  );
+  assertEquals(
+    out.votes.filter((v) => v.voter === "Yassin").map((v) => [v.target, v.weight]),
+    [["Camille", 1]],
+  );
+  assertEquals(out.anomalies.map((a) => [a.code, a.row]), [[
+    "bulletins_divergents",
+    "Yassin",
+  ]]);
+});
+
+Deno.test("l'arène reprend sa place en tête de l'épisode, et renumérote ce qui suit", () => {
+  const grid = gridOf([
+    ["► Épisode", "4", "7", "7"],
+    ["► Éliminé", "Lola", "Laure", "Tania"],
+    ["► Votes", "2/3", "0", "2/3"],
+    ["▼ Candidats", "Votes", "Votes", "Votes"],
+    ["Lola", "Ugo", "", ""],
+    ["Maxime", "Lola", "", "Tania"],
+    ["Ugo", "Lola", "", "Tania"],
+    ["Tania", "", "", "Ugo"],
+  ]);
+  const out = extractVotes(grid, SEASON, undefined, [
+    { episodeNumber: 4, name: "Joana" },
+    { episodeNumber: 7, name: "Charlotte" },
+    // Votée le même soir : déjà sortie, pas de second tour à son nom.
+    { episodeNumber: 7, name: "Tania" },
+  ]);
+
+  assertEquals(
+    out.rounds.map((r) => [r.naturalKey, r.kind, r.eliminated, r.causedBy, r.rawTally]),
+    [
+      [`${SEASON}:e4:r1`, "linked", "Joana", null, "0"],
+      [`${SEASON}:e4:r2`, "vote", "Lola", null, "2/3"],
+      [`${SEASON}:e7:r1`, "linked", "Charlotte", null, "0"],
+      [`${SEASON}:e7:r2`, "linked", "Laure", null, "0"],
+      [`${SEASON}:e7:r3`, "vote", "Tania", null, "2/3"],
+    ],
+  );
+  // Les bulletins suivent leur tour renuméroté.
+  assertEquals(
+    [...new Set(out.votes.map((v) => v.naturalKey.split(":").slice(0, 3).join(":")))],
+    [`${SEASON}:e4:r2`, `${SEASON}:e7:r3`],
+  );
+  // Une colonne qui n'existe pas n'attire aucune anomalie de colonne.
+  assert(out.rounds.filter((r) => r.columnIndex < 0).length === 2);
+});
+
+Deno.test("une sortie que la matrice porte déjà n'est pas écrite deux fois", () => {
+  const grid = gridOf([
+    ["► Épisode", "4", "4"],
+    ["► Éliminé", "Joana", "Lola"],
+    ["► Votes", "0", "2/3"],
+    ["▼ Candidats", "Votes", "Votes"],
+    ["Lola", "", "Ugo"],
+    ["Maxime", "", "Lola"],
+    ["Ugo", "", "Lola"],
+  ]);
+  const out = extractVotes(grid, SEASON, undefined, [{
+    episodeNumber: 4,
+    name: "Joana",
+  }]);
+  assertEquals(out.rounds.map((r) => [r.roundNumber, r.eliminated]), [
+    [1, "Joana"],
+    [2, "Lola"],
+  ]);
+});
+
+const fixture1013 = await Deno.readTextFile(
+  new URL("./fixtures/all-stars-votes-2026-10-13.html", import.meta.url),
+);
+const ARENES_1013 = [
+  { episodeNumber: 4, name: "Joana" },
+  { episodeNumber: 4, name: "Moussa" },
+  { episodeNumber: 4, name: "Naoil" },
+  { episodeNumber: 4, name: "Jacques" },
+  { episodeNumber: 7, name: "Charlotte" },
+  { episodeNumber: 7, name: "Tania" },
+];
+const real1013 = extractVotes(
+  parseTables(fixture1013).find((t) => looksLikeVotes(t.grid))!.grid,
+  SEASON,
+  undefined,
+  ARENES_1013,
+);
+
+/** Ce que la publication retient d'un tour : la clé et le payload, sans la colonne. */
+const publie = (r: (typeof real1013.rounds)[number]) => [
+  r.naturalKey,
+  r.kind,
+  r.eliminated,
+  r.causedBy,
+  r.reportedVotesFor,
+  r.reportedVotesTotal,
+  r.rawTally,
+];
+
+Deno.test("13/10 : l'épisode 4 ressort IDENTIQUE au 30/09, arène comprise", () => {
+  const avant = real0930.rounds.filter((r) => r.episodeNumber === 4).map(publie);
+  const apres = real1013.rounds.filter((r) => r.episodeNumber === 4).map(publie);
+  assertEquals(apres, avant);
+  const bulletins = (out: typeof real1013, cle: string) =>
+    out.votes.filter((v) => v.naturalKey.startsWith(`${cle}:`))
+      .map((v) => [v.naturalKey, v.target, v.struck, v.weight]).sort();
+  assertEquals(
+    bulletins(real1013, `${SEASON}:e4:r5`),
+    bulletins(real0930, `${SEASON}:e4:r5`),
+  );
+});
+
+Deno.test("13/10 : l'épisode 6 reste UN tour, et Yassin y vote deux fois", () => {
+  const ep6 = real1013.rounds.filter((r) => r.episodeNumber === 6);
+  assertEquals(
+    ep6.map(publie),
+    real0930.rounds.filter((r) => r.episodeNumber === 6).map(publie),
+  );
+  const yassin = real1013.votes.find((v) => v.naturalKey === `${SEASON}:e6:r1:Yassin`);
+  assertEquals([yassin?.target, yassin?.weight], ["Camille", 2]);
+});
+
+Deno.test("13/10 : l'épisode 7 — l'arène, l'abandon, l'égalité, puis deux votes", () => {
+  const ep7 = real1013.rounds.filter((r) => r.episodeNumber === 7);
+  assertEquals(ep7.map((r) => [r.roundNumber, r.kind, r.eliminated, r.rawTally]), [
+    [1, "linked", "Charlotte", "0"],
+    [2, "linked", "Laure", "0"],
+    [3, "annulled", "Nicolas", "/"],
+    [4, "vote", "Nicolas", "2/4"],
+    [5, "vote", "Tania", "5/6"],
+  ]);
+  // Tania, votée puis éliminée à l'arène le même soir : une seule sortie.
+  assertEquals(ep7.filter((r) => r.eliminated === "Tania").length, 1);
+});

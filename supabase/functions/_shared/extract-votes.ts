@@ -26,6 +26,7 @@
  */
 import type { Grid } from "./html-table.ts";
 import { footnoteRefs } from "./html-table.ts";
+import type { DefinitiveExit } from "./extract-special.ts";
 
 export type ColumnKind = "vote" | "annulled" | "linked" | "empty" | "unknown";
 
@@ -250,6 +251,7 @@ export function extractVotes(
   grid: Grid,
   seasonSlug: string,
   roster?: readonly string[],
+  definitiveExits?: readonly DefinitiveExit[],
 ): VotesExtraction {
   const anomalies: Anomaly[] = [];
   const rowEpisode = findRow(grid, LABEL_EPISODE);
@@ -402,12 +404,82 @@ export function extractVotes(
   const rounds: ExtractedRound[] = [];
   const votes: ExtractedVote[] = [];
   const roundsPerEpisode = new Map<string, number>();
+  // Dernière colonne lue par le dernier tour, et colonnes qui en prolongent un.
+  let derniereColonne = -1;
+  const suites = new Map<number, number>();
 
   for (let c = 1; c < width; c += 1) {
     const episodeText = grid[rowEpisode][c]?.text ?? "";
     const eliminated = grid[rowEliminated][c]?.text ?? "";
     const tallyCell = grid[rowTally][c];
     const rawTally = tallyCell?.text ?? "";
+
+    // ── LA SUITE D'UN MÊME TOUR ───────────────────────────────────────────
+    //
+    // Un tour peut occuper DEUX colonnes. Révision 240344480 (13/10/2026) :
+    // le vote double de Yassin, épisode 6, n'est plus « Camille (x2) » dans
+    // une cellule, mais DEUX cellules « Camille » côte à côte, sous un
+    // « Camille » et un « 5/6 » qui s'étendent sur les deux colonnes ; les
+    // bulletins des autres votants s'étendent eux aussi. Lue colonne par
+    // colonne, la soirée devenait deux scrutins identiques, et le poids du
+    // vote double disparaissait.
+    //
+    // CE QUI FAIT LE TOUR, C'EST L'EN-TÊTE. Épisode, éliminé ET décompte sont
+    // la MÊME cellule que la colonne précédente : c'est le même scrutin. Il
+    // suffit qu'un seul diffère pour que ce soit un autre tour — l'égalité de
+    // l'épisode 5 étend « Charlotte » sur deux colonnes, mais sous « / » puis
+    // « 3/6 » : deux tours, comme avant.
+    //
+    // Dans la colonne de suite, une cellule partagée avec la précédente a déjà
+    // été lue. Une cellule PROPRE est un bulletin de plus : même cible, il
+    // ajoute son poids ; cible différente, le tour n'a qu'une place par votant,
+    // et l'on ne choisit pas — anomalie.
+    const precedent = rounds.at(-1);
+    if (
+      precedent && derniereColonne === c - 1 && tallyCell &&
+      grid[rowEpisode][c] && grid[rowEpisode][c] === grid[rowEpisode][c - 1] &&
+      grid[rowEliminated][c] === grid[rowEliminated][c - 1] &&
+      tallyCell === grid[rowTally][c - 1]
+    ) {
+      for (let i = 0; i < contestantRows.length; i += 1) {
+        const cell = grid[contestantRows[i]][c];
+        if (!cell || cell === grid[contestantRows[i]][c - 1]) continue;
+        if (kindOf(cell.text) !== "vote") continue;
+        const ballot = readBallot(cell.text);
+        const target = canonique(ballot.name);
+        const naturalKey = `${precedent.naturalKey}:${contestants[i]}`;
+        const k = votes.findIndex((v) => v.naturalKey === naturalKey);
+        if (k === -1) {
+          votes.push({
+            naturalKey,
+            columnIndex: precedent.columnIndex,
+            voter: contestants[i],
+            target,
+            struck: cell.struck,
+            weight: ballot.weight,
+          });
+        } else if (
+          fold(votes[k].target ?? "") === fold(target) && votes[k].struck === cell.struck
+        ) {
+          votes[k] = { ...votes[k], weight: votes[k].weight + ballot.weight };
+        } else {
+          anomalies.push({
+            code: "bulletins_divergents",
+            message: `colonne ${c}, ligne ${
+              contestants[i]
+            } : un second bulletin du même tour pour « ${target} », le premier visait « ${
+              votes[k].target
+            } » — le second n'est pas retenu`,
+            columnIndex: precedent.columnIndex,
+            row: contestants[i],
+          });
+        }
+      }
+      suites.set(c, precedent.columnIndex);
+      derniereColonne = c;
+      continue;
+    }
+
     const empty = !eliminated && !rawTally && !columnHasVote[c];
 
     if (empty) {
@@ -555,6 +627,16 @@ export function extractVotes(
       rawTally,
       footnotes: tallyCell ? footnoteRefs(tallyCell.html) : [],
     });
+    derniereColonne = c;
+  }
+
+  // Une anomalie relevée dans une colonne de suite appartient au tour qu'elle
+  // prolonge : c'est à lui que le relecteur doit la voir attachée.
+  for (let k = 0; k < anomalies.length; k += 1) {
+    const col = anomalies[k].columnIndex;
+    if (col !== undefined && suites.has(col)) {
+      anomalies[k] = { ...anomalies[k], columnIndex: suites.get(col) };
+    }
   }
 
   // ── L'ÉGALITÉ QUE LA SOURCE NE BARRE PAS ─────────────────────────────────
@@ -586,5 +668,93 @@ export function extractVotes(
     }
   }
 
-  return { rounds, votes, statuses, contestants, anomalies };
+  if (!definitiveExits || definitiveExits.length === 0) {
+    return { rounds, votes, statuses, contestants, anomalies };
+  }
+  const placees = placeDefinitiveExits(rounds, votes, definitiveExits, seasonSlug);
+  return { ...placees, statuses, contestants, anomalies };
+}
+
+/**
+ * Les sorties définitives du tableau des épreuves spéciales, rendues à la
+ * matrice sous la forme qu'elle leur donnait.
+ *
+ * Avant le 13/10/2026, la matrice écrivait l'élimination à l'arène comme une
+ * colonne à ZÉRO VOIX, placée EN TÊTE de son épisode : à l'épisode 4,
+ * « Joana, Moussa, Naoil, Jacques — 0 », puis « Lola — 4/7 ». C'est sous cette
+ * forme qu'elles sont publiées (`e4:r1` à `e4:r4`, départs `other`). En la
+ * reproduisant — tour `linked` sans cause, décompte « 0 », en tête de
+ * l'épisode — l'épisode 4 ressort IDENTIQUE à ce qui est en ligne, et rien de
+ * publié n'est à défaire ni à renuméroter.
+ *
+ * DEUX SORTIES NE SONT PAS RÉÉCRITES :
+ *  - celle que la matrice porte déjà dans le même épisode (une page qui
+ *    garde ses colonnes à zéro voix ET le nouveau tableau) ;
+ *  - celle d'une personne ÉLIMINÉE PAR UN VOTE dans le même épisode — Tania,
+ *    épisode 7 : votée 5/6, puis éliminée à l'arène le même soir. La
+ *    publication n'a qu'une sortie par candidat et par épisode (0028) ; un
+ *    second tour à son nom écraserait la première, et l'application
+ *    afficherait l'autre en « ? éliminé·e ». Elle est déjà sortie ce
+ *    soir-là : c'est ce que le référentiel sait dire.
+ */
+function placeDefinitiveExits(
+  rounds: readonly ExtractedRound[],
+  votes: readonly ExtractedVote[],
+  exits: readonly DefinitiveExit[],
+  seasonSlug: string,
+): { rounds: ExtractedRound[]; votes: ExtractedVote[] } {
+  const episodes = [
+    ...new Set([
+      ...rounds.map((r) => r.episodeNumber as number),
+      ...exits.map((x) => x.episodeNumber),
+    ]),
+  ].sort((a, b) => a - b);
+
+  const placees: ExtractedRound[] = [];
+  const nouvelleCle = new Map<number, string>(); // colonne → clé renumérotée
+  let synthese = 0;
+
+  for (const episode of episodes) {
+    const matrice = rounds.filter((r) => r.episodeNumber === episode);
+    const dejaSortis = new Set(
+      matrice.filter((r) => r.kind !== "annulled" && r.eliminated)
+        .map((r) => fold(r.eliminated as string)),
+    );
+    const arene = exits.filter((x) =>
+      x.episodeNumber === episode && !dejaSortis.has(fold(x.name))
+    );
+
+    let rang = 0;
+    for (const x of arene) {
+      rang += 1;
+      synthese += 1;
+      placees.push({
+        naturalKey: `${seasonSlug}:e${episode}:r${rang}`,
+        // Aucune colonne de la matrice : un indice qui n'en désigne aucune,
+        // pour qu'aucune anomalie de colonne ne s'y attache par erreur.
+        columnIndex: -synthese,
+        episodeNumber: episode,
+        roundNumber: rang,
+        kind: "linked",
+        eliminated: x.name,
+        causedBy: null,
+        reportedVotesFor: 0,
+        reportedVotesTotal: null,
+        rawTally: "0",
+        footnotes: [],
+      });
+    }
+    for (const r of matrice) {
+      rang += 1;
+      const naturalKey = `${seasonSlug}:e${episode}:r${rang}`;
+      nouvelleCle.set(r.columnIndex, naturalKey);
+      placees.push({ ...r, naturalKey, roundNumber: rang });
+    }
+  }
+
+  const renumerotees = votes.map((v) => {
+    const cle = nouvelleCle.get(v.columnIndex);
+    return cle ? { ...v, naturalKey: `${cle}:${v.voter}` } : v;
+  });
+  return { rounds: placees, votes: renumerotees };
 }
