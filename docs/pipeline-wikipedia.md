@@ -369,10 +369,13 @@ elles.
 
 Trois refus délibérés :
 
-- **les suppressions**, sauf sur les voix. Supprimer un candidat ou un épisode
-  emporte ses enfants en cascade ; la photo ne les contient pas, et le retour
-  arrière serait incomplet — donc mensonger. Le lot est refusé et les
-  différences en cause nommées, à rejeter à la main ;
+- **les suppressions**, sauf sur les voix et, depuis 0040, sur les tours.
+  Supprimer un candidat ou un épisode emporte ses enfants en cascade ; la photo
+  ne les contient pas, et le retour arrière serait incomplet, donc mensonger.
+  Le lot est refusé et les différences en cause nommées, à rejeter à la main.
+  Un tour, lui, n'emporte que ses voix et laisse sans tour les sorties qui le
+  désignent : `retirer_tour` photographie les deux avant de le supprimer, et
+  la publication recale ensuite chaque sortie sur le tour qui l'élimine ;
 - **les tribus**. « Ikalu (jour 2 – 5) » porte un nom, deux bornes et une
   convention de tiret : découper cela relève de l'extraction, pas d'une
   fonction SQL ;
@@ -669,9 +672,11 @@ Relevé sur les dix-huit pages, extractions 14 et 15 à la même révision : onz
 pages identiques. Six saisons (Fidji, La Légende, Le Feu sacré, Les Armes
 secrètes, Les Chasseurs d'immunité, Malaisie) écrivaient déjà un vote double
 en deux cellules, et l'extraction 14 en tirait un tour fantôme, copie du vrai.
-L'extraction 15 les lit juste ; mais un tour fantôme déjà publié ne part pas
-de lui-même, la publication refusant de supprimer un tour : c'est une
-correction à faire à la main.
+L'extraction 15 les lit juste, et ses lots proposent de supprimer ces dix
+tours fantômes. La migration 0040 apprend à `publish_run` à les supprimer
+(il les refusait, et lisait même la suppression d'une voix dans un « après »
+toujours vide), à effacer le scrutin resté au rang d'un départ lié, et à
+ramener sur le vrai tour la sortie qui désignait le fantôme.
 
 ## Les duos : autant que la source en dit, pas un de plus
 
