@@ -28,10 +28,13 @@ describe('la première ouverture', () => {
 
   it('pose trois questions, et chaque réponse agit tout de suite', async () => {
     const user = userEvent.setup();
-    open();
+    const { container } = open();
+    // Le numéro est un élément à part (il défile d'une étape à l'autre) :
+    // le compteur se lit sur son paragraphe entier.
+    const compteur = () => container.querySelector('.onboarding-step');
 
     // 01 — où en êtes-vous : des numéros et des dates, rien d'autre.
-    expect(screen.getByText('01 / 03')).toBeInTheDocument();
+    expect(compteur()).toHaveTextContent('01 / 03');
     expect(
       screen.getByRole('heading', { name: 'Où en êtes-vous ?' })
     ).toBeInTheDocument();
@@ -57,7 +60,7 @@ describe('la première ouverture', () => {
 
     // 03 — qui suivez-vous : les prénoms, sans aucun statut.
     await user.click(screen.getByRole('button', { name: 'Suivant' }));
-    expect(screen.getByText('03 / 03')).toBeInTheDocument();
+    expect(compteur()).toHaveTextContent('03 / 03');
     expect(screen.queryByText(/éliminé|sorti/i)).toBeNull();
     const [etoile] = screen.getAllByRole('button', { pressed: false });
     if (!etoile) throw new Error('une étoile attendue');

@@ -24,7 +24,8 @@ import { lastAiredEpisode } from '../../domain/referential';
 import { councilView } from '../../domain/council';
 import { useUndo } from '../../hooks/useUndo';
 import { SpoilerStatusChip } from '../../components/SpoilerStatusChip';
-import { CouncilDetail } from '../../components/CouncilDetail';
+import { CouncilDisclosure } from '../../components/CouncilDetail';
+import { avecTransition } from '../../animations/transitions';
 
 /**
  * Le bandeau de la version non validée (migration 0039) ne se charge que les
@@ -141,7 +142,17 @@ export function EpisodesScreen() {
 
   if (!referential) return null;
 
-  const onToggle = (episodeNumber: number, seen: boolean) => {
+  // LA LIMITE AVANCE AU LIEU DE SAUTER. Cocher « Vu » déplace le repère
+  // « Vous en êtes là » : une transition de vue le fait glisser de son ancienne
+  // place à la nouvelle (`html[data-vt='limite'] .limit-marker`). C'est le
+  // geste central de l'anti-spoiler — on voit la frontière bouger. Joué aussi
+  // au niveau `essential` : c'est un retour d'état, pas un ornement.
+  const onToggle = (episodeNumber: number, seen: boolean) =>
+    avecTransition('limite', () => basculer(episodeNumber, seen), {
+      essentielle: true,
+    });
+
+  const basculer = (episodeNumber: number, seen: boolean) => {
     const before = useAppStore.getState().watched;
     const from = lastWatched(before);
     if (!seen) haptics('seen');
@@ -320,13 +331,15 @@ export function EpisodesScreen() {
                                     </>
                                   )}
                                   {view && (
-                                    <details className="council">
-                                      <summary>Détail des voix</summary>
-                                      <CouncilDetail
-                                        referential={referential}
-                                        view={view}
-                                      />
-                                    </details>
+                                    <CouncilDisclosure
+                                      referential={referential}
+                                      view={view}
+                                      eliminatedId={
+                                        r.kind === 'vote'
+                                          ? r.eliminatedId
+                                          : null
+                                      }
+                                    />
                                   )}
                                 </div>
                               );

@@ -34,9 +34,7 @@ import { DashboardScreen } from './features/dashboard/DashboardScreen';
 import { ContestantsScreen } from './features/contestants/ContestantsScreen';
 import { ContestantDetailScreen } from './features/contestants/ContestantDetailScreen';
 import { EpisodesScreen } from './features/episodes/EpisodesScreen';
-import { NotesScreen } from './features/notes/NotesScreen';
 
-import { AccountScreen } from './features/account/AccountScreen';
 import { OfflineScreen } from './features/offline/OfflineScreen';
 
 // Le socle demande un RÔLE d'icône, l'app fournit le dessin (lucide, règle
@@ -86,6 +84,25 @@ const SettingsScreen = lazy(async () => ({
 }));
 
 /**
+ * LE COMPTE ET LES NOTES AUSSI, depuis la continuité en mouvement (13/10/2026) : les
+ * transitions de vue, le dépouillement et le chargeur de Rive portaient le
+ * chunk d'entrée de 102 à 108 Kio au déploiement, sous une borne de 107. Même
+ * remède que les Réglages, pour la même raison : on y va pour se connecter
+ * ou régler son profil, on n'y arrive jamais — et la carte du profil part
+ * avec lui.
+ */
+const loadAccount = () => import('./features/account/AccountScreen');
+// Les Notes, l'écran le plus lourd du chunk d'entrée : un geste depuis
+// l'en-tête, préchargé au repos comme les deux autres.
+const loadNotes = () => import('./features/notes/NotesScreen');
+const NotesScreen = lazy(async () => ({
+  default: (await loadNotes()).NotesScreen,
+}));
+const AccountScreen = lazy(async () => ({
+  default: (await loadAccount()).AccountScreen,
+}));
+
+/**
  * La coquille reste à l'écran pendant le chargement : la frontière `Suspense`
  * est POSÉE SUR L'ÉLÉMENT de la route, pas autour des routes — sinon l'en-tête
  * et la barre basse disparaîtraient le temps d'un aller-retour réseau.
@@ -109,6 +126,8 @@ function RoutedApp() {
   // partage, les Réglages se préchargent dès que le navigateur est au repos,
   // après la première peinture. Le clic ne paie pas l'aller-retour réseau.
   useIdlePrefetch(loadSettings);
+  useIdlePrefetch(loadAccount);
+  useIdlePrefetch(loadNotes);
   // ICI ET NON DANS `App` : le toast qui annonce une nouveauté vit sous le
   // `ToastProvider`, que `App` rend. Et il n'y a rien à suivre tant que le
   // référentiel n'est pas là.
@@ -122,7 +141,14 @@ function RoutedApp() {
           <Route path="/candidats" element={<ContestantsScreen />} />
           <Route path="/candidats/:id" element={<ContestantDetailScreen />} />
           <Route path="/episodes" element={<EpisodesScreen />} />
-          <Route path="/notes" element={<NotesScreen />} />
+          <Route
+            path="/notes"
+            element={
+              <ALaDemande>
+                <NotesScreen />
+              </ALaDemande>
+            }
+          />
           {/* Ouvert à tous, sans session : c'est le serveur qui décide, à
               partir du jeton seul. La portée est dans l'adresse parce qu'un
               jeton ne dit pas laquelle des deux fonctions l'ouvre. */}
@@ -155,7 +181,14 @@ function RoutedApp() {
               </ALaDemande>
             }
           />
-          <Route path="/compte" element={<AccountScreen />} />
+          <Route
+            path="/compte"
+            element={
+              <ALaDemande>
+                <AccountScreen />
+              </ALaDemande>
+            }
+          />
           <Route
             path="/reglages"
             element={

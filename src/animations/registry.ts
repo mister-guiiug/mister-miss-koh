@@ -2,10 +2,12 @@
  * Le registre des animations : un RÔLE côté application, un fichier côté
  * assets — et rien qui les couple.
  *
- * AUCUN FICHIER `.riv` N'EST FOURNI À CE JOUR. Chaque entrée déclare donc
- * `src: null`, et `AppAnimation` rend le repli statique. Le jour où un fichier
- * arrive, on renseigne `src` ici et nulle part ailleurs ; aucun écran ne
- * connaît un nom de fichier.
+ * DEUX RÔLES ONT LEUR FICHIER depuis le 13/10/2026 : `app-start` (le soleil
+ * qui se lève) et `torch-out` (la braise qui s'éteint). Ils sont écrits par du
+ * code (`scripts/rive/animations.mjs`), un par thème — `{theme}` dans `src`
+ * vaut `clair` ou `sombre`. Les autres rôles déclarent `src: null`, et
+ * `AppAnimation` rend le repli statique. Aucun écran ne connaît un nom de
+ * fichier : il se renseigne ici et nulle part ailleurs.
  *
  * Les entrées de state machine attendues sont documentées par rôle, pour que
  * l'animateur sache quoi exposer. Elles sont indicatives tant qu'aucun asset
@@ -29,7 +31,10 @@ export type AnimationRole =
   | 'recoverable-error';
 
 export interface AnimationSpec {
-  /** Chemin public du `.riv`, ou `null` tant que l'asset n'existe pas. */
+  /**
+   * Chemin du `.riv` sous la base du site (`{theme}` → `clair` | `sombre`),
+   * ou `null` tant que l'asset n'existe pas.
+   */
   readonly src: string | null;
   readonly stateMachine: string;
   /** Entrées attendues — indicatives tant qu'aucun asset ne les porte. */
@@ -49,7 +54,12 @@ const decorative = (inputs: readonly string[] = []): AnimationSpec => ({
 });
 
 export const ANIMATIONS: Readonly<Record<AnimationRole, AnimationSpec>> = {
-  'app-start': decorative(['loading']),
+  'app-start': {
+    ...decorative(['loading']),
+    // State machine `main` : le lever (une fois) et la respiration des
+    // rayons (en boucle), deux couches parallèles.
+    src: 'animations/lever-{theme}.riv',
+  },
   'referential-loading': decorative(['progress']),
   'sync-success': { ...decorative(['success']), fallbackText: 'Synchronisé' },
   'sync-failed': {
@@ -73,6 +83,7 @@ export const ANIMATIONS: Readonly<Record<AnimationRole, AnimationSpec>> = {
   // doit reproduire aucune animation de l'émission.
   'torch-out': {
     ...decorative(['progress', 'reducedMotion']),
+    src: 'animations/braise-{theme}.riv',
     fallbackText: 'Départ',
   },
   victory: {

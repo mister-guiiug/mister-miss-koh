@@ -15,6 +15,7 @@
  * lecture par session, et seulement quand une session existe. Un visiteur
  * sans compte n'interroge toujours pas le serveur pour ses notes.
  */
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { NotebookPen, Star, Tv, Users } from 'lucide-react';
 import { Button } from '@mister-guiiug/dev-pwa-config/react/button';
@@ -31,6 +32,27 @@ interface Tile {
   readonly value: string;
   readonly label: string;
   readonly detail: string;
+}
+
+/**
+ * LE CHIFFRE QUI A BOUGÉ SE VOIT. Chaque tuile rejoue l'arrivée de son chiffre
+ * à chaque visite ; celui qui a CHANGÉ depuis la dernière (un favori ajouté,
+ * un épisode coché) rebondit en plus (`data-change`). Mémoire de la session
+ * seulement : à l'ouverture de l'application, rien n'a « changé ».
+ */
+const vues = new Map<number, string>();
+
+function TileValue({ rang, value }: { rang: number; value: string }) {
+  const change = vues.has(rang) && vues.get(rang) !== value;
+  // Mémorisé APRÈS la peinture : le rendu se contente de lire.
+  useEffect(() => {
+    vues.set(rang, value);
+  }, [rang, value]);
+  return (
+    <strong className="tile-value" data-change={change ? '' : undefined}>
+      {value}
+    </strong>
+  );
 }
 
 export function HomeTiles() {
@@ -88,11 +110,13 @@ export function HomeTiles() {
   return (
     <>
       <ul className="tiles">
-        {tiles.map(tile => (
+        {tiles.map((tile, i) => (
           <li key={`${tile.to}-${tile.label}`}>
             <Link to={tile.to} className="tile">
               <span className="tile-icon">{tile.icon}</span>
-              <strong className="tile-value">{tile.value}</strong>
+              {/* Le RANG de la tuile, pas son libellé : « favori » devient
+                  « favoris » au deuxième, et c'est justement là qu'il bouge. */}
+              <TileValue rang={i} value={tile.value} />
               <span className="tile-label">{tile.label}</span>
               <small className="muted">{tile.detail}</small>
             </Link>
