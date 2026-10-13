@@ -27,7 +27,6 @@ import { useThemeContext } from '@mister-guiiug/dev-pwa-config/react/theme-provi
 import { useAppStore } from '../store/useAppStore';
 import { ANIMATIONS, type AnimationRole } from './registry';
 import { MARKS } from './marks';
-import { attendre } from './riveSignal';
 
 /** Le moteur et son chargeur, à la première animation seulement. */
 const chargerRive = () => import('./riveLite').then(m => m.chargerRive());
@@ -114,18 +113,12 @@ export function AppAnimation({ name, fallback, className }: Props) {
   // Le délai court à partir du moment où l'animation est VISIBLE : c'est là
   // que le moteur commence à charger.
   useEffect(() => {
-    if (!avecRive || !src || !visible) return;
-    const fin = attendre(src, pret =>
-      setEtat(e => (e === 'attente' ? (pret ? 'pret' : 'echec') : e))
-    );
+    if (!avecRive || !visible) return;
     const garde = window.setTimeout(
       () => setEtat(e => (e === 'attente' ? 'echec' : e)),
       DELAI_RIVE_MS
     );
-    return () => {
-      fin();
-      window.clearTimeout(garde);
-    };
+    return () => window.clearTimeout(garde);
   }, [avecRive, src, visible]);
 
   // Rien à animer, personne ne veut d'animation, ou Rive n'est pas venu : le
@@ -154,15 +147,15 @@ export function AppAnimation({ name, fallback, className }: Props) {
     <div ref={ref} className={className} data-animation={name} data-rive={etat}>
       {visible ? (
         <Suspense fallback={attente}>
-          {/* `key` : un changement de thème change de fichier, et le
-              composant Rive ne recharge pas un `src` qui change. */}
+          {/* Un changement de thème change de fichier : le socle en fait
+              une instance neuve (`key={src}`), et son `onLoad` revient. */}
           <RiveAnimation
-            key={src}
             src={src}
             stateMachines={spec.stateMachine}
             ariaLabel={spec.ariaLabel ?? undefined}
             fallback={attente}
             loader={chargerRive}
+            onLoad={() => setEtat(e => (e === 'attente' ? 'pret' : e))}
             onError={() => setEtat('echec')}
           />
         </Suspense>

@@ -1,6 +1,6 @@
 /**
  * Le moteur Rive de l'application : la version ALLÉGÉE, servie par le site
- * lui-même, et qui SIGNALE quand l'animation est prête.
+ * lui-même.
  *
  * LA VERSION ALLÉGÉE. `@rive-app/canvas` embarque un WebAssembly de 1,99 Mo
  * (824 Ko compressés) ; `canvas-lite` en pèse 772 Ko (316 Ko compressés), au
@@ -13,23 +13,13 @@
  * fichier est donc émis avec le build (`?url`), et le repli vers un CDN est
  * coupé.
  *
- * LE SIGNAL. Le composant du socle (`react/rive`) ne dit ni quand le fichier
- * est chargé, ni s'il a échoué : un WASM refusé laisse un canevas vide, sans
- * erreur à attraper. Le `loader` qu'on lui passe rend donc un composant qui
- * appelle `useRive` lui-même, et prévient `AppAnimation` par `attendre`.
+ * Le signal de chargement, lui, est celui du socle depuis la 6.27.0 :
+ * `RiveAnimation` construit son composant sur le `useRive` de ce module et
+ * rend `onLoad` / `onError`.
  */
-import { createElement } from 'react';
-
-import { signaler } from './riveSignal';
-
-interface Props {
-  src: string;
-  stateMachines?: string | string[];
-  autoplay?: boolean;
-}
 
 /** Le `loader` passé au composant du socle. */
-export async function chargerRive() {
+export async function chargerRive(): Promise<Record<string, unknown>> {
   const [mod, wasm] = await Promise.all([
     import('@rive-app/react-canvas-lite'),
     import('@rive-app/canvas-lite/rive.wasm?url'),
@@ -38,32 +28,11 @@ export async function chargerRive() {
   const m = mod as unknown as Record<string, unknown> & {
     default?: Record<string, unknown>;
   };
-  const pick = <T>(nom: string) => (m[nom] ?? m.default?.[nom]) as T;
-  const RuntimeLoader = pick<{
+  const RuntimeLoader = (m.RuntimeLoader ?? m.default?.RuntimeLoader) as {
     setWasmUrl: (url: string) => void;
     setWasmFallbackUrl: (url: string | null) => void;
-  }>('RuntimeLoader');
-  const useRive = pick<
-    (params: Record<string, unknown>) => {
-      RiveComponent: Parameters<typeof createElement>[0];
-    }
-  >('useRive');
+  };
   RuntimeLoader.setWasmUrl(wasm.default);
   RuntimeLoader.setWasmFallbackUrl(null);
-
-  function RiveSignale({ src, stateMachines, autoplay = true }: Props) {
-    const { RiveComponent } = useRive({
-      src,
-      // Le runtime a déprécié `stateMachines` (pluriel) : une seule machine
-      // par fichier, nommée au singulier.
-      stateMachine: Array.isArray(stateMachines)
-        ? stateMachines[0]
-        : stateMachines,
-      autoplay,
-      onLoad: () => signaler(src, true),
-      onLoadError: () => signaler(src, false),
-    });
-    return createElement(RiveComponent);
-  }
-  return { Rive: RiveSignale };
+  return m;
 }
