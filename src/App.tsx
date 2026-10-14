@@ -1,4 +1,10 @@
-import { Suspense, lazy, useEffect, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useLayoutEffect,
+  type ReactNode,
+} from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import {
@@ -28,6 +34,7 @@ import { useReferentialRetry } from './hooks/useReferentialRetry';
 import { useReferentialWatch } from './hooks/useReferentialWatch';
 import { Layout } from './components/Layout';
 import { AppAnimation } from './animations/AppAnimation';
+import { libererRendu, retenirRendu } from './animations/transitions';
 import { useMotionLevel } from './animations/motion';
 import { HomeScreen } from './features/home/HomeScreen';
 import { DashboardScreen } from './features/dashboard/DashboardScreen';
@@ -103,6 +110,20 @@ const AccountScreen = lazy(async () => ({
 }));
 
 /**
+ * TANT QUE LE SQUELETTE EST LÀ, la transition de vue n'a pas encore son écran
+ * d'arrivée : elle attend que la page le remplace, au plus le délai de garde
+ * (`retenirRendu`, dans `animations/transitions.ts`). Sans cela, c'est le
+ * squelette qui glissait, et la page arrivait ensuite par-dessus.
+ */
+function RetenirLaPhoto() {
+  useLayoutEffect(() => {
+    retenirRendu();
+    return libererRendu;
+  }, []);
+  return null;
+}
+
+/**
  * La coquille reste à l'écran pendant le chargement : la frontière `Suspense`
  * est POSÉE SUR L'ÉLÉMENT de la route, pas autour des routes — sinon l'en-tête
  * et la barre basse disparaîtraient le temps d'un aller-retour réseau.
@@ -112,6 +133,7 @@ function ALaDemande({ children }: { children: ReactNode }) {
     <Suspense
       fallback={
         <div className="stack">
+          <RetenirLaPhoto />
           <SkeletonGroup label="Chargement de la page" lines={3} />
         </div>
       }

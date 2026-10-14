@@ -2835,11 +2835,29 @@ a.catch-up-primary:focus-visible {
 }
 
 /* L'entrée en cascade des écrans cède la place : la transition fait déjà
-   arriver l'écran, une seconde entrée le ferait bégayer. */
+   arriver l'écran, une seconde entrée le ferait bégayer.
+
+   L'ÉCRAN LUI-MÊME EN EST. `.screen` se remonte à chaque chemin et rejouait
+   `dwc-rise`, opacité 0 au départ : la page arrivait VIDE dans la transition et
+   ne se remplissait qu'en glissant (relevé du 14/10/2026 : opacité 0 à 30 ms,
+   1 à 270 ms). C'était le clignotement.
+
+   ET CE QUI EST ENTRÉ LE RESTE. À la fin de la transition, `transitions.ts`
+   marque ces éléments `data-entre`. Sans la marque, retirer `data-vt` leur
+   rendait leur animation, que le navigateur rejouait : tout le contenu
+   s'effaçait et revenait une seconde fois. Chaque sélecteur est repris tel
+   quel, marque en plus, pour l'emporter sur sa règle d'entrée
+   (`.screen > .stack > *` pèse plus lourd qu'un attribut seul). */
+html[data-vt] .screen,
 html[data-vt] .screen > .stack > *,
 html[data-vt] .list > li,
 html[data-vt] .limit-marker::before,
-html[data-vt] .limit-badge {
+html[data-vt] .limit-badge,
+html .screen[data-entre],
+html .screen > .stack > [data-entre],
+html .list > li[data-entre],
+html .limit-marker[data-entre]::before,
+html .limit-badge[data-entre] {
   animation: none;
 }
 
