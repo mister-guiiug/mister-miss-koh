@@ -32,11 +32,28 @@ interface Options {
 type DocumentAvecTransitions = Document & {
   startViewTransition?: (update: () => void | Promise<void>) => {
     finished: Promise<void>;
+    /** Absente des plus vieux navigateurs : d'où le `?.` plus bas. */
+    ready?: Promise<void>;
     skipTransition: () => void;
   };
 };
 
 let enCours: { skipTransition: () => void } | null = null;
+
+/**
+ * CE QUE L'ENTRÉE D'UN ÉCRAN ANIME, et que la transition fait taire (voir
+ * `styles.css`, « L'entrée en cascade des écrans cède la place »).
+ *
+ * Taire ne suffisait pas. La règle tient à `html[data-vt]` : quand la
+ * transition finit et que `data-vt` part, ces éléments RETROUVENT leur
+ * animation d'entrée, et le navigateur la rejoue. Relevé le 14/10/2026 sur le
+ * site, à chaque changement d'onglet : l'écran glissait, puis tout son contenu
+ * s'effaçait et revenait une seconde fois, « comme s'il se rechargeait ». Ce
+ * qui était à l'écran pendant la transition y est donc marqué ENTRÉ
+ * (`data-entre`), et le reste. Un élément monté après garde son entrée.
+ */
+const ENTREES =
+  '.screen, .screen > .stack > *, .list > li, .limit-marker, .limit-badge';
 
 /** La transition peut-elle jouer ici, maintenant ? */
 export function transitionPermise(essentielle = false): boolean {
@@ -67,9 +84,18 @@ function lancer(
   else delete html.dataset.vtSens;
   const t = (document as DocumentAvecTransitions).startViewTransition!(maj);
   enCours = t;
+  // UNE TRANSITION ABANDONNÉE REJETTE `ready`. Chassée par la suivante (deux
+  // onglets touchés vite), ou refusée par le navigateur (page masquée), elle
+  // laissait une promesse rejetée que personne n'attendait : « Uncaught (in
+  // promise) InvalidStateError », remontée à Sentry à chaque changement
+  // d'écran. L'écran, lui, change quand même : il n'y a rien à rattraper.
+  t.ready?.catch(() => undefined);
   const fin = () => {
     if (enCours !== t) return;
     enCours = null;
+    document.querySelectorAll<HTMLElement>(ENTREES).forEach(el => {
+      el.dataset.entre = '';
+    });
     delete html.dataset.vt;
     delete html.dataset.vtSens;
   };
@@ -102,15 +128,40 @@ export function avecTransition(
 
 let rendu: (() => void) | null = null;
 let avantPhoto: (() => void) | null = null;
+let retenues = 0;
 const GARDE_MS = 600;
 
-/** À appeler quand le nouvel écran est dans le DOM, avant qu'il soit peint. */
-export function signalerRendu(): void {
+/** Libère la photo de l'après, quoi qu'il reste à venir. */
+function photographier(): void {
   const r = rendu;
   rendu = null;
   avantPhoto?.();
   avantPhoto = null;
   r?.();
+}
+
+/** À appeler quand le nouvel écran est dans le DOM, avant qu'il soit peint. */
+export function signalerRendu(): void {
+  if (retenues > 0) return;
+  photographier();
+}
+
+/**
+ * UN ÉCRAN CHARGÉ À LA DEMANDE RETIENT LA PHOTO. À sa première visite,
+ * Réglages, Notes, Compte… rendent d'abord le squelette de leur `Suspense`.
+ * La coquille signalait le rendu à ce moment-là : la transition faisait glisser
+ * le squelette, puis la page arrivait par-dessus, et l'écran semblait se
+ * recharger. Tant qu'un squelette est monté (`retenirRendu`), le signal
+ * attend qu'il cède la place (`libererRendu`) ; le délai de garde, lui,
+ * libère quoi qu'il arrive : un réseau lent ne fige pas l'écran.
+ */
+export function retenirRendu(): void {
+  retenues += 1;
+}
+
+export function libererRendu(): void {
+  retenues = Math.max(0, retenues - 1);
+  if (retenues === 0) photographier();
 }
 
 export function naviguerAvecTransition(
@@ -138,7 +189,7 @@ export function naviguerAvecTransition(
         rendu = resolve;
         naviguer();
         window.setTimeout(() => {
-          if (rendu === resolve) signalerRendu();
+          if (rendu === resolve) photographier();
         }, GARDE_MS);
       }),
     options
