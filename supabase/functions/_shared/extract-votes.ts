@@ -393,12 +393,19 @@ export function extractVotes(
     }
   }
 
-  // Dernière colonne qui porte quelque chose d'un scrutin : au-delà, l'avenir.
+  // Dernière colonne qui NOMME quelqu'un ou porte une VOIX : au-delà, l'avenir.
+  //
+  // LE DÉCOMPTE SEUL NE COMPTE PAS. Les rédacteurs préparent la colonne de
+  // l'épisode suivant avant sa diffusion, et y écrivent déjà un décompte :
+  // « /12 » pour l'épisode 8 le 13/10/2026, « 0 » pour l'épisode 10 le
+  // 26/10/2026, personne d'éliminé, aucune voix. Compter ce décompte faisait de
+  // la colonne un tour à part entière, sans éliminé (`eliminé_absent`), donc
+  // ambigu : chaque semaine, le lot entier restait retenu, et les résultats
+  // des épisodes déjà diffusés avec lui.
   let lastMeaningful = 0;
   for (let c = 1; c < width; c += 1) {
     const eliminated = grid[rowEliminated][c]?.text ?? "";
-    const tally = grid[rowTally][c]?.text ?? "";
-    if (eliminated || tally || columnHasVote[c]) lastMeaningful = c;
+    if (eliminated || columnHasVote[c]) lastMeaningful = c;
   }
 
   const rounds: ExtractedRound[] = [];
@@ -479,6 +486,9 @@ export function extractVotes(
       derniereColonne = c;
       continue;
     }
+
+    // Une colonne préparée pour un épisode à venir : rien à lire, rien à dire.
+    if (c > lastMeaningful && !eliminated && !columnHasVote[c]) continue;
 
     const empty = !eliminated && !rawTally && !columnHasVote[c];
 

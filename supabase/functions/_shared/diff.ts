@@ -120,9 +120,19 @@ const DEFAULTS: Required<DiffOptions> = {
   today: null,
 };
 
-/** Une case où rien n'était encore écrit. */
+/**
+ * Une case où rien n'était encore écrit.
+ *
+ * `"unknown"` EN EST UNE. C'est ce que l'extraction écrit quand la source ne
+ * dit pas encore : le statut d'un collier trouvé mais pas joué, la nature d'une
+ * colonne qu'elle ne sait pas lire. Le jour où la source le dit, c'est une
+ * complétion. Relevé du 26/10/2026 : les colliers 8, 9 et 10 d'All Stars,
+ * joués à l'épisode 8, passaient pour des corrections rétroactives
+ * (« unknown » → « used ») et retenaient tout le lot.
+ */
 function isBlank(value: Json | undefined): boolean {
   return value === undefined || value === null || value === "" ||
+    value === "unknown" ||
     (Array.isArray(value) && value.length === 0);
 }
 
