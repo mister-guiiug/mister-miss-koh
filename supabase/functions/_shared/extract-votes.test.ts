@@ -799,3 +799,72 @@ Deno.test("13/10 : l'épisode 7 — l'arène, l'abandon, l'égalité, puis deux 
   // Tania, votée puis éliminée à l'arène le même soir : une seule sortie.
   assertEquals(ep7.filter((r) => r.eliminated === "Tania").length, 1);
 });
+
+// ── La page du 26/10/2026 (révision 240721383) ────────────────────────────
+//
+// Les rédacteurs préparent la colonne de l'épisode suivant avant sa diffusion,
+// décompte compris : le « 0 » de l'épisode 10 faisait un tour sans éliminé,
+// ambigu, et le lot entier (épisodes 8 et 9) restait retenu.
+
+Deno.test("une colonne préparée en fin de tableau, décompte écrit, est à venir", () => {
+  const grid = gridOf([
+    ["► Épisode", "9", "10"],
+    ["► Éliminé", "Vincent", ""],
+    ["► Votes", "2/3", "0"],
+    ["▼ Candidats", "Votes", "Votes"],
+    ["Lola", "Vincent", ""],
+    ["Ugo", "Vincent", ""],
+    ["Vincent", "Lola", ""],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assertEquals(out.rounds.map((r) => r.naturalKey), [`${SEASON}:e9:r1`]);
+  assertEquals(out.anomalies, []);
+});
+
+Deno.test("au MILIEU du tableau, un décompte sans éliminé reste une anomalie", () => {
+  const grid = gridOf([
+    ["► Épisode", "8", "9"],
+    ["► Éliminé", "", "Vincent"],
+    ["► Votes", "/12", "2/3"],
+    ["▼ Candidats", "Votes", "Votes"],
+    ["Lola", "", "Vincent"],
+    ["Ugo", "", "Vincent"],
+    ["Vincent", "", "Lola"],
+  ]);
+  const out = extractVotes(grid, SEASON);
+  assertEquals(
+    out.anomalies.map((a) => a.code).includes("eliminé_absent"),
+    true,
+    "un trou au milieu se dit, il ne s'efface pas",
+  );
+});
+
+const fixture1026 = await Deno.readTextFile(
+  new URL("./fixtures/all-stars-votes-2026-10-26.html", import.meta.url),
+);
+const real1026 = extractVotes(
+  parseTables(fixture1026).find((t) => looksLikeVotes(t.grid))!.grid,
+  SEASON,
+  undefined,
+  ARENES_1013,
+);
+
+Deno.test("26/10 : les épisodes 8 et 9 se lisent, l'épisode 10 attend", () => {
+  assertEquals(
+    real1026.rounds.filter((r) => (r.episodeNumber ?? 0) >= 8).map((r) => [
+      r.naturalKey,
+      r.kind,
+      r.eliminated,
+      r.rawTally,
+    ]),
+    [
+      [`${SEASON}:e8:r1`, "vote", "Yassin", "6/12"],
+      [`${SEASON}:e9:r1`, "linked", "Camille", "0"],
+      [`${SEASON}:e9:r2`, "vote", "Vincent", "6/10"],
+    ],
+  );
+  // Lola vote deux fois à l'épisode 8 : deux cellules sous un en-tête étendu.
+  const lola = real1026.votes.find((v) => v.naturalKey === `${SEASON}:e8:r1:Lola`);
+  assertEquals([lola?.target, lola?.weight], ["Vincent", 2]);
+  assertEquals(real1026.anomalies.filter((a) => a.code === "eliminé_absent"), []);
+});

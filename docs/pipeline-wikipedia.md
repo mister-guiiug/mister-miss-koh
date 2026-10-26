@@ -82,18 +82,19 @@ et les cellules manquantes valent `null`, jamais la chaîne vide.
 
 ## Modules
 
-| Fichier                 | Rôle                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `mediawiki.ts`          | Client API : révision par `pageid`, sections et HTML de CETTE révision, empreinte     |
-| `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), couleur des légendes, sans dépendance |
-| `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                              |
-| `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                           |
-| `parse-fr.ts`           | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation    |
-| `cross-check.ts`        | Recoupement des trois tableaux entre eux                                              |
-| `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable             |
-| `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement               |
-| `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées                 |
-| `extract-special.ts`    | Grille « Épreuves spéciales » → éliminations définitives à l'arène                    |
+| Fichier                 | Rôle                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| `mediawiki.ts`          | Client API : révision par `pageid`, sections et HTML de CETTE révision, empreinte       |
+| `html-table.ts`         | HTML → grille développée (`rowspan`/`colspan`), couleur des légendes, sans dépendance   |
+| `extract-votes.ts`      | Grille → tours, voix, statuts, anomalies                                                |
+| `extract-season.ts`     | Grilles → candidats et épisodes (dates, épreuves, conseils)                             |
+| `parse-fr.ts`           | Dates, âges, jours, décomptes, listes de noms — `null` plutôt qu'une approximation      |
+| `cross-check.ts`        | Recoupement des trois tableaux entre eux                                                |
+| `diff.ts`               | Extrait + référentiel → différences classées, et ce qui est automatisable               |
+| `catalogue.ts`          | Découverte des pages de saison par la catégorie, et leur enregistrement                 |
+| `extract-advantages.ts` | Grille → colliers d'immunité, détenteurs datés, statut, voix annulées                   |
+| `extract-special.ts`    | Grille « Épreuves spéciales » → éliminations définitives à l'arène                      |
+| `base-publiee.ts`       | Fiches du dernier lot publié → ce qui est vraiment en ligne (refus et attentes retirés) |
 
 Les pièges que les tests figent :
 
@@ -677,6 +678,23 @@ tours fantômes. La migration 0040 apprend à `publish_run` à les supprimer
 (il les refusait, et lisait même la suppression d'une voix dans un « après »
 toujours vide), à effacer le scrutin resté au rang d'un départ lié, et à
 ramener sur le vrai tour la sortie qui désignait le fantôme.
+
+## Ce qui est vraiment en ligne, et la colonne de l'épisode suivant
+
+Du 13/10 au 26/10/2026, aucun lot d'All Stars n'a été publié : les épisodes 8
+et 9 sont restés vides en ligne, alors que la source les donnait. Trois causes
+s'additionnaient, chacune suffisant à retenir le lot.
+
+| Cause                                                                     | Ce qu'on voyait                                                                                                                                                                      | Correctif                                                                                                                             |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| La base de comparaison tenait pour publié ce qu'un relecteur avait refusé | Le 13/10, le tour vide de l'épisode 8 a été rejeté, mais sa fiche est restée dans la base : le vrai tour (Yassin, 6/12) passait pour une correction rétroactive (`unknown` → `vote`) | `base-publiee.ts` : une différence non publiée du dernier lot garde sa fiche d'AVANT dans la base, ou n'y est pas si c'était un ajout |
+| La colonne préparée de l'épisode suivant                                  | Le « 0 » de l'épisode 10, sans éliminé ni voix, faisait un tour ambigu (`eliminé_absent`) chaque semaine                                                                             | Extraction 16 : au-delà de la dernière colonne qui nomme quelqu'un ou porte une voix, c'est l'avenir, décompte écrit ou non           |
+| `unknown` remplacé par une valeur connue                                  | Les colliers 8, 9 et 10, joués à l'épisode 8, passaient pour des corrections (`unknown` → `used`)                                                                                    | `isBlank` : `unknown` est une case vide, le remplir est une complétion                                                                |
+
+Rejeu hors base, révision publiée contre révision 240721383 : 39 différences
+dont 8 retenaient le lot, devenues 38 dont 35 certaines. Les trois qui restent
+sont de vraies corrections de données publiées (l'âge de Maxime, deux voix
+barrées de l'épisode 5) : elles demandent un humain, comme prévu.
 
 ## Les duos : autant que la source en dit, pas un de plus
 

@@ -1018,13 +1018,14 @@ Deno.test("23/09 : une différence par TRIBU porte sa couleur, les séjours rest
   assertEquals(e5r1?.payload.kind, "annulled", "le « / » de l'épisode 5 est une égalité");
 });
 
-Deno.test("la version d'extraction est la 15 : les pages figées sont rejouées", () => {
+Deno.test("la version d'extraction est la 16 : les pages figées sont rejouées", () => {
   // Sans ce changement de version, une page qui ne bouge plus répondrait
   // « révision déjà traitée ». En 14, c'était le vote double de Yassin resté
   // valeur inconnue ; en 15, les six saisons dont un vote double s'écrit en
   // deux cellules garderaient leur tour fantôme, et All Stars son épisode 4
-  // amputé de l'arène.
-  assertEquals(EXTRACTOR_VERSION, "15");
+  // amputé de l'arène ; en 16, la colonne préparée de l'épisode suivant
+  // retiendrait encore chaque lot.
+  assertEquals(EXTRACTOR_VERSION, "16");
 });
 
 // ── La récupération : une révision, une requête à la fois ─────────────────

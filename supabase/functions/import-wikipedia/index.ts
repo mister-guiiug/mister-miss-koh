@@ -31,6 +31,7 @@ import {
   type SourceDocument,
 } from "../_shared/import-run.ts";
 import type { Difference, IncomingRecord, StoredRecord } from "../_shared/diff.ts";
+import { basePubliee } from "../_shared/base-publiee.ts";
 import {
   type CataloguePage,
   type CataloguePort,
@@ -271,12 +272,33 @@ function makePort(admin: SupabaseClient): ImportPort {
         .eq("run_id", lastPublished.id)
         .in("entity", entities);
 
-      return (data ?? []).map((row) => ({
+      // CE QUE CE LOT N'A PAS ÉCRIT n'est pas en ligne : une différence
+      // refusée ou laissée en attente garde sa fiche d'AVANT dans la base
+      // (voir `base-publiee.ts`, et l'épisode 8 d'All Stars).
+      const { data: nonEcrites, error: erreurDiff } = await admin
+        .from("import_differences")
+        .select("entity, natural_key, before_value")
+        .eq("run_id", lastPublished.id)
+        .neq("status", "published")
+        .in("entity", entities);
+      if (erreurDiff) {
+        throw new Error(`différences du lot publié : ${erreurDiff.message}`);
+      }
+
+      const records = (data ?? []).map((row) => ({
         entity: row.entity,
         naturalKey: row.natural_key,
         payload: row.payload,
         published: true,
       })) as StoredRecord[];
+      return basePubliee(
+        records,
+        (nonEcrites ?? []).map((d) => ({
+          entity: d.entity,
+          naturalKey: d.natural_key,
+          beforeValue: d.before_value,
+        })),
+      );
     },
 
     async saveDifferences(runId, differences: readonly Difference[]) {

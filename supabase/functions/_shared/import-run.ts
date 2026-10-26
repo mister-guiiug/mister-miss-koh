@@ -120,8 +120,12 @@ export type RunStatus = "unchanged" | "diffed" | "failed";
  *      d'All Stars (13/10/2026) avait déplacé les deux : sans elles,
  *      l'épisode 4 publié semblait perdre quatre tours et l'épisode 6
  *      gagner un scrutin, et tout le lot restait retenu
+ * 16 : une colonne préparée pour l'épisode suivant (un décompte, personne
+ *      d'éliminé, aucune voix), en fin de tableau, est à venir et non un tour
+ *      sans éliminé. All Stars, 26/10/2026 : le « 0 » de l'épisode 10 retenait
+ *      le lot, et avec lui les épisodes 8 et 9
  */
-export const EXTRACTOR_VERSION = "15";
+export const EXTRACTOR_VERSION = "16";
 
 export interface SourceDocument {
   readonly id: string;

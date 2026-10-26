@@ -361,3 +361,28 @@ Deno.test("au-delà du plafond, la validation automatique ne prend rien du tout"
   const result = diffRecords([], after);
   assertEquals(autoValidatable(result, { enabled: true, maxAutoChanges: 5 }), []);
 });
+
+Deno.test("« unknown » est une case vide : la source qui le précise complète", () => {
+  // Les colliers 8, 9 et 10 d'All Stars, joués à l'épisode 8 (26/10/2026).
+  assert(completes("unknown", "used"));
+  assert(
+    completes(
+      {
+        status: "unknown",
+        playedEpisodeNumber: null,
+        holders: [{ name: "Clémentine", fromDay: 18, toDay: null }],
+      },
+      {
+        status: "used",
+        playedEpisodeNumber: 8,
+        holders: [
+          { name: "Clémentine", fromDay: 18, toDay: 21 },
+          { name: "Maxime", fromDay: null, toDay: null },
+        ],
+      },
+    ),
+  );
+  // L'inverse n'en est pas une : effacer ce qui était su.
+  assert(!completes("used", "unknown"));
+  assert(!completes("used", "not_used"));
+});
