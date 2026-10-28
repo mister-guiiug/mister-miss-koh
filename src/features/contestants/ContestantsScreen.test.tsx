@@ -135,7 +135,9 @@ describe('les tribus, à la limite anti-spoiler', () => {
     // La pastille est décorative : c'est le nom qui dit la tribu.
     const pastille = document.querySelector('.group-title .tribe-swatch');
     expect(pastille).toHaveAttribute('aria-hidden', 'true');
-    expect(pastille).toHaveStyle({ background: '#fee347' });
+    // `backgroundColor`, pas `background` : depuis jsdom 30.1.3, le raccourci calculé
+    // se rend en entier (« … none repeat scroll 0% 0% / auto … »), plus la seule couleur.
+    expect(pastille).toHaveStyle({ backgroundColor: '#fee347' });
   });
 
   it('le revenu est « en jeu » dans sa nouvelle tribu', () => {
