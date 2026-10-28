@@ -113,7 +113,9 @@ describe('une soirée de la saison aux tribus', () => {
     expect(carte).not.toHaveTextContent('binôme');
     const pastilles = carte!.querySelectorAll('.tribe-swatch');
     expect(pastilles).toHaveLength(2);
-    expect(pastilles[0]).toHaveStyle({ background: '#fc5d5d' });
+    // `backgroundColor`, pas `background` : depuis jsdom 30.1.3, le raccourci calculé
+    // se rend en entier (« … none repeat scroll 0% 0% / auto … »), plus la seule couleur.
+    expect(pastilles[0]).toHaveStyle({ backgroundColor: '#fc5d5d' });
   });
 
   it('la soirée se lit dans l’ordre de la source, pas dans celui des lignes', () => {
