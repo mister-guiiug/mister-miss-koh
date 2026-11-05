@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -106,5 +106,125 @@ describe('une note sur une fiche', () => {
 
     expect(screen.getByText('Suppression…')).toBeInTheDocument();
     expect(container.querySelector('.note[data-pending]')).not.toBeNull();
+  });
+});
+
+/**
+ * HORS CONNEXION, UNE NOTE NE PART PAS — ET L'ÉCRAN LE DIT AVANT LE GESTE.
+ *
+ * Une note vit sur le serveur et nulle part ailleurs. Le geste partait quand
+ * même, et l'échec revenait en notification brute : « création : aucune
+ * session » quand la session ne pouvait pas être relue, le texte d'une
+ * exception de navigateur sinon. Ces tests tiennent le motif clair, le bouton
+ * bloqué mais focusable, et la saisie qu'on ne perd pas.
+ */
+describe('hors connexion', () => {
+  const real = useNotesStore.getState();
+
+  function setOnline(value: boolean) {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => value,
+    });
+  }
+
+  afterEach(() => {
+    setOnline(true);
+    useNotesStore.setState({ create: real.create, remove: real.remove });
+  });
+
+  it('dit pourquoi, et bloque l’enregistrement sans perdre la saisie', async () => {
+    setOnline(false);
+    const create = vi.fn(() => Promise.resolve(note()));
+    useNotesStore.setState({ create });
+    const user = userEvent.setup();
+    renderNotes();
+
+    expect(
+      screen.getByText('Les notes demandent une connexion.')
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Ajouter une autre note' })
+    );
+    await user.type(
+      screen.getByPlaceholderText(/Ce que vous voulez retenir/),
+      'Belle remontée.'
+    );
+    const save = screen.getByRole('button', { name: 'Enregistrer' });
+    // Bloqué, pas retiré du parcours clavier : on peut découvrir pourquoi.
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+
+    await user.click(save);
+    await user.keyboard('{Control>}{Enter}{/Control}');
+
+    expect(create).not.toHaveBeenCalled();
+    expect(
+      screen.getByPlaceholderText(/Ce que vous voulez retenir/)
+    ).toHaveValue('Belle remontée.');
+  });
+
+  it('bloque la suppression', async () => {
+    setOnline(false);
+    const remove = vi.fn(() => Promise.resolve());
+    useNotesStore.setState({ remove });
+    const user = userEvent.setup();
+    renderNotes();
+
+    const trash = screen.getByRole('button', {
+      name: 'Supprimer cette note sur Laure',
+    });
+    expect(trash).toHaveAttribute('aria-disabled', 'true');
+    await user.click(trash);
+
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('une coupure pendant l’envoi se dit avec les mêmes mots', async () => {
+    // `navigator.onLine` reste vrai (portail captif, réseau tombé en route) :
+    // c'est l'échec qui révèle la coupure.
+    const create = vi.fn(() =>
+      Promise.reject(new Error('création : TypeError: Failed to fetch'))
+    );
+    useNotesStore.setState({ create });
+    const user = userEvent.setup();
+    renderNotes();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Ajouter une autre note' })
+    );
+    await user.type(
+      screen.getByPlaceholderText(/Ce que vous voulez retenir/),
+      'Belle remontée.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(
+      await screen.findByText('Les notes demandent une connexion.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+  });
+
+  it('un refus du serveur garde son propre message', async () => {
+    const create = vi.fn(() =>
+      Promise.reject(new Error('création : quota dépassé'))
+    );
+    useNotesStore.setState({ create });
+    const user = userEvent.setup();
+    renderNotes();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Ajouter une autre note' })
+    );
+    await user.type(
+      screen.getByPlaceholderText(/Ce que vous voulez retenir/),
+      'Belle remontée.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(
+      await screen.findByText('création : quota dépassé')
+    ).toBeInTheDocument();
   });
 });

@@ -40,6 +40,14 @@ interface Props {
   focusOnMount?: boolean;
   /** Une condition de plus pour enregistrer (une cible choisie, par exemple). */
   canSubmit?: boolean;
+  /**
+   * Enregistrer est impossible pour l'instant — hors connexion, une note ne
+   * peut pas partir (`useNotesGuard`). Le bouton reste FOCUSABLE
+   * (`aria-disabled`) et l'écran affiche le motif ; la saisie, elle, reste
+   * ouverte : un texte commencé hors connexion s'enregistre au retour du
+   * réseau sans être retapé.
+   */
+  blocked?: boolean;
   /** Rendu EN TÊTE du formulaire : le choix de la cible, quand il y en a un. */
   children?: ReactNode;
 }
@@ -56,6 +64,7 @@ export function NoteEditor({
   submitLabel = 'Enregistrer',
   focusOnMount = false,
   canSubmit = true,
+  blocked = false,
   children,
 }: Props) {
   const id = useId();
@@ -73,7 +82,9 @@ export function NoteEditor({
   const ready = body.trim().length > 0 && !busy && canSubmit;
 
   const submit = () => {
-    if (!ready) return;
+    // Ctrl+Entrée passe par ici sans cliquer le bouton : le blocage se
+    // vérifie donc aussi à cet endroit.
+    if (!ready || blocked) return;
     void onSubmit({
       title: title.trim() === '' ? null : title.trim(),
       body: body.trim(),
@@ -169,7 +180,13 @@ export function NoteEditor({
       </fieldset>
 
       <div className="filters">
-        <Button type="submit" size="sm" loading={busy} disabled={!ready}>
+        <Button
+          type="submit"
+          size="sm"
+          loading={busy}
+          disabled={!ready}
+          aria-disabled={blocked || undefined}
+        >
           {submitLabel}
         </Button>
         {onCancel && (
