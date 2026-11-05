@@ -5,6 +5,7 @@
  * Notes, sans rechargement.
  */
 import { useEffect } from 'react';
+import { useRetryWhenOnline } from '@mister-guiiug/dev-pwa-config/react/use-retry-when-online';
 import { useSession } from './useSession';
 import { useNotesStore } from '../store/useNotesStore';
 
@@ -19,11 +20,21 @@ export function useNotes() {
   useEffect(() => {
     if (!available) return;
     if (account) {
-      if (notes === null && !loading) void load();
+      // PAS APRÈS UN ÉCHEC : `loading` retombe aussitôt la lecture ratée, et
+      // cet effet la relançait sans fin — une requête après l'autre hors
+      // connexion, l'écran Notes qui clignotait. Le rattrapage est plus bas.
+      if (notes === null && !loading && error === null) void load();
     } else if (account === null && notes !== null) {
       reset();
     }
-  }, [available, account, notes, loading, load, reset]);
+  }, [available, account, notes, loading, error, load, reset]);
+
+  // Une lecture ratée repart au retour du réseau, une fois : le geste du
+  // socle, promu depuis le `useReferentialRetry` de cette app.
+  useRetryWhenOnline(
+    available && Boolean(account) && notes === null && error !== null,
+    load
+  );
 
   return { account, available, notes, loading, error };
 }

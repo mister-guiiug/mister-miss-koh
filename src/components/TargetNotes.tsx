@@ -18,6 +18,7 @@ import { useNotes } from '../hooks/useNotes';
 import { useNotesStore } from '../store/useNotesStore';
 import { useAppStore } from '../store/useAppStore';
 import { useUndo } from '../hooks/useUndo';
+import { notesFailure, useNotesGuard } from '../hooks/useNotesGuard';
 import { NoteEditor, type NoteValues } from './NoteEditor';
 
 interface Props {
@@ -57,6 +58,8 @@ export function TargetNotes({
   const restore = useNotesStore(s => s.restore);
   const toast = useToast();
   const askUndo = useUndo();
+  /** Hors connexion, une note ne s'écrit ni ne se supprime. */
+  const guard = useNotesGuard();
   const [writing, setWriting] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,7 +88,7 @@ export function TargetNotes({
       after();
       toast.success(done);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : String(cause));
+      toast.error(notesFailure(cause));
     } finally {
       setBusy(false);
     }
@@ -124,7 +127,7 @@ export function TargetNotes({
         });
       })
       .catch((cause: unknown) => {
-        toast.error(cause instanceof Error ? cause.message : String(cause));
+        toast.error(notesFailure(cause));
       })
       .finally(() => {
         setBusy(false);
@@ -134,6 +137,14 @@ export function TargetNotes({
 
   return (
     <section className="target-notes" aria-label={`Vos notes sur ${label}`}>
+      {/* Seulement là où un bouton est bloqué : une note affichée, ou un
+          formulaire ouvert. L'écran des épisodes porte un de ces blocs par
+          épisode diffusé, et répéter le motif sous chacun serait du bruit. */}
+      {guard.reason && (mine.length > 0 || writing) && (
+        <p role="status" className="notice">
+          {guard.reason}
+        </p>
+      )}
       {mine.length > 0 && (
         <ul className="list">
           {mine.map(note => (
@@ -152,6 +163,7 @@ export function TargetNotes({
                     onSubmit={values => submitEdit(note.id, values)}
                     onCancel={() => setEditing(null)}
                     busy={busy}
+                    blocked={!guard.allowed}
                     focusOnMount
                   />
                 </div>
@@ -187,8 +199,9 @@ export function TargetNotes({
                     size="sm"
                     iconOnly
                     disabled={busy}
+                    {...guard.disabledProps}
                     aria-label={`Supprimer cette note sur ${label}`}
-                    onClick={() => deleteNote(note)}
+                    onClick={guard.wrap(() => deleteNote(note))}
                   >
                     <Trash2 size={18} aria-hidden />
                   </Button>
@@ -204,6 +217,7 @@ export function TargetNotes({
           onSubmit={submitNew}
           onCancel={() => setWriting(false)}
           busy={busy}
+          blocked={!guard.allowed}
           focusOnMount
         />
       ) : (

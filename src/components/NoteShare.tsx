@@ -32,6 +32,7 @@ import {
 } from '@mister-guiiug/dev-pwa-config/share';
 import type { Note } from '../backend/notes';
 import { useNotesStore } from '../store/useNotesStore';
+import { notesFailure, useNotesGuard } from '../hooks/useNotesGuard';
 import { notesToText } from '../domain/notesExport';
 import { sharedUrl } from '../domain/sharing';
 import { NOTE_VISIBILITIES } from '../domain/visibility';
@@ -51,6 +52,8 @@ export function NoteShare({ note, about, heading }: Props) {
   const revokeLink = useNotesStore(s => s.revokeLink);
   const setVisibility = useNotesStore(s => s.setVisibility);
   const toast = useToast();
+  // Le motif s'affiche en tête de l'écran Notes, qui porte ce panneau.
+  const guard = useNotesGuard();
   const [busy, setBusy] = useState(false);
 
   const link =
@@ -69,7 +72,7 @@ export function NoteShare({ note, about, heading }: Props) {
       after?.();
       toast.success(done);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : String(cause));
+      toast.error(notesFailure(cause));
     } finally {
       setBusy(false);
     }
@@ -113,7 +116,9 @@ export function NoteShare({ note, about, heading }: Props) {
                 name={`visibilite-${note.id}`}
                 value={option.value}
                 checked={note.visibility === option.value}
-                disabled={busy}
+                // `disabled` natif ici, et non `aria-disabled` : un bouton
+                // radio marqué ainsi change quand même d'état au clic.
+                disabled={busy || !guard.allowed}
                 onChange={() =>
                   void run(
                     () => setVisibility(note.id, option.value),
@@ -148,9 +153,10 @@ export function NoteShare({ note, about, heading }: Props) {
             variant="ghost"
             size="sm"
             disabled={busy}
-            onClick={() =>
-              void run(() => revokeLink(link), 'Adresse révoquée.')
-            }
+            {...guard.disabledProps}
+            onClick={guard.wrap(
+              () => void run(() => revokeLink(link), 'Adresse révoquée.')
+            )}
           >
             <Link2Off size={16} aria-hidden />
             Révoquer l’adresse
@@ -164,20 +170,22 @@ export function NoteShare({ note, about, heading }: Props) {
               <Button
                 size="sm"
                 disabled={busy}
-                onClick={() =>
-                  void run(
-                    () => shareNote(note.id),
-                    'Adresse créée.',
-                    // `run` n'appelle ce rappel qu'une fois l'adresse obtenue :
-                    // le quota de vingt liens par heure lève, et un refus ne
-                    // doit pas compter comme un lien créé.
-                    () =>
-                      trackEvent(GESTES.CREATION, {
-                        objet: 'lien_partage',
-                        portee: 'note',
-                      })
-                  )
-                }
+                {...guard.disabledProps}
+                onClick={guard.wrap(
+                  () =>
+                    void run(
+                      () => shareNote(note.id),
+                      'Adresse créée.',
+                      // `run` n'appelle ce rappel qu'une fois l'adresse obtenue :
+                      // le quota de vingt liens par heure lève, et un refus ne
+                      // doit pas compter comme un lien créé.
+                      () =>
+                        trackEvent(GESTES.CREATION, {
+                          objet: 'lien_partage',
+                          portee: 'note',
+                        })
+                    )
+                )}
               >
                 <Link2 size={16} aria-hidden />
                 Obtenir une adresse

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -178,5 +178,43 @@ describe('une note déjà ouverte à la lecture', () => {
     renderScreen();
 
     expect(screen.getByText('par lien')).toBeInTheDocument();
+  });
+});
+
+describe('hors connexion', () => {
+  function setOnline(value: boolean) {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => value,
+    });
+  }
+
+  afterEach(() => setOnline(true));
+
+  it('dit une fois pourquoi, et bloque ce qui touche au serveur', async () => {
+    setOnline(false);
+    const user = userEvent.setup();
+    renderScreen();
+
+    expect(
+      screen.getAllByText('Les notes demandent une connexion.')
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: 'Supprimer la note sur Aël' })
+    ).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(screen.getByLabelText('Sélectionner la note sur Aël'));
+    const publish = bar().getByRole('button', {
+      name: 'Partager par un lien',
+    });
+    expect(publish).toHaveAttribute('aria-disabled', 'true');
+    await user.click(publish);
+    // Pas de confirmation pour une publication qui ne peut pas partir.
+    expect(screen.queryByText('Partager 1 note par un lien ?')).toBeNull();
+
+    // Envoyer un texte ou l'enregistrer en fichier ne touche pas au serveur :
+    // ces deux gestes restent permis.
+    await user.click(bar().getByRole('button', { name: 'Enregistrer' }));
+    expect(downloadText).toHaveBeenCalledTimes(1);
   });
 });

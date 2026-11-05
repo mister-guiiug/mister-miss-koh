@@ -70,6 +70,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useNotes } from '../../hooks/useNotes';
 import { useNotesStore } from '../../store/useNotesStore';
 import { useUndo } from '../../hooks/useUndo';
+import { notesFailure, useNotesGuard } from '../../hooks/useNotesGuard';
 import { NoteEditor, type NoteValues } from '../../components/NoteEditor';
 import { NoteShare } from '../../components/NoteShare';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
@@ -97,6 +98,8 @@ export function NotesScreen() {
   const revokeLink = useNotesStore(s => s.revokeLink);
   const toast = useToast();
   const askUndo = useUndo();
+  /** Hors connexion, rien de ce qui touche une note ne peut partir. */
+  const guard = useNotesGuard();
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState('');
   /** La note en cours de correction. */
@@ -167,7 +170,7 @@ export function NotesScreen() {
       after();
       toast.success(done);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : String(cause));
+      toast.error(notesFailure(cause));
     } finally {
       setBusy(false);
     }
@@ -200,7 +203,7 @@ export function NotesScreen() {
         });
       })
       .catch((cause: unknown) => {
-        toast.error(cause instanceof Error ? cause.message : String(cause));
+        toast.error(notesFailure(cause));
       })
       .finally(() => {
         setBusy(false);
@@ -326,6 +329,16 @@ export function NotesScreen() {
         là où la chose est sous vos yeux.
       </p>
 
+      {/* UNE FOIS, EN TÊTE : le motif vaut pour chaque bouton bloqué de
+          l'écran — écrire, corriger, supprimer, partager. Envoyer et
+          enregistrer une sélection restent permis : ils ne touchent pas au
+          serveur. */}
+      {guard.reason && (
+        <p role="status" className="notice">
+          {guard.reason}
+        </p>
+      )}
+
       <Card>
         <CardHeader title="Écrire une note" />
         <NoteEditor
@@ -333,6 +346,7 @@ export function NotesScreen() {
           onSubmit={submitNew}
           busy={busy}
           canSubmit={choice !== ''}
+          blocked={!guard.allowed}
         >
           <label className="field">
             <span>À propos de</span>
@@ -357,9 +371,12 @@ export function NotesScreen() {
         </NoteEditor>
       </Card>
 
-      {error && (
+      {/* Hors connexion, le motif du garde dit déjà pourquoi la liste
+          manque : l'erreur de lecture n'y ajouterait que le texte brut de
+          l'exception. */}
+      {error && guard.allowed && (
         <p role="alert" className="notice">
-          {error}
+          {notesFailure(error)}
         </p>
       )}
 
@@ -386,13 +403,15 @@ export function NotesScreen() {
               variant="ghost"
               size="sm"
               disabled={busy}
-              onClick={() =>
-                void run(
-                  () => revokeLink(collection),
-                  'Lien de collection révoqué.',
-                  () => undefined
-                )
-              }
+              {...guard.disabledProps}
+              onClick={guard.wrap(
+                () =>
+                  void run(
+                    () => revokeLink(collection),
+                    'Lien de collection révoqué.',
+                    () => undefined
+                  )
+              )}
             >
               <Link2Off size={16} aria-hidden />
               Révoquer
@@ -419,7 +438,12 @@ export function NotesScreen() {
             <Download size={16} aria-hidden />
             Enregistrer
           </Button>
-          <Button size="sm" disabled={busy} onClick={() => setToPublish(true)}>
+          <Button
+            size="sm"
+            disabled={busy}
+            {...guard.disabledProps}
+            onClick={guard.wrap(() => setToPublish(true))}
+          >
             <Share2 size={16} aria-hidden />
             Partager par un lien
           </Button>
@@ -481,6 +505,7 @@ export function NotesScreen() {
                       }
                       onCancel={() => setEditing(null)}
                       busy={busy}
+                      blocked={!guard.allowed}
                       focusOnMount
                     />
                   </div>
@@ -566,8 +591,9 @@ export function NotesScreen() {
                       size="sm"
                       iconOnly
                       disabled={busy}
+                      {...guard.disabledProps}
                       aria-label={`Supprimer la note sur ${about}`}
-                      onClick={() => deleteNote(note, about)}
+                      onClick={guard.wrap(() => deleteNote(note, about))}
                     >
                       <Trash2 size={18} aria-hidden />
                     </Button>
