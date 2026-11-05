@@ -8,6 +8,7 @@ import { formatDate } from '@mister-guiiug/dev-pwa-config/format';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { UpdateButton } from '@mister-guiiug/dev-pwa-config/react/update-button';
 import { ConsentSection } from '@mister-guiiug/dev-pwa-config/react/consent-section';
+import { PrivacyNotice } from '@mister-guiiug/dev-pwa-config/react/privacy-notice';
 import { currentAppUrl } from '@mister-guiiug/dev-pwa-config/share';
 import { ShareLinkPanel } from '../../components/ShareLinkPanel';
 import { PhotosExport } from '../../components/PhotosExport';
@@ -507,6 +508,7 @@ export function SettingsScreen() {
           `[data-dwc='card'] { display: flex }` de `styles.css` l’emporterait
           sur un utilitaire. */}
       <Card className="empty:hidden!">
+        <PrivacyNotice env={import.meta.env} headingLevel={3} />
         <ConsentSection
           posthogKey={import.meta.env.VITE_POSTHOG_KEY}
           loader={() => import('posthog-js/dist/module.slim.js')}
