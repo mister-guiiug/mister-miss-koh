@@ -59,6 +59,25 @@ describe('le compte rangé sur l’appareil', () => {
     expect(compteRange()).toEqual({ id: UID, email: null });
   });
 
+  it('est celui de CE projet, jamais celui d’une autre app de la même origine', () => {
+    // Toute la famille partage le `localStorage`. La copie d'avant prenait la
+    // première case `sb-*` venue : ici, celle de l'autre app.
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://oqldfzrsandcguajyxbh.supabase.co');
+    localStorage.setItem(
+      'sb-uneautreapp-auth-token',
+      JSON.stringify({
+        access_token: 'a',
+        refresh_token: 'r',
+        expires_at: 1,
+        user: { id: 'soeur' },
+      })
+    );
+    expect(compteRange()).toBeNull();
+    ranger({ id: UID });
+    expect(compteRange()).toEqual({ id: UID, email: null });
+    vi.unstubAllEnvs();
+  });
+
   it('ignore les cases voisines de Supabase', () => {
     localStorage.setItem(`${CASE_SUPABASE}-code-verifier`, '"verifieur"');
     expect(compteRange()).toBeNull();
