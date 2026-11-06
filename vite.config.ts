@@ -7,7 +7,12 @@ import { readFileSync } from 'node:fs';
 import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
-import { NAVIGATE_FALLBACK_DENY_FILES } from '@mister-guiiug/dev-pwa-config/vite-pwa';
+import {
+  NAVIGATE_FALLBACK_DENY_FILES,
+  SENTRY_CHUNK,
+  sentryChunkFileNames,
+  sentryGlobIgnores,
+} from '@mister-guiiug/dev-pwa-config/vite-pwa';
 import { FAMILY_ORIGIN } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 // LA COULEUR DE LA BARRE VIENT DE L'APPLICATION, pas d'un littéral recopié
 // ici. Trois endroits la déclaraient et ne disaient pas la même chose ; c'est
@@ -116,7 +121,7 @@ export default defineConfig(({ command }) => {
             // analysable. Sans cette ligne il tomberait dans `vendor`, qui
             // est PRÉCHARGÉ : mesuré sur miss-uwh, 381,9 kB préchargés au
             // lieu de 227,2 — pour un total gzip identique à 0,1 kB près.
-            if (norm.includes('/@sentry/')) return 'sentry';
+            if (norm.includes('/@sentry/')) return SENTRY_CHUNK;
             // ET POSTHOG POUR LA MÊME RAISON, EN PLUS GRAVE. Sentry préchargé
             // coûtait du poids ; PostHog préchargé casse une PROMESSE : l'ADR
             // 0012 dit que rien n'est chargé avant l'accord, et le socle ne
@@ -163,31 +168,8 @@ export default defineConfig(({ command }) => {
               return 'tailwind';
             return 'vendor';
           },
-          /*
-           * LE MORCEAU SENTRY GARDE SON NOM, SANS EMPREINTE — parce qu'il est le
-           * seul que l'entrée référence en restant HORS du précache
-           * (`globIgnores` plus bas), et qu'une URL empreintée y meurt à chaque
-           * déploiement.
-           *
-           * Le service worker sert la coquille précachée jusqu'à ce que
-           * l'utilisateur accepte la mise à jour ; cette coquille demande
-           * l'ANCIENNE empreinte, que le déploiement suivant a supprimée de
-           * `assets/`. Mesuré en production sur mister-qowa le 22/09/2026 :
-           * HTTP 404, « Échec du chargement pour le module » dans la console.
-           * `initSentry` avale l'échec (son `try/catch`), donc l'application ne
-           * casse pas — elle rapporte simplement ses erreurs à personne, sans le
-           * dire.
-           *
-           * Rien n'est perdu au cache : GitHub Pages répond
-           * `Cache-Control: max-age=600` sur TOUS les fichiers, empreinte ou pas.
-           *
-           * `pwa-doctor` tient l'invariant depuis le socle 6.8
-           * (`chunk-hors-precache`) : il nommait bien `sentry-DTNGYk5i.js` ici.
-           */
-          chunkFileNames: chunk =>
-            chunk.name === 'sentry'
-              ? 'assets/sentry.js'
-              : 'assets/[name]-[hash].js',
+          // Le morceau Sentry, nom sans empreinte : socle (`vite-pwa`, 6.32.0).
+          chunkFileNames: sentryChunkFileNames,
         },
       },
     },
@@ -213,7 +195,7 @@ export default defineConfig(({ command }) => {
         // l'accord serait refusée par la politique — et l'échec ne se verrait
         // qu'en console, sur le site déployé, une fois le consentement donné.
         analytics: true,
-        connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
+        connectSrc: ["'self'"],
         // Le moteur Rive est un WebAssembly : sans `'wasm-unsafe-eval'`, la
         // CSP en refuse la compilation et l'animation retombe sur sa marque.
         // Ce mot-clé n'ouvre PAS `eval` au JavaScript — seulement la
@@ -228,21 +210,8 @@ export default defineConfig(({ command }) => {
         includeAssets: ['favicon.svg', 'robots.txt'],
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
-          /*
-           * LE MORCEAU SENTRY HORS DU PRÉCACHE, sans quoi le découpage ne servirait
-           * à rien : Workbox ramasse TOUT le JS émis, `import()` ou pas. Mesuré le
-           * 16/09/2026 sur la production de deux apps du parc, 345 et 463 KiB de SDK
-           * téléchargés par chaque visiteur, sans qu'aucun DSN soit posé.
-           *
-           * Hors précache, il part au premier `initSentry` réussi, et jamais si
-           * l'observabilité reste éteinte : rapporter une erreur demande le réseau.
-           *
-           * Le motif accepte les DEUX formes de nom. Le fichier s'appelle
-           * désormais `sentry.js`, sans empreinte (cf. `chunkFileNames` plus
-           * haut) ; `sentry-*` reste accepté pour qu'un retour de l'empreinte ne
-           * fasse pas entrer le SDK dans le précache sans que rien ne le signale.
-           */
-          globIgnores: ['**/sentry.js', '**/sentry-*.js'],
+          // Le morceau Sentry hors du précache : socle (`vite-pwa`, 6.32.0).
+          globIgnores: sentryGlobIgnores(),
           // Les fichiers Rive sont volumineux et facultatifs : mis en cache à
           // la première lecture, jamais préchargés.
           runtimeCaching: [
