@@ -1612,6 +1612,17 @@ a[data-dwc='button'][aria-current='page'] {
   font-size: var(--text-sm);
 }
 
+/* LE LIEN DE LA MENTION EST SOULIGNÉ. Le preflight de Tailwind retire le
+   soulignement de tous les liens, et la couleur seule ne suffit pas à le
+   distinguer : orange sur gris, le contraste avec le texte qui l'entoure
+   tombe à 1,03:1 en clair et 1,02:1 en sombre, pour 3:1 exigés (WCAG 1.4.1,
+   règle axe `link-in-text-block`, relevée par `e2e/a11y.spec.ts`). Au milieu
+   d'une phrase, un lien qu'on ne voit pas est un lien qu'on ne suit pas. */
+.home-intro a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 /* ── Le pied de page, sur UNE ligne de téléphone ──────────────────────────
    « Code source », « M'offrir un café » et « Signaler un problème »
    demandaient 376 px à 13 px, pour 361 de large sur un écran de 393 : le

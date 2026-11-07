@@ -25,12 +25,15 @@ jobs:
       # passage ne coûte donc rien ici, et il interdit la prochaine régression
       # au lieu de l'inscrire dans un journal que personne ne lit.
       doctor-strict: true
-      # Aucune suite Playwright ici : `@playwright/test` n'est pas installé et
-      # le dépôt ne contient pas une seule spec (relevé du 19/09/2026). Il n'y
-      # a donc rien à jouer — et le réutilisable ferait échouer le job plutôt
-      # que de sortir vert sur zéro test. À repasser à `true` le jour où une
-      # suite `e2e/` existe.
-      run-e2e: false
+      # La suite `e2e/` tourne sur le build de production, backend LOCAL : sans
+      # variable Supabase, l'app sert son référentiel de démonstration. Aucun
+      # secret, aucune base, aucun réseau — rien à passer ici. Le filtre reste
+      # le défaut du socle (`@critical|@a11y`) : les deux specs sont taguées.
+      run-e2e: true
+      # Sur le bureau ET sur un téléphone : on suit la saison canapé, écran de
+      # poche en main. `mobile-chrome` réutilise Chromium, rien de plus à
+      # installer.
+      e2e-project: chromium mobile-chrome
       # Second avis TypeScript 7, NON BLOQUANT. La 6 reste la référence : c'est
       # elle que typescript-eslint résout, et il refuse la 7.0 par une assertion
       # à l'import. Le jour où typescript-eslint#10940 se ferme, cette entrée
