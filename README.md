@@ -28,6 +28,11 @@ favoris et partage révocable.
 > vrai, à corriger trois défauts de la publication : voir
 > [docs/pipeline-wikipedia.md](./docs/pipeline-wikipedia.md#trois-défauts-que-seule-la-publication-pouvait-révéler).
 
+## Guides
+
+- [Les règles de Koh-Lanta](https://mister-guiiug.github.io/mister-miss-koh/regles-de-koh-lanta.html)
+- [Suivre Koh-Lanta sans spoiler](https://mister-guiiug.github.io/mister-miss-koh/suivre-koh-lanta-sans-spoiler.html)
+
 ## Ce que c'est, et ce que ce n'est pas
 
 Un outil **non officiel**, sans lien avec les ayants droit de l'émission. Les
