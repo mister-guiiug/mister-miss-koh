@@ -1,7 +1,8 @@
 ---
 title: Les règles de Koh-Lanta expliquées : épreuves, conseil, finale
-description: Les règles de Koh-Lanta sans spoiler : tribus, épreuves de confort et d'immunité, conseil et votes, colliers, réunification, orientation, poteaux et jury final.
+description: Les règles de Koh-Lanta sans spoiler : tribus, épreuves, conseil, colliers, réunification, orientation, poteaux, et combien de membres compte le jury final.
 date: 2026-09-29
+updated: 2026-11-23
 answer: Dans Koh-Lanta, des tribus s'affrontent dans des épreuves de confort et d'immunité ; la tribu qui perd l'immunité élimine l'un des siens au conseil, par un vote secret. Après la réunification, le jeu devient individuel. En finale, l'orientation puis les poteaux désignent deux finalistes, et le jury final, formé d'éliminés, élit le gagnant.
 ---
 
@@ -63,6 +64,8 @@ Quand il ne reste que quatre aventuriers, parfois cinq, la finale commence :
 2. **l'épreuve des poteaux** : les finalistes tiennent en équilibre sur un poteau planté dans le sable ou dans l'eau, dont la plate-forme se réduit peu à peu. Le dernier debout gagne sa place face au jury, et choisit qui l'y accompagne ;
 3. **le jury final** : les aventuriers éliminés après la réunification, à quelques exceptions près, interrogent les deux finalistes, puis votent pour le gagnant. L'urne est scellée, et le dépouillement a lieu en direct à Paris, plusieurs mois après le tournage.
 
+**Combien de jurés ?** Le nombre n'est pas fixe : il dépend du nombre d'aventuriers éliminés après la réunification, et des exceptions de la saison (abandons, retours, éliminés exclus du jury). Les dernières saisons en ont compté **11 ou 13** : 11 en 2024 (« Les Chasseurs d'immunité ») et en 2025 (« La Revanche des 4 terres »), 13 en 2026. Un nombre impair évite l'égalité entre les deux finalistes.
+
 Le vainqueur remporte 100 000 euros.
 
 ## Comment Mister & Miss Koh vous aide
@@ -88,6 +91,10 @@ Remis au présentateur après les votes et avant le dépouillement, il annule to
 
 Le jury final, formé des aventuriers éliminés après la réunification, à quelques exceptions près. Les votes sont dépouillés en direct, des mois après le tournage.
 
+### Combien de membres compte le jury final de Koh-Lanta ?
+
+Cela varie selon les saisons : 11 jurés en 2024 et en 2025, 13 en 2026. Ce sont, à quelques exceptions près, les aventuriers éliminés après la réunification ; leur nombre dépend donc du déroulement de la saison.
+
 ### Combien gagne le vainqueur de Koh-Lanta ?
 
 100 000 euros.
@@ -97,4 +104,7 @@ Le jury final, formé des aventuriers éliminés après la réunification, à qu
 Attention : l'article de Wikipédia sur Koh-Lanta cite des résultats de saisons. Ouvrez-le une fois à jour.
 
 - [Wikipédia : Koh-Lanta](https://fr.wikipedia.org/wiki/Koh-Lanta)
+- [Ozap : le vote du jury final de Koh-Lanta 2024, Les Chasseurs d'immunité (11 votants)](https://www.ozap.com/actu/-koh-lanta-2024-decouvrez-le-vote-des-membres-du-jury-final-de-l-edition-les-chasseurs-d-immunite/644253) — attention, cite le résultat
+- [Ozap : le vote du jury final de Koh-Lanta 2025, La Revanche des 4 terres (11 votants)](https://www.ozap.com/actu/koh-lanta-2025-decouvrez-le-vote-des-membres-du-jury-final-de-l-edition-la-revanche-des-4-terres-sur-tf1/650537) — attention, cite le résultat
+- [Ozap : le vote du jury final de Koh-Lanta 2026 (13 votants)](https://www.ozap.com/actu/koh-lanta-2026-clarisse-ou-cynthia-pour-qui-ont-vote-les-membres-du-jury-final/655729) — attention, cite le résultat
 - [Wikipedia, en anglais : Survivor, le format d'origine](https://en.wikipedia.org/wiki/Survivor_%28franchise%29)
