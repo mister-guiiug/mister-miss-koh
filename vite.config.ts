@@ -10,6 +10,7 @@ import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
 import {
   NAVIGATE_FALLBACK_DENY_FILES,
   SENTRY_CHUNK,
+  isOnDemandSocleModule,
   sentryChunkFileNames,
   sentryGlobIgnores,
 } from '@mister-guiiug/dev-pwa-config/vite-pwa';
@@ -116,6 +117,10 @@ export default defineConfig(({ command }) => {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return;
+            // Les modules du socle chargés à la demande (analytics-erreurs,
+            // analytics-url…) restent hors de `vendor`, qui est PRÉCHARGÉ :
+            // le socle en tient la liste (`isOnDemandSocleModule`, 6.39.0).
+            if (isOnDemandSocleModule(id)) return;
             const norm = id.replace(/\\/g, '/');
             // Sentry est chargé par un `import()` que `loader` rend
             // analysable. Sans cette ligne il tomberait dans `vendor`, qui
@@ -130,11 +135,6 @@ export default defineConfig(({ command }) => {
             // téléchargée chez un visiteur qui refuse. C'est `preloadGzipKb`
             // qui le voit, jamais le total.
             if (norm.includes('/posthog-js/')) return 'posthog';
-            // LE MODULE DES ERREURS POSTHOG DU SOCLE (6.38.0) reste hors de
-            // `vendor` : il n'est importé qu'à la demande, si l'app fournit
-            // `errorTrackingLoader`. Rangé dans `vendor`, il serait PRÉCHARGÉ
-            // chez tous les visiteurs, option activée ou non (1,8 kB gzip).
-            if (norm.includes('/dev-pwa-config/analytics-erreurs')) return;
             if (
               norm.includes('/vite-plugin-pwa/') ||
               norm.includes('/workbox-')
